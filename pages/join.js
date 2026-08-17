@@ -25,7 +25,7 @@ export default function Join() {
     setLoading(false)
 
     if (!res.ok) {
-      setError(json.error || 'Join failed')
+      setError(json.error || 'Could not join lobby')
       return
     }
 
@@ -42,38 +42,51 @@ export default function Join() {
   }
 
   return (
-    <main className="page dossier-page">
-      <div className="card dossier-card">
+    <main className="page form-page">
+      <div className="form-card">
         <Link href="/" className="back-link">← Back</Link>
-        <div className="section-heading">
-          <span className="hud-label">Election access</span>
-          <h2>Join an existing table</h2>
-        </div>
-        <p className="subtitle">Enter the six-character code and register the name you want on the ballot.</p>
-        <form onSubmit={handleJoin} className="form">
-          <label>
-            Election code
+
+        <span className="label">Join game</span>
+        <h2>Enter an election</h2>
+        <p className="sub">Enter the 6-character code your host shared and register your name.</p>
+
+        <form onSubmit={handleJoin} className="form-fields">
+          <div className="field">
+            <label htmlFor="code">Election code</label>
             <input
+              id="code"
+              className="input mono"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="ABC123"
               maxLength={6}
               required
+              autoFocus
+              style={{ letterSpacing: '0.2em', fontSize: 18 }}
             />
-          </label>
-          <label>
-            Candidate name
+          </div>
+
+          <div className="field">
+            <label htmlFor="nickname">Candidate name</label>
             <input
+              id="nickname"
+              className="input"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Enter candidate name"
+              placeholder="e.g. Rivera"
               maxLength={20}
               required
             />
-          </label>
+          </div>
+
           {error && <p className="error">{error}</p>}
-          <button type="submit" className="btn btn-primary" disabled={loading || !code.trim() || !nickname.trim()}>
-            {loading ? 'Joining…' : 'Join Lobby'}
+
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={loading || !code.trim() || !nickname.trim()}
+          >
+            {loading ? 'Joining…' : 'Join lobby'}
           </button>
         </form>
       </div>

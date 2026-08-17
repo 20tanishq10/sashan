@@ -1,92 +1,80 @@
-import { SETTING_NAME, MAX_ROUNDS, SCORING_CHECKPOINT_ROUNDS } from '../lib/game/constants'
+import { MAX_ROUNDS, SCORING_CHECKPOINT_ROUNDS } from '../lib/game/constants'
 import { getStandings } from '../lib/game/scoring'
 
 export default function GameHUD({ gameState, players, myPlayerId, actionPoints }) {
+  const standings = getStandings(gameState, players)
   const current = players.find((p) => p.id === gameState?.current_turn_player_id)
   const isMyTurn = gameState?.current_turn_player_id === myPlayerId
-  const standings = getStandings(gameState, players)
   const isOver = gameState?.phase === 'finished'
-  const leader = standings[0]
-  const myStanding = standings.findIndex((s) => s.playerId === myPlayerId)
-
   const round = gameState?.round || 1
   const isCheckpoint = SCORING_CHECKPOINT_ROUNDS.includes(round)
   const lastEvent = gameState?.board_state?.lastEventCard
 
   return (
-    <div className="game-hud">
-      <div className="hud-topline">
-        <span className="hud-label">Campaign Setting</span>
-        <span className="hud-seal">Election Dossier</span>
-      </div>
+    <div className="panel">
+      {/* Top meta row */}
+      <div className="hud-meta">
+        <span className="label" style={{ marginBottom: 0 }}>Round {round} / {MAX_ROUNDS}</span>
 
-      <div className="hud-row hud-row-main">
-        <div className="hud-title-block">
-          <p className="setting-name">{SETTING_NAME}</p>
-          <h2>National Election Board</h2>
-          <p className="hud-subtitle">
-            Round {round} of {MAX_ROUNDS}
-          </p>
-        </div>
-        <div className="hud-stats">
-          <span className="stat">
-            <strong>{actionPoints ?? '—'}</strong> AP
+        {!isOver && (
+          <span className={`pill ${isMyTurn ? 'pill--green' : 'pill--default'}`}>
+            {isMyTurn ? 'Your turn' : `${current?.nickname || '…'}'s turn`}
           </span>
-          {!isOver && (
-            <span className={`turn-badge ${isMyTurn ? 'your-turn' : ''}`}>
-              {isMyTurn
-                ? 'You hold the floor'
-                : `${current?.nickname || '…'} holds the floor`}
-            </span>
-          )}
-          {isOver && <span className="turn-badge finished">Polls closed</span>}
-          {isCheckpoint && !isOver && (
-            <span className="checkpoint-badge">Scoring checkpoint</span>
-          )}
-        </div>
+        )}
+
+        {isOver && <span className="pill pill--accent">Polls closed</span>}
+
+        {actionPoints != null && !isOver && (
+          <span className="pill pill--accent">{actionPoints} AP</span>
+        )}
+
+        {isCheckpoint && !isOver && (
+          <span className="checkpoint-badge">Checkpoint</span>
+        )}
       </div>
 
-      {/* Event card banner — shown for the round the event fired */}
+      {/* Event banner */}
       {lastEvent && (
-        <div className="event-banner" role="status">
-          <span className="event-banner-label">National event</span>
+        <div className="event-banner">
+          <span className="label label--amber" style={{ marginBottom: 2 }}>National event</span>
           <strong>{lastEvent.name}</strong>
           <p>{lastEvent.description}</p>
         </div>
       )}
 
-      <div className="campaign-strip">
-        <div className="campaign-card">
-          <span className="hud-label">Front-runner</span>
-          <strong>{leader?.nickname || '—'}</strong>
-          <span>{leader?.total ?? 0} support</span>
+      {/* Key stats */}
+      <div className="hud-body">
+        <div className="hud-stat">
+          <span className="hud-stat-label">Leader</span>
+          <span className="hud-stat-value">{standings[0]?.nickname || '—'}</span>
+          <span className="hud-stat-sub">{standings[0]?.total ?? 0} pts</span>
         </div>
-        <div className="campaign-card">
-          <span className="hud-label">Your position</span>
-          <strong>{myStanding >= 0 ? `#${myStanding + 1}` : '—'}</strong>
-          <span>
-            {isMyTurn ? 'Your coalition can move now' : 'Await your speaking window'}
+        <div className="hud-stat">
+          <span className="hud-stat-label">Your rank</span>
+          <span className="hud-stat-value">
+            {myPlayerId ? `#${(standings.findIndex((s) => s.playerId === myPlayerId) + 1) || '—'}` : '—'}
           </span>
+          <span className="hud-stat-sub">{isMyTurn ? 'Your turn' : 'Waiting'}</span>
         </div>
-        <div className="campaign-card">
-          <span className="hud-label">Active chair</span>
-          <strong>{current?.nickname || '—'}</strong>
-          <span>{isOver ? 'Final count underway' : 'Setting the tone this turn'}</span>
+        <div className="hud-stat">
+          <span className="hud-stat-label">Active</span>
+          <span className="hud-stat-value">{current?.nickname || '—'}</span>
+          <span className="hud-stat-sub">{isOver ? 'Game over' : 'Holds the floor'}</span>
         </div>
       </div>
 
-      <div className="standings">
-        <h4>National standings</h4>
-        <ol>
-          {standings.map((s, i) => (
-            <li key={s.playerId} className={s.playerId === myPlayerId ? 'highlight' : ''}>
-              <span>
-                {i + 1}. {s.nickname}
-              </span>
-              <span>{s.total} pts</span>
-            </li>
-          ))}
-        </ol>
+      {/* Standings */}
+      <div className="standings-list">
+        {standings.map((s, i) => (
+          <div
+            key={s.playerId}
+            className={`standings-row${s.playerId === myPlayerId ? ' is-me' : ''}`}
+          >
+            <span className="standings-rank">{i + 1}</span>
+            <span className="standings-name">{s.nickname}</span>
+            <span className="standings-pts">{s.total}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

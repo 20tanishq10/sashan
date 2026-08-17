@@ -9,13 +9,14 @@ import PlayerHand from '../../components/PlayerHand'
 import GameLog from '../../components/GameLog'
 import AlliancePanel from '../../components/AlliancePanel'
 import EndGameSummary from '../../components/EndGameSummary'
+import { RulebookModal } from '../../components/Rulebook'
 import { getStandings } from '../../lib/game/scoring'
 
 export default function GameRoom() {
   const router = useRouter()
   const { code } = router.query
 
-  const [player, setPlayer] = useState(null)       // { playerId, sessionToken, nickname, … }
+  const [player, setPlayer] = useState(null)
   const [isSpectator, setIsSpectator] = useState(false)
   const [gameState, setGameState] = useState(null)
   const [players, setPlayers] = useState([])
@@ -26,6 +27,7 @@ export default function GameRoom() {
   const [reconnecting, setReconnecting] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [rulebookOpen, setRulebookOpen] = useState(false)
 
   // ── Fetch full game state ─────────────────────────────────────────────────
 
@@ -233,8 +235,8 @@ export default function GameRoom() {
   if (loading) {
     return (
       <main className="page game-page">
-        <div className="card">
-          <p>{reconnecting ? 'Reconnecting to the campaign…' : 'Assembling the election board…'}</p>
+        <div className="card card--sm">
+          <p className="muted">{reconnecting ? 'Reconnecting…' : 'Loading game…'}</p>
         </div>
       </main>
     )
@@ -243,11 +245,9 @@ export default function GameRoom() {
   if (error && !gameState) {
     return (
       <main className="page game-page">
-        <div className="card">
-          <p className="error">{error}</p>
-          <Link href="/" className="btn btn-secondary">
-            Return home
-          </Link>
+        <div className="card card--sm">
+          <p className="error" style={{ marginBottom: 16 }}>{error}</p>
+          <Link href="/" className="btn btn--ghost">Return home</Link>
         </div>
       </main>
     )
@@ -260,11 +260,10 @@ export default function GameRoom() {
       <div className="game-layout">
         <div className="game-main">
 
-          {/* Spectator badge */}
           {isSpectator && (
-            <div className="spectator-badge" role="status">
+            <div className="spectator-bar" role="status">
               <span className="spectator-dot" aria-hidden="true" />
-              Spectating — you are watching this election live
+              Spectating — watching live
             </div>
           )}
 
@@ -281,32 +280,24 @@ export default function GameRoom() {
             highlightPlayerId={isSpectator ? null : player?.playerId}
           />
 
-          {/* End-game: full summary replaces the old banner */}
-          {isOver && (
-            <EndGameSummary summary={summary} myPlayerId={player?.playerId} />
-          )}
+          {isOver && <EndGameSummary summary={summary} myPlayerId={player?.playerId} />}
 
           {error && <p className="error">{error}</p>}
 
-          {/* Active player controls — hidden for spectators */}
           {!isSpectator && !isOver && isMyTurn && (
-            <div className="turn-actions chamber-card">
-              <div>
-                <span className="hud-label">Floor action</span>
-                <h4>Close this speaking window</h4>
-                <p className="board-copy">
-                  {ap > 0
-                    ? `You still have ${ap} AP. Play a card, rally a zone, or yield the floor when your move is complete.`
-                    : 'You are out of AP. Yield the floor to move the election to the next campaign.'}
-                </p>
-              </div>
+            <div className="turn-bar">
+              <p>
+                {ap > 0
+                  ? `You have ${ap} AP left — play a card, hold a rally, or yield.`
+                  : 'No AP remaining — yield the floor.'}
+              </p>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn--primary"
                 disabled={actionLoading}
                 onClick={() => sendAction({ type: 'end_turn' })}
               >
-                Yield the floor
+                Yield floor
               </button>
             </div>
           )}
@@ -341,24 +332,31 @@ export default function GameRoom() {
           )}
 
           <div className="reference-card">
-            <span className="hud-label">Turn rhythm</span>
-            <p>
-              Read the map, spend AP with care, and only yield when your campaign has squeezed
-              enough value from this window.
-            </p>
+            <strong>Turn rhythm</strong>
+            Spend AP on cards or rallies. Yield when done or out of AP.
           </div>
+
           <div className="reference-card">
-            <span className="hud-label">Victory brief</span>
-            <p>
-              Stack support across the whole country. A narrow lead in one zone is fragile, but
-              a broad coalition is hard to uproot.
-            </p>
+            <strong>Victory</strong>
+            Highest total support across all nine zones after round 9.
           </div>
-          <Link href="/" className="btn btn-secondary btn-sm">
+
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setRulebookOpen(true)}
+            style={{ width: '100%' }}
+          >
+            How to play
+          </button>
+
+          <Link href="/" className="btn btn--ghost btn--sm" style={{ width: '100%', textAlign: 'center' }}>
             Exit to home
           </Link>
         </aside>
       </div>
+
+      {rulebookOpen && <RulebookModal onClose={() => setRulebookOpen(false)} />}
     </main>
   )
 }

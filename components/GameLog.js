@@ -1,41 +1,50 @@
 const TYPE_META = {
-  play_card:         { label: 'Policy',    className: 'log-type--policy' },
-  scandal:           { label: 'Attack',    className: 'log-type--scandal' },
-  rally:             { label: 'Rally',     className: 'log-type--rally' },
-  end_turn:          { label: 'Turn',      className: 'log-type--turn' },
-  event:             { label: 'Event',     className: 'log-type--event' },
-  checkpoint:        { label: 'Checkpoint',className: 'log-type--checkpoint' },
-  alliance_proposed: { label: 'Alliance',  className: 'log-type--alliance' },
-  alliance_accepted: { label: 'Alliance',  className: 'log-type--alliance' },
-  alliance_declined: { label: 'Alliance',  className: 'log-type--alliance' },
-  alliance_resolved: { label: 'Reveal',    className: 'log-type--resolve' },
-  system:            { label: 'System',    className: 'log-type--system' },
+  play_card:         { label: 'Policy',      cls: 'log-tag--policy' },
+  scandal:           { label: 'Attack',      cls: 'log-tag--scandal' },
+  rally:             { label: 'Rally',       cls: 'log-tag--rally' },
+  end_turn:          { label: 'Turn',        cls: 'log-tag--turn' },
+  event:             { label: 'Event',       cls: 'log-tag--event' },
+  checkpoint:        { label: 'Checkpoint',  cls: 'log-tag--checkpoint' },
+  alliance_proposed: { label: 'Alliance',    cls: 'log-tag--alliance' },
+  alliance_accepted: { label: 'Alliance',    cls: 'log-tag--alliance' },
+  alliance_declined: { label: 'Alliance',    cls: 'log-tag--alliance' },
+  alliance_resolved: { label: 'Reveal',      cls: 'log-tag--resolve' },
+  system:            { label: 'System',      cls: 'log-tag--system' },
+}
+
+const ENTRY_CLS = {
+  event:             'log-entry--event',
+  checkpoint:        'log-entry--checkpoint',
+  alliance_resolved: 'log-entry--resolve',
+  scandal:           'log-entry--scandal',
 }
 
 export default function GameLog({ log }) {
   if (!log?.length) return null
-
-  const entries = [...log].reverse().slice(0, 10)
+  const entries = [...log].reverse().slice(0, 12)
 
   return (
-    <div className="game-log">
-      <div className="log-heading">
-        <span className="hud-label">Press desk</span>
-        <h4>Campaign log</h4>
+    <div className="panel">
+      <div className="panel-header">
+        <span className="label" style={{ marginBottom: 0 }}>Activity</span>
+        <h4>Game log</h4>
       </div>
-      <ul>
+      <div className="log-list">
         {entries.map((entry, i) => {
-          const meta = TYPE_META[entry.type] || { label: '', className: '' }
+          const meta = TYPE_META[entry.type] || { label: '', cls: '' }
           return (
-            <li key={`${entry.at}-${i}`} className={`log-entry ${meta.className}`}>
+            <div
+              key={`${entry.at}-${i}`}
+              className={`log-entry ${ENTRY_CLS[entry.type] || ''}`}
+            >
               {meta.label && (
-                <span className="log-type-tag">{meta.label}</span>
+                <span className={`log-tag ${meta.cls}`}>{meta.label}</span>
               )}
-              <span className="log-message">{entry.message}</span>
-            </li>
+              <span className="log-msg">{entry.message}</span>
+            </div>
           )
         })}
-      </ul>
+      </div>
     </div>
   )
 }

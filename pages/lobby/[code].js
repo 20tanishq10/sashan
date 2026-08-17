@@ -16,6 +16,7 @@ export default function LobbyRoom() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const fetchLobbyState = useCallback(async () => {
     if (!code) return
@@ -31,77 +32,49 @@ export default function LobbyRoom() {
 
   useEffect(() => {
     if (!code) return
-
     const stored = getStoredPlayer()
     const sessionToken = getOrCreateSessionToken()
 
     async function init() {
       try {
         await fetchLobbyState()
-
         if (stored?.code === code && stored.sessionToken === sessionToken) {
           setPlayer(stored)
           return
         }
-
         const rejoinRes = await fetch('/api/rejoin-lobby', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, sessionToken }),
         })
-
         if (rejoinRes.ok) {
           const json = await rejoinRes.json()
-          const restored = {
-            playerId: json.playerId,
-            lobbyId: json.lobbyId,
-            code: json.code,
-            nickname: json.nickname,
-            sessionToken,
-            isHost: json.isHost,
-          }
+          const restored = { playerId: json.playerId, lobbyId: json.lobbyId, code: json.code, nickname: json.nickname, sessionToken, isHost: json.isHost }
           storePlayer(restored)
           setPlayer(restored)
           return
         }
-
-        setError('Join this lobby from the Join page with your nickname.')
+        setError('Join this lobby from the Join page.')
       } catch (err) {
         setError(err.message)
       } finally {
         setLoading(false)
       }
     }
-
     init()
   }, [code, fetchLobbyState])
 
   useEffect(() => {
     if (!lobby?.id) return
-
     const supabase = getSupabase()
     if (!supabase) return
-
     const channel = supabase
       .channel(`lobby-${lobby.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lobby_players', filter: `lobby_id=eq.${lobby.id}` },
-        () => fetchLobbyState()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'lobbies', filter: `id=eq.${lobby.id}` },
-        () => fetchLobbyState()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lobby_players', filter: `lobby_id=eq.${lobby.id}` }, () => fetchLobbyState())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lobbies', filter: `id=eq.${lobby.id}` }, () => fetchLobbyState())
       .subscribe()
-
     const poll = setInterval(fetchLobbyState, 5000)
-
-    return () => {
-      clearInterval(poll)
-      if (supabase) supabase.removeChannel(channel)
-    }
+    return () => { clearInterval(poll); supabase.removeChannel(channel) }
   }, [lobby?.id, fetchLobbyState])
 
   async function handleToggleReady() {
@@ -115,10 +88,7 @@ export default function LobbyRoom() {
     })
     const json = await res.json()
     setActionLoading(false)
-    if (!res.ok) {
-      setError(json.error || 'Could not toggle ready')
-      return
-    }
+    if (!res.ok) { setError(json.error || 'Could not toggle ready'); return }
     await fetchLobbyState()
   }
 
@@ -133,10 +103,7 @@ export default function LobbyRoom() {
     })
     const json = await res.json()
     setActionLoading(false)
-    if (!res.ok) {
-      setError(json.error || 'Could not start game')
-      return
-    }
+    if (!res.ok) { setError(json.error || 'Could not start game'); return }
     router.push(`/game/${json.code}`)
   }
 
@@ -156,9 +123,9 @@ export default function LobbyRoom() {
     if (!code) return
     try {
       await navigator.clipboard.writeText(code)
-    } catch {
-      // clipboard may be unavailable
-    }
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* unavailable */ }
   }
 
   const isHost = player && lobby && player.playerId === lobby.hostId
@@ -168,7 +135,7 @@ export default function LobbyRoom() {
   if (loading) {
     return (
       <main className="page">
-        <div className="card"><p>Loading lobby…</p></div>
+        <div className="card card--sm"><p className="muted">Loading lobby…</p></div>
       </main>
     )
   }
@@ -176,70 +143,68 @@ export default function LobbyRoom() {
   if (error && !lobby) {
     return (
       <main className="page">
-        <div className="card">
-          <p className="error">{error}</p>
-          <Link href="/" className="btn btn-secondary">Back home</Link>
+        <div className="card card--sm">
+          <p className="error" style={{ marginBottom: 16 }}>{error}</p>
+          <Link href="/" className="btn btn--ghost">Back home</Link>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="page lobby-page">
-      <div className="card lobby-card campaign-lobby-card">
+    <main className="page page--top lobby-page">
+      <div className="lobby-shell">
         <Link href="/" className="back-link">← Home</Link>
-        <div className="lobby-hero">
-          <div>
-            <span className="hud-label">Campaign chamber</span>
+
+        <div className="lobby-header">
+          <div className="lobby-title-block">
+            <span className="label">Waiting room</span>
             <h2>Election lobby</h2>
-            <p className="subtitle">
-              {players.length} / {lobby?.maxPlayers || 6} players assembled. Need {MIN_PLAYERS}+ and
-              unanimous readiness before polls open.
-            </p>
+            <p>{players.length} / {lobby?.maxPlayers || 6} players — need {MIN_PLAYERS}+ all ready to begin</p>
           </div>
-          <div className="code-panel">
-            <span className="hud-label">Election code</span>
-            <div className="code-display">
-              <span className="code">{code}</span>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={copyCode}>Copy</button>
+
+          <div className="code-block">
+            <div>
+              <span className="label" style={{ display: 'block', marginBottom: 4 }}>Election code</span>
+              <span className="code-value">{code}</span>
             </div>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={copyCode}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
           </div>
         </div>
 
         <div className="lobby-grid">
-          <section className="lobby-panel">
-            <div className="section-heading">
-              <span className="hud-label">Delegates</span>
-              <h3>Campaign table</h3>
-            </div>
-
+          <div className="lobby-panel">
+            <h3>Players</h3>
             <LobbyPlayerList
               players={players}
               hostId={lobby?.hostId}
               currentPlayerId={player?.playerId}
             />
-          </section>
+          </div>
 
-          <aside className="lobby-panel lobby-brief">
-            <div className="section-heading">
-              <span className="hud-label">Briefing</span>
-              <h3>Before the first round</h3>
-            </div>
+          <div className="lobby-panel">
+            <h3>Before you start</h3>
             <ul className="brief-list">
-              <li>Share the code with the full table.</li>
-              <li>Each campaign marks itself ready when seated.</li>
-              <li>The host may begin once at least {MIN_PLAYERS} campaigns are ready.</li>
+              <li>Share the code with everyone at the table.</li>
+              <li>Each player clicks <strong>Ready</strong> when seated.</li>
+              <li>The host starts once {MIN_PLAYERS}+ players are ready.</li>
             </ul>
-          </aside>
+          </div>
         </div>
 
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error" style={{ marginBottom: 12 }}>{error}</p>}
 
         {player && (
           <div className="lobby-actions">
             <button
               type="button"
-              className={`btn ${me?.is_ready ? 'btn-secondary' : 'btn-primary'}`}
+              className={`btn ${me?.is_ready ? 'btn--ghost' : 'btn--primary'}`}
               onClick={handleToggleReady}
               disabled={actionLoading}
             >
@@ -249,22 +214,29 @@ export default function LobbyRoom() {
             {isHost && (
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn--primary"
                 onClick={handleStartGame}
                 disabled={actionLoading || !readyToStart}
               >
-                Start Game
+                Start game
               </button>
             )}
 
-            <button type="button" className="btn btn-danger" onClick={handleLeave} disabled={actionLoading}>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={handleLeave}
+              disabled={actionLoading}
+            >
               Leave
             </button>
           </div>
         )}
 
         {!player && (
-          <p className="muted">Use the Join page with code <strong>{code}</strong> to enter this lobby.</p>
+          <p className="muted">
+            Use the <Link href="/join">Join page</Link> with code <strong>{code}</strong> to enter.
+          </p>
         )}
       </div>
     </main>

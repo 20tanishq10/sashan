@@ -24,7 +24,7 @@ export default function Create() {
     setLoading(false)
 
     if (!res.ok) {
-      setError(json.error || 'Create failed')
+      setError(json.error || 'Could not create lobby')
       return
     }
 
@@ -41,28 +41,37 @@ export default function Create() {
   }
 
   return (
-    <main className="page dossier-page">
-      <div className="card dossier-card">
+    <main className="page form-page">
+      <div className="form-card">
         <Link href="/" className="back-link">← Back</Link>
-        <div className="section-heading">
-          <span className="hud-label">Campaign registration</span>
-          <h2>Open a war room</h2>
-        </div>
-        <p className="subtitle">You will host the table, receive the election code, and convene the rest of the field.</p>
-        <form onSubmit={handleCreate} className="form">
-          <label>
-            Candidate name
+
+        <span className="label">New game</span>
+        <h2>Launch a campaign</h2>
+        <p className="sub">You'll host the table and share the election code with your players.</p>
+
+        <form onSubmit={handleCreate} className="form-fields">
+          <div className="field">
+            <label htmlFor="nickname">Candidate name</label>
             <input
+              id="nickname"
+              className="input"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Enter candidate name"
+              placeholder="e.g. Rivera"
               maxLength={20}
               required
+              autoFocus
             />
-          </label>
+          </div>
+
           {error && <p className="error">{error}</p>}
-          <button type="submit" className="btn btn-primary" disabled={loading || !nickname.trim()}>
-            {loading ? 'Creating…' : 'Create Lobby'}
+
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={loading || !nickname.trim()}
+          >
+            {loading ? 'Creating…' : 'Create lobby'}
           </button>
         </form>
       </div>

@@ -1,112 +1,106 @@
 import { BLOCS, BLOC_IDS } from '../lib/game/constants'
 import { blocLeaders } from '../lib/game/scoring'
 
-const BOARD_REGIONS = {
-  frontier: { area: 'frontier', region: 'Northwest', note: 'Border towns, veterans, and hardline local bosses' },
-  agraria: { area: 'agraria', region: 'North Plains', note: 'Granaries, mandis, and subsidy politics' },
-  capital: { area: 'capital', region: 'Capital District', note: 'Cabinet whispers, donors, and institutional power' },
-  coast: { area: 'coast', region: 'Northeast Coast', note: 'Ports, customs houses, and merchant networks' },
-  foundry: { area: 'foundry', region: 'Western Foundries', note: 'Industrial belts and labor unions' },
-  riverland: { area: 'riverland', region: 'Eastern Rivers', note: 'Floodplains, canals, and local patronage' },
-  highlands: { area: 'highlands', region: 'Southwest Highlands', note: 'Mountain councils and autonomy movements' },
-  metro: { area: 'metro', region: 'Southern Metro', note: 'Studios, startups, and urban middle-class opinion' },
-  delta: { area: 'delta', region: 'Southeast Delta', note: 'Fishing cooperatives, relief politics, and migration' },
+const ZONE_META = {
+  frontier:  { region: 'Northwest',        note: 'Border towns & veterans' },
+  agraria:   { region: 'North Plains',     note: 'Granaries & subsidies' },
+  capital:   { region: 'Capital District', note: 'Donors & institutions' },
+  coast:     { region: 'NE Coast',         note: 'Ports & merchants' },
+  foundry:   { region: 'West',             note: 'Factories & unions' },
+  riverland: { region: 'East',             note: 'Canals & patronage' },
+  highlands: { region: 'SW Highlands',     note: 'Councils & autonomy' },
+  metro:     { region: 'South Metro',      note: 'Studios & startups' },
+  delta:     { region: 'SE Delta',         note: 'Fishing & migration' },
 }
+
+// Five distinct tone colours that match the player-tones CSS custom props
+const TONES = ['#4f6ef7', '#d4943a', '#4caf82', '#9b6db5', '#e05555']
 
 export default function VoterBlocBoard({ gameState, players, highlightPlayerId }) {
   const support = gameState?.board_state?.playerSupport || {}
   const leaders = blocLeaders(gameState, players)
-  const palette = ['crimson', 'gold', 'teal', 'plum', 'slate']
-  const contestedZones = BLOC_IDS.filter((blocId) =>
-    players.some((player) => (support[player.id]?.[blocId] || 0) > 0)
+  const activeZones = BLOC_IDS.filter((b) =>
+    players.some((p) => (support[p.id]?.[b] || 0) > 0)
   ).length
 
   return (
-    <div className="bloc-board">
-      <div className="board-heading">
+    <div className="panel">
+      <div className="panel-header">
         <div>
-          <span className="hud-label">Election map</span>
-          <h3>National campaign map</h3>
+          <span className="label" style={{ marginBottom: 2 }}>Election map</span>
+          <h3>Voter blocs</h3>
         </div>
-        <p className="board-copy">
-          Press into weak districts, defend your strongholds, and watch which campaign is building
-          a national story.
-        </p>
+        <span className="pill pill--default">{activeZones} / {BLOC_IDS.length} active</span>
       </div>
 
       <div className="board-map">
-        <div className="board-seal">
-          <span className="hud-label">Campaign seal</span>
-          <strong>{contestedZones} / {BLOC_IDS.length} zones active</strong>
-          <p>Nine zones decide the election. Control spreads from local strongholds into the national imagination.</p>
+        {/* Centre seal */}
+        <div className="board-seal" style={{ gridArea: 'seal' }}>
+          <span className="board-seal-count">{activeZones}</span>
+          <span className="board-seal-sub">zones contested</span>
         </div>
+
         {BLOC_IDS.map((blocId) => {
           const bloc = BLOCS[blocId]
-          const region = BOARD_REGIONS[blocId]
+          const meta = ZONE_META[blocId]
           const leader = leaders[blocId]
+
           const entries = players
-            .map((p, index) => ({
+            .map((p, idx) => ({
+              id: p.id,
               nickname: p.nickname,
-              playerId: p.id,
-              tone: palette[index % palette.length],
               score: support[p.id]?.[blocId] || 0,
+              color: TONES[idx % TONES.length],
             }))
             .filter((e) => e.score > 0)
             .sort((a, b) => b.score - a.score)
-          const total = entries.reduce((sum, e) => sum + e.score, 0)
+
+          const total = entries.reduce((s, e) => s + e.score, 0)
 
           return (
             <div
               key={blocId}
               className="bloc-card"
-              style={{ '--bloc-color': bloc.color, gridArea: region.area }}
+              style={{ '--bloc-color': bloc.color, gridArea: blocId }}
             >
-              <div className="bloc-header">
-                <div>
-                  <span className="bloc-tag">{region.region}</span>
-                  <strong>{bloc.label}</strong>
-                  <p className="bloc-note">{region.note}</p>
-                </div>
-                <div className="bloc-header-meta">
-                  {leader && leader.score > 0 && (
-                    <span className="bloc-leader">{leader.nickname} leads</span>
-                  )}
-                  <span className="bloc-total">{total} total</span>
-                </div>
-              </div>
+              <div className="bloc-card-inner">
+                <div className="bloc-name">{bloc.label}</div>
+                <div className="bloc-region">{meta.region} · {meta.note}</div>
 
-              <div className="bloc-track" aria-hidden="true">
-                {entries.length === 0 ? (
-                  <span className="bloc-empty-track" />
-                ) : (
-                  entries.map((e) => (
-                    <span
-                      key={e.playerId}
-                      className={`track-segment tone-${e.tone}`}
-                      style={{ width: `${Math.max((e.score / total) * 100, 8)}%` }}
+                {/* Support bar */}
+                <div className="bloc-track">
+                  {entries.map((e) => (
+                    <div
+                      key={e.id}
+                      className="bloc-track-fill"
+                      style={{
+                        width: `${Math.max((e.score / total) * 100, 5)}%`,
+                        background: e.color,
+                      }}
                     />
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
 
-              <ul className="bloc-scores">
-                {entries.length === 0 ? (
-                  <li className="muted">No ground operation yet</li>
-                ) : (
-                  entries.map((e) => (
-                    <li
-                      key={e.playerId}
-                      className={`${e.playerId === highlightPlayerId ? 'highlight' : ''} tone-row tone-${e.tone}`}
-                    >
-                      <span className="player-pill">
-                        <span className={`tone-dot tone-${e.tone}`} />
-                        {e.nickname}
-                      </span>
-                      <span className="score">+{e.score}</span>
-                    </li>
-                  ))
-                )}
-              </ul>
+                {/* Score rows */}
+                <div className="bloc-scores">
+                  {entries.length === 0 ? (
+                    <span className="bloc-empty">No support yet</span>
+                  ) : (
+                    entries.map((e) => (
+                      <div
+                        key={e.id}
+                        className={`bloc-score-row${e.id === highlightPlayerId ? ' is-me' : ''}`}
+                      >
+                        <span className="bloc-score-name">
+                          <span className="bloc-score-dot" style={{ background: e.color }} />
+                          {e.nickname}
+                        </span>
+                        <span className="bloc-score-val">{e.score}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )
         })}

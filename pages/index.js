@@ -1,39 +1,47 @@
 import Link from 'next/link'
+import Rulebook from '../components/Rulebook'
 
 export default function Home() {
   return (
-    <main className="page landing-page">
-      <div className="landing-shell">
-        <section className="hero-card">
-          <span className="hero-kicker">Political strategy board game</span>
-          <h1>Sashan</h1>
-          <p className="hero-copy">
-            Build your persona, influence the electorate, and outmaneuver rival campaigns in a
-            national contest for power.
+    <main className="page page--top">
+      <div className="landing">
+
+        {/* ── Hero ── */}
+        <section className="hero">
+          <p className="hero-eyebrow">Political strategy · 2–6 players · Private lobbies</p>
+          <h1>Sas<span>han</span></h1>
+          <p className="hero-sub">
+            Build a national coalition, outmanoeuvre rival campaigns, and decide
+            the fate of the Republic of Meridia — one voter bloc at a time.
           </p>
-          <div className="actions">
-            <Link href="/create" className="btn btn-primary">Launch Campaign</Link>
-            <Link href="/join" className="btn btn-secondary">Enter Election</Link>
+          <div className="hero-actions">
+            <Link href="/create" className="btn btn--primary">Launch campaign</Link>
+            <Link href="/join" className="btn btn--ghost">Enter election code</Link>
           </div>
         </section>
 
-        <section className="landing-grid">
+        {/* ── Feature row ── */}
+        <div className="feature-grid">
           <article className="feature-card">
-            <span className="hud-label">The board</span>
+            <span className="label">The map</span>
             <h3>Nine contested zones</h3>
-            <p>Fight zone by zone as the national map slowly tips toward one campaign.</p>
+            <p>Fight bloc by bloc across Meridia. A national story beats a local stronghold every time.</p>
           </article>
           <article className="feature-card">
-            <span className="hud-label">The dilemma</span>
-            <h3>Power versus ideals</h3>
-            <p>Every play should feel like a hard political choice, not just a points trade.</p>
+            <span className="label">The arsenal</span>
+            <h3>Policy, Attack & Event cards</h3>
+            <p>Build support with Policy cards, kneecap rivals with Attack files, and survive the national events nobody controls.</p>
           </article>
           <article className="feature-card">
-            <span className="hud-label">The room</span>
-            <h3>Built for friends</h3>
-            <p>Create a private lobby for 2 to 6 players, gather your table, and let the negotiations begin.</p>
+            <span className="label">The gamble</span>
+            <h3>Alliances & betrayal</h3>
+            <p>Propose a secret pact. At every checkpoint, honour it for mutual gain — or betray for a bigger cut.</p>
           </article>
-        </section>
+        </div>
+
+        {/* ── Rulebook ── */}
+        <Rulebook />
+
       </div>
     </main>
   )
