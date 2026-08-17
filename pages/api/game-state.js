@@ -42,6 +42,7 @@ export default async function handler(req, res) {
 
   let myPlayerId = null
   let myPlayerState = null
+  let isSpectator = true
 
   if (sessionToken) {
     const { data: lp } = await supabase
@@ -52,6 +53,7 @@ export default async function handler(req, res) {
       .maybeSingle()
 
     if (lp) {
+      isSpectator = false
       myPlayerId = lp.id
       myPlayerState = playerStates.find((s) => s.player_id === lp.id) || null
 
@@ -75,7 +77,6 @@ export default async function handler(req, res) {
           targetBloc: pact.target_bloc,
           round: pact.round,
           status: pact.status,
-          // Only tell this player whether THEY have submitted a choice, not the opponent's
           myChoice: isProposer ? (pact.proposer_choice || null) : (pact.target_choice || null),
           partnerChoseYet: isProposer
             ? pact.target_choice !== null
@@ -90,16 +91,19 @@ export default async function handler(req, res) {
         myPlayerId,
         myPlayerState,
         myAlliances,
+        isSpectator: false,
       })
     }
   }
 
+  // No matching player — spectator view: full public state, no private data
   return res.status(200).json({
     lobby: { id: lobby.id, code: lobby.code, status: lobby.status },
     gameState,
     players,
-    myPlayerId,
-    myPlayerState,
+    myPlayerId: null,
+    myPlayerState: null,
     myAlliances: [],
+    isSpectator: true,
   })
 }

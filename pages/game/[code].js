@@ -1,33 +1,39 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import { getStoredPlayer } from '../../lib/session'
+import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib/session'
 import { getSupabase } from '../../lib/supabaseClient'
 import GameHUD from '../../components/GameHUD'
 import VoterBlocBoard from '../../components/VoterBlocBoard'
 import PlayerHand from '../../components/PlayerHand'
 import GameLog from '../../components/GameLog'
 import AlliancePanel from '../../components/AlliancePanel'
+import EndGameSummary from '../../components/EndGameSummary'
 import { getStandings } from '../../lib/game/scoring'
 
 export default function GameRoom() {
   const router = useRouter()
   const { code } = router.query
 
-  const [player, setPlayer] = useState(null)
+  const [player, setPlayer] = useState(null)       // { playerId, sessionToken, nickname, … }
+  const [isSpectator, setIsSpectator] = useState(false)
   const [gameState, setGameState] = useState(null)
   const [players, setPlayers] = useState([])
   const [myPlayerState, setMyPlayerState] = useState(null)
   const [myAlliances, setMyAlliances] = useState([])
+  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [reconnecting, setReconnecting] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [winner, setWinner] = useState(null)
 
-  const fetchGame = useCallback(async () => {
-    if (!code || !player?.sessionToken) return
+  // ── Fetch full game state ─────────────────────────────────────────────────
+
+  const fetchGame = useCallback(async (sessionToken) => {
+    if (!code) return
+    const token = sessionToken
     const res = await fetch(
-      `/api/game-state?code=${encodeURIComponent(code)}&sessionToken=${encodeURIComponent(player.sessionToken)}`
+      `/api/game-state?code=${encodeURIComponent(code)}${token ? `&sessionToken=${encodeURIComponent(token)}` : ''}`
     )
     const json = await res.json()
     if (!res.ok) throw new Error(json.error || 'Could not load game')
@@ -35,30 +41,100 @@ export default function GameRoom() {
     setPlayers(json.players)
     setMyPlayerState(json.myPlayerState)
     setMyAlliances(json.myAlliances || [])
+    setIsSpectator(json.isSpectator ?? true)
     if (json.lobby.status === 'waiting') {
       router.replace(`/lobby/${code}`)
     }
-  }, [code, player, router])
+    return json
+  }, [code, router])
 
-  useEffect(() => {
-    const stored = getStoredPlayer()
-    if (stored?.code === code) {
-      setPlayer(stored)
-    } else {
-      setError('Join this game from the lobby first.')
-      setLoading(false)
+  // ── Fetch end-game summary (only when game is finished) ───────────────────
+
+  const fetchSummary = useCallback(async () => {
+    if (!code) return
+    try {
+      const res = await fetch(`/api/end-game-summary?code=${encodeURIComponent(code)}`)
+      if (!res.ok) return
+      const json = await res.json()
+      setSummary(json)
+    } catch {
+      // non-fatal — summary is nice-to-have
     }
   }, [code])
 
+  // ── Bootstrap: stored player → rejoin attempt → spectator fallback ────────
+
   useEffect(() => {
-    if (!player) return
-    fetchGame()
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [player, fetchGame])
+    if (!code) return
+
+    async function init() {
+      const sessionToken = getOrCreateSessionToken()
+      const stored = getStoredPlayer()
+
+      // 1. Happy path — we already have stored player for this code
+      if (stored?.code === code && stored.sessionToken === sessionToken) {
+        setPlayer(stored)
+        try {
+          const json = await fetchGame(sessionToken)
+          if (json?.gameState?.phase === 'finished') fetchSummary()
+        } catch (err) {
+          setError(err.message)
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+
+      // 2. No stored match — try to rejoin mid-game by session token
+      setReconnecting(true)
+      try {
+        const rejoinRes = await fetch('/api/rejoin-game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, sessionToken }),
+        })
+
+        if (rejoinRes.ok) {
+          const rj = await rejoinRes.json()
+          const restored = {
+            playerId: rj.playerId,
+            lobbyId: rj.lobbyId,
+            code: rj.code,
+            nickname: rj.nickname,
+            sessionToken,
+            isHost: rj.isHost,
+          }
+          storePlayer(restored)
+          setPlayer(restored)
+          const json = await fetchGame(sessionToken)
+          if (json?.gameState?.phase === 'finished') fetchSummary()
+          setLoading(false)
+          setReconnecting(false)
+          return
+        }
+
+        // 3. Not a registered player — fall through as spectator
+        const json = await fetchGame(sessionToken)
+        if (json?.gameState?.phase === 'finished') fetchSummary()
+        // isSpectator will be set inside fetchGame via the API response
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+        setReconnecting(false)
+      }
+    }
+
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code])
+
+  // ── Realtime subscription + polling ──────────────────────────────────────
 
   useEffect(() => {
     if (!gameState?.id) return
+
+    const sessionToken = player?.sessionToken || getOrCreateSessionToken()
 
     const supabase = getSupabase()
     if (!supabase) return
@@ -68,22 +144,29 @@ export default function GameRoom() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_state', filter: `id=eq.${gameState.id}` },
-        () => fetchGame()
+        async () => {
+          const json = await fetchGame(sessionToken).catch(() => null)
+          if (json?.gameState?.phase === 'finished' && !summary) fetchSummary()
+        }
       )
       .subscribe()
 
-    const poll = setInterval(() => fetchGame().catch(() => {}), 4000)
+    const poll = setInterval(async () => {
+      const json = await fetchGame(sessionToken).catch(() => null)
+      if (json?.gameState?.phase === 'finished' && !summary) fetchSummary()
+    }, 4000)
 
     return () => {
       clearInterval(poll)
       if (supabase) supabase.removeChannel(channel)
     }
-  }, [gameState?.id, fetchGame])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.id])
 
   // ── Game actions ──────────────────────────────────────────────────────────
 
   async function sendAction(action) {
-    if (!player) return
+    if (!player || isSpectator) return
     setActionLoading(true)
     setError(null)
     const res = await fetch('/api/game-action', {
@@ -97,11 +180,10 @@ export default function GameRoom() {
       setError(json.error || 'Action failed')
       return
     }
-    if (json.gameOver) setWinner(json.winner)
-    await fetchGame()
+    const updated = await fetchGame(player.sessionToken)
+    if (json.gameOver || updated?.gameState?.phase === 'finished') fetchSummary()
   }
 
-  // playCard handles both policy cards (no targetPlayerId) and scandal cards (with targetPlayerId)
   function handlePlayCard(cardId, targetPlayerId) {
     const action = { type: 'play_card', cardId }
     if (targetPlayerId) action.targetPlayerId = targetPlayerId
@@ -116,10 +198,8 @@ export default function GameRoom() {
     sendAction({ type: 'propose_alliance', targetPlayerId, proposerBloc, targetBloc })
   }
 
-  // ── Alliance lifecycle actions ────────────────────────────────────────────
-
   async function handleAllianceAction(allianceId, actionType, choice) {
-    if (!player) return
+    if (!player || isSpectator) return
     setActionLoading(true)
     setError(null)
     const res = await fetch('/api/alliance-action', {
@@ -138,23 +218,23 @@ export default function GameRoom() {
       setError(json.error || 'Alliance action failed')
       return
     }
-    await fetchGame()
+    fetchGame(player.sessionToken)
   }
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
-  const isMyTurn = gameState?.current_turn_player_id === player?.playerId
+  const isMyTurn = !isSpectator && gameState?.current_turn_player_id === player?.playerId
   const isOver = gameState?.phase === 'finished'
   const standings = gameState ? getStandings(gameState, players) : []
   const ap = myPlayerState?.action_points ?? 0
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Loading / error guards ────────────────────────────────────────────────
 
   if (loading) {
     return (
       <main className="page game-page">
         <div className="card">
-          <p>Assembling the election board…</p>
+          <p>{reconnecting ? 'Reconnecting to the campaign…' : 'Assembling the election board…'}</p>
         </div>
       </main>
     )
@@ -173,36 +253,43 @@ export default function GameRoom() {
     )
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <main className="page game-page">
       <div className="game-layout">
         <div className="game-main">
+
+          {/* Spectator badge */}
+          {isSpectator && (
+            <div className="spectator-badge" role="status">
+              <span className="spectator-dot" aria-hidden="true" />
+              Spectating — you are watching this election live
+            </div>
+          )}
+
           <GameHUD
             gameState={gameState}
             players={players}
             myPlayerId={player?.playerId}
-            actionPoints={myPlayerState?.action_points}
+            actionPoints={isSpectator ? null : myPlayerState?.action_points}
           />
 
           <VoterBlocBoard
             gameState={gameState}
             players={players}
-            highlightPlayerId={player?.playerId}
+            highlightPlayerId={isSpectator ? null : player?.playerId}
           />
 
+          {/* End-game: full summary replaces the old banner */}
           {isOver && (
-            <div className="game-over-banner">
-              <h3>Polls closed</h3>
-              <p>
-                <strong>{winner?.nickname || standings[0]?.nickname}</strong> carries the
-                election with {winner?.total ?? standings[0]?.total} total support.
-              </p>
-            </div>
+            <EndGameSummary summary={summary} myPlayerId={player?.playerId} />
           )}
 
           {error && <p className="error">{error}</p>}
 
-          {!isOver && isMyTurn && (
+          {/* Active player controls — hidden for spectators */}
+          {!isSpectator && !isOver && isMyTurn && (
             <div className="turn-actions chamber-card">
               <div>
                 <span className="hud-label">Floor action</span>
@@ -224,30 +311,34 @@ export default function GameRoom() {
             </div>
           )}
 
-          <PlayerHand
-            hand={myPlayerState?.hand}
-            actionPoints={myPlayerState?.action_points}
-            isMyTurn={isMyTurn && !isOver}
-            onPlayCard={handlePlayCard}
-            onRally={handleRally}
-            onProposeAlliance={handleProposeAlliance}
-            players={players}
-            myPlayerId={player?.playerId}
-            loading={actionLoading}
-          />
+          {!isSpectator && (
+            <PlayerHand
+              hand={myPlayerState?.hand}
+              actionPoints={myPlayerState?.action_points}
+              isMyTurn={isMyTurn && !isOver}
+              onPlayCard={handlePlayCard}
+              onRally={handleRally}
+              onProposeAlliance={handleProposeAlliance}
+              players={players}
+              myPlayerId={player?.playerId}
+              loading={actionLoading}
+            />
+          )}
         </div>
 
         <aside className="game-sidebar">
           <GameLog log={gameState?.board_state?.log} />
 
-          <AlliancePanel
-            myAlliances={myAlliances}
-            myPlayerId={player?.playerId}
-            players={players}
-            currentRound={gameState?.round}
-            onAllianceAction={handleAllianceAction}
-            loading={actionLoading}
-          />
+          {!isSpectator && (
+            <AlliancePanel
+              myAlliances={myAlliances}
+              myPlayerId={player?.playerId}
+              players={players}
+              currentRound={gameState?.round}
+              onAllianceAction={handleAllianceAction}
+              loading={actionLoading}
+            />
+          )}
 
           <div className="reference-card">
             <span className="hud-label">Turn rhythm</span>
