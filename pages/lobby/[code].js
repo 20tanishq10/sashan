@@ -228,7 +228,7 @@ export default function LobbyRoom() {
             <ul className="brief-list">
               <li>Share the code with the full table.</li>
               <li>Each campaign marks itself ready when seated.</li>
-              <li>The host begins the election when everyone is in place.</li>
+              <li>The host may begin once at least {MIN_PLAYERS} campaigns are ready.</li>
             </ul>
           </aside>
         </div>

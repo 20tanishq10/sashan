@@ -583,11 +583,11 @@ h1, h2 {
 
 .board-map {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-areas:
-    "youth seal business"
-    "farmers seal urban"
-    "working retirees urban";
+    "frontier agraria capital coast"
+    "foundry seal seal riverland"
+    "highlands metro metro delta";
   gap: 16px;
   align-items: stretch;
 }
@@ -743,6 +743,17 @@ h1, h2 {
   text-transform: uppercase;
 }
 
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-ribbon-secondary {
+  background: rgba(110, 31, 27, 0.06);
+  color: rgba(79, 23, 20, 0.78);
+}
+
 .card-name {
   font-weight: 700;
   font-size: 1.15rem;
@@ -775,7 +786,7 @@ h1, h2 {
 .rally-button {
   appearance: none;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
   padding: 12px 14px;
@@ -803,6 +814,22 @@ h1, h2 {
   height: 10px;
   border-radius: 999px;
   flex: 0 0 auto;
+}
+
+.rally-button-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.rally-button-copy strong {
+  font-size: 14px;
+}
+
+.rally-button-copy span {
+  font-size: 12px;
+  color: rgba(27, 23, 18, 0.62);
 }
 
 .player-pill {
@@ -847,9 +874,11 @@ h1, h2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
       "seal seal"
-      "youth business"
-      "farmers urban"
-      "working retirees";
+      "frontier agraria"
+      "capital coast"
+      "foundry riverland"
+      "highlands metro"
+      "delta delta";
   }
   .campaign-strip { grid-template-columns: 1fr; }
   .board-heading, .manifesto-heading, .rally-heading { flex-direction: column; }
@@ -873,12 +902,15 @@ h1, h2 {
     grid-template-columns: 1fr;
     grid-template-areas:
       "seal"
-      "youth"
-      "business"
-      "farmers"
-      "urban"
-      "working"
-      "retirees";
+      "frontier"
+      "agraria"
+      "capital"
+      "coast"
+      "foundry"
+      "riverland"
+      "highlands"
+      "metro"
+      "delta";
   }
   .hud-topline { flex-direction: column; }
   .hero-card h1 {

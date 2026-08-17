@@ -21,7 +21,7 @@ export default function Home() {
           <article className="feature-card">
             <span className="hud-label">The board</span>
             <h3>Nine contested zones</h3>
-            <p>Fight bloc by bloc as the national map slowly tips toward one campaign.</p>
+            <p>Fight zone by zone as the national map slowly tips toward one campaign.</p>
           </article>
           <article className="feature-card">
             <span className="hud-label">The dilemma</span>
@@ -31,7 +31,7 @@ export default function Home() {
           <article className="feature-card">
             <span className="hud-label">The room</span>
             <h3>Built for friends</h3>
-            <p>Create a private lobby, gather your table, and let the negotiations begin.</p>
+            <p>Create a private lobby for 2 to 6 players, gather your table, and let the negotiations begin.</p>
           </article>
         </section>
       </div>

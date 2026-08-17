@@ -2,16 +2,15 @@ import { BLOCS, BLOC_IDS } from '../lib/game/constants'
 import { blocLeaders } from '../lib/game/scoring'
 
 const BOARD_REGIONS = {
-  youth: { area: 'youth', region: 'North Belt', note: 'Campus towns and first-time voters' },
-  farmers: { area: 'farmers', region: 'Rural Belt', note: 'Agrarian networks and cooperatives' },
-  business: { area: 'business', region: 'Market Coast', note: 'Industry, capital, and trade chambers' },
-  working_class: { area: 'working', region: 'Factory Belt', note: 'Labor wards and union strongholds' },
-  retirees: { area: 'retirees', region: 'Civic Heartland', note: 'Pension blocs and legacy voters' },
-  urban_professionals: {
-    area: 'urban',
-    region: 'Metro Corridor',
-    note: 'Media districts and professional hubs',
-  },
+  frontier: { area: 'frontier', region: 'Northwest', note: 'Border towns, veterans, and hardline local bosses' },
+  agraria: { area: 'agraria', region: 'North Plains', note: 'Granaries, mandis, and subsidy politics' },
+  capital: { area: 'capital', region: 'Capital District', note: 'Cabinet whispers, donors, and institutional power' },
+  coast: { area: 'coast', region: 'Northeast Coast', note: 'Ports, customs houses, and merchant networks' },
+  foundry: { area: 'foundry', region: 'Western Foundries', note: 'Industrial belts and labor unions' },
+  riverland: { area: 'riverland', region: 'Eastern Rivers', note: 'Floodplains, canals, and local patronage' },
+  highlands: { area: 'highlands', region: 'Southwest Highlands', note: 'Mountain councils and autonomy movements' },
+  metro: { area: 'metro', region: 'Southern Metro', note: 'Studios, startups, and urban middle-class opinion' },
+  delta: { area: 'delta', region: 'Southeast Delta', note: 'Fishing cooperatives, relief politics, and migration' },
 }
 
 export default function VoterBlocBoard({ gameState, players, highlightPlayerId }) {
@@ -39,7 +38,7 @@ export default function VoterBlocBoard({ gameState, players, highlightPlayerId }
         <div className="board-seal">
           <span className="hud-label">Campaign seal</span>
           <strong>{contestedZones} / {BLOC_IDS.length} zones active</strong>
-          <p>Territories sharpen as support accumulates. Major swings usually begin in the center of the map.</p>
+          <p>Nine zones decide the election. Control spreads from local strongholds into the national imagination.</p>
         </div>
         {BLOC_IDS.map((blocId) => {
           const bloc = BLOCS[blocId]

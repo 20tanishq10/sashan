@@ -37,13 +37,23 @@ export default function PlayerHand({
               disabled={!canPlay}
               onClick={() => onPlayCard(cardId)}
             >
-              <span className="card-ribbon">Ideology</span>
+              <div className="card-badges">
+                <span
+                  className="card-ribbon"
+                  style={{ backgroundColor: `${card.ideologyMeta?.color || '#6e1f1b'}14`, color: card.ideologyMeta?.color || '#6e1f1b' }}
+                >
+                  {card.ideologyMeta?.label || 'Ideology'}
+                </span>
+                <span className="card-ribbon card-ribbon-secondary">
+                  {card.resourceMeta?.label || 'Campaign Resource'}
+                </span>
+              </div>
               <span className="card-name">{card.name}</span>
               <span className="card-desc">{card.description}</span>
               <div className="card-footer">
                 <span className="card-cost">{card.apCost} AP</span>
                 <span className="card-effect">
-                  {card.effects.map((e) => `+${e.amount} ${e.bloc.replace(/_/g, ' ')}`).join(', ')}
+                  {card.effects.map((e) => `+${e.amount} ${BLOCS[e.bloc]?.label || e.bloc}`).join(', ')}
                 </span>
               </div>
             </button>
@@ -70,7 +80,10 @@ export default function PlayerHand({
                 onClick={() => onRally(bloc)}
               >
                 <span className="rally-button-dot" style={{ backgroundColor: BLOCS[bloc].color }} />
-                {BLOCS[bloc].label}
+                <span className="rally-button-copy">
+                  <strong>{BLOCS[bloc].label}</strong>
+                  <span>{RALLY_AP_COST} AP surge</span>
+                </span>
               </button>
             ))}
           </div>
