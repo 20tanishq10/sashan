@@ -70,6 +70,12 @@ export default async function handler(req, res) {
     influence_score: 0,
     ideology_position: { tradition_progress: 50, centralized_local: 50 },
     active_alliances: [],
+    resources: {
+      [RESOURCES.trust.id]: 0,
+      [RESOURCES.clout.id]: 0,
+      [RESOURCES.media.id]: 0,
+      [RESOURCES.funds.id]: 0,
+    },
   }))
 
   const { error: playerStateError } = await supabase.from('player_state').insert(playerStateRows)

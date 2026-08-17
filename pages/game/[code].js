@@ -258,7 +258,7 @@ export default function GameRoom() {
   return (
     <main className="page game-page">
       <div className="game-layout">
-        <div className="game-main">
+        <div className="game-main" >
 
           {isSpectator && (
             <div className="spectator-bar" role="status">
@@ -274,11 +274,12 @@ export default function GameRoom() {
             actionPoints={isSpectator ? null : myPlayerState?.action_points}
           />
 
-          <VoterBlocBoard
-            gameState={gameState}
-            players={players}
-            highlightPlayerId={isSpectator ? null : player?.playerId}
-          />
+<VoterBlocBoard
+              gameState={gameState}
+              players={players}
+              highlightPlayerId={isSpectator ? null : player?.playerId}
+              playerStates={playerStates}
+            />
 
           {isOver && <EndGameSummary summary={summary} myPlayerId={player?.playerId} />}
 
@@ -317,7 +318,7 @@ export default function GameRoom() {
           )}
         </div>
 
-        <aside className="game-sidebar">
+        <aside className="game-sidebar" >
           <GameLog log={gameState?.board_state?.log} />
 
           {!isSpectator && (
