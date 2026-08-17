@@ -14,6 +14,12 @@
 alter table lobbies
   alter column max_players set default 5;
 
+-- Existing lobbies were created under the old default of 6, which would violate
+-- the constraint below. Clamp them into range first — a check constraint is
+-- validated against every existing row the moment it is added.
+update lobbies set max_players = 5 where max_players > 5;
+update lobbies set max_players = 2 where max_players < 2;
+
 alter table lobbies
   drop constraint if exists lobbies_max_players_check;
 alter table lobbies

@@ -156,12 +156,38 @@ These don't port literally:
 | 1 | Voters, areas, placement, majority forming/breaking, scoring, game-end | ✅ done |
 | 2 | Resource economy + Voter Cards + Public Reserve + cap/discard | ✅ done |
 | 3 | Ideology Cards + Ideologue tracking + passive powers | ✅ done |
-| 4 | L3/L5 powers (8) wired to actions, Gerrymandering UI | ⬜ next |
-| 5 | Volatile Areas + Headline Cards | ⬜ triggers done, card effects pending |
-| 6 | Conspiracy Cards + interrupt window | ⬜ |
+| 4 | L3/L5 powers (8) wired to actions, per-zone Gerrymander limits | ✅ done |
+| 5 | Volatile Areas + Headline Cards | ✅ done |
+| 6 | Conspiracy Cards | ✅ buy/hold/play done; Block & Reverse interrupts pending |
 | 7 | Trading, auction | ⬜ primitives done, flow pending |
 | 8 | 2-player mode + Zone Requirements | ⬜ |
-| — | **Rewire API routes + board UI onto the new engine** | ⬜ **required before playable** |
+| — | **Rewire API routes + board UI onto the new engine** | ⬜ **required for multiplayer** |
+
+### Card content — no longer stubbed
+
+The community "Headlines and Conspiracies Explained" doc supplied the real India
+deck, and it reconciles exactly with the rulebook's component list:
+
+- **20 Conspiracies** — 16 unique, with Chai-Paani ×2 and Vikas Model ×4
+- **20 Headlines** — 20 unique
+
+Both are transcribed verbatim in `lib/shasn/data/`, including the clarification
+notes. Voter Cards and Ideology Cards remain stubs.
+
+### How card effects resolve
+
+About a third of the India deck is explicit negotiation or voting — *"convince 2
+other players to become investors"*, *"your opponents will vote and decide where
+to place"*. Forcing those through a UI would destroy what makes them good, so
+every card declares a `mode`:
+
+| mode | handling |
+|---|---|
+| `auto`, `choice`, `delayed`, `persistent` | engine resolves, prompting for a choice or target where needed |
+| `interrupt` | played out of turn (Block, Reverse) — **not yet wired** |
+| `table` | engine shows the full card text and records the outcome the table agrees |
+
+Both paths write identical log entries, so the game history reads the same either way.
 
 ### What exists now
 
@@ -174,17 +200,36 @@ lib/shasn/
   deck.js        seeded RNG + generic draw/discard/reshuffle
   voterCards.js  the 3-card open market and influencing
   ideology.js    answer flow, redraw, Ideologue tallies, passive income, unlocks
-  data/          ⚠ STUB card content — replace wholesale with real decks
+  powers.js      the 8 Ideologue powers + Gerrymander allowances
+  cards.js       Headline and Conspiracy handling, effect application
+  game.js        turn machine tying it all together
+  data/          real India Headline + Conspiracy decks; stub Voter + Ideology
+pages/
+  prototype.js   hot-seat playtest UI, drives lib/shasn directly
 tests/
   harness.mjs        loads lib/shasn under bare Node
   board.test.mjs     32 assertions
   economy.test.mjs   45 assertions
+  game.test.mjs      24 assertions, incl. full games played to completion
+  powers.test.mjs    41 assertions
 ```
 
-`npm test` → 77 assertions, all green. Every test names the rulebook page it enforces.
+`npm test` → **142 assertions**, all green. Every test names the rulebook page it
+enforces. Full games are played to completion for 3, 4 and 5 players across
+multiple seeds, asserting resource conservation and that every zone settles.
 
-The engine is complete enough to play a full game; what's missing is the wiring —
-the API routes and React components still talk to the old `lib/game/` model.
+The engine plays a complete game. `/prototype` is playable now; multiplayer still
+needs the API routes and board components moved off the old `lib/game/` model.
+
+### Known deadlock, and why the stub data looks the way it does
+
+The Voter Card market only cycles when a card is **bought**. Playtesting hit a
+state where every open card demanded Trust, nobody held any, and the game froze
+permanently with 126 of 129 areas empty. The rulebook's escape valves are trading
+(p.11) and Capitalist Prospecting (p.23). Prospecting is now implemented and
+`isStalled()` accounts for it; stub Voter Card costs were also made
+wildcard-dominant. Revisit that cost curve once trading lands — the real deck is
+likely more demanding.
 
 ---
 
