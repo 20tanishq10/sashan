@@ -1,4 +1,4 @@
-import { SETTING_NAME, MAX_ROUNDS } from '../lib/game/constants'
+import { SETTING_NAME, MAX_ROUNDS, SCORING_CHECKPOINT_ROUNDS } from '../lib/game/constants'
 import { getStandings } from '../lib/game/scoring'
 
 export default function GameHUD({ gameState, players, myPlayerId, actionPoints }) {
@@ -8,6 +8,10 @@ export default function GameHUD({ gameState, players, myPlayerId, actionPoints }
   const isOver = gameState?.phase === 'finished'
   const leader = standings[0]
   const myStanding = standings.findIndex((s) => s.playerId === myPlayerId)
+
+  const round = gameState?.round || 1
+  const isCheckpoint = SCORING_CHECKPOINT_ROUNDS.includes(round)
+  const lastEvent = gameState?.board_state?.lastEventCard
 
   return (
     <div className="game-hud">
@@ -21,19 +25,35 @@ export default function GameHUD({ gameState, players, myPlayerId, actionPoints }
           <p className="setting-name">{SETTING_NAME}</p>
           <h2>National Election Board</h2>
           <p className="hud-subtitle">
-            Round {gameState?.round || 1} of {MAX_ROUNDS}
+            Round {round} of {MAX_ROUNDS}
           </p>
         </div>
         <div className="hud-stats">
-          <span className="stat"><strong>{actionPoints ?? '—'}</strong> AP</span>
+          <span className="stat">
+            <strong>{actionPoints ?? '—'}</strong> AP
+          </span>
           {!isOver && (
             <span className={`turn-badge ${isMyTurn ? 'your-turn' : ''}`}>
-              {isMyTurn ? 'You hold the floor' : `${current?.nickname || '…'} holds the floor`}
+              {isMyTurn
+                ? 'You hold the floor'
+                : `${current?.nickname || '…'} holds the floor`}
             </span>
           )}
           {isOver && <span className="turn-badge finished">Polls closed</span>}
+          {isCheckpoint && !isOver && (
+            <span className="checkpoint-badge">Scoring checkpoint</span>
+          )}
         </div>
       </div>
+
+      {/* Event card banner — shown for the round the event fired */}
+      {lastEvent && (
+        <div className="event-banner" role="status">
+          <span className="event-banner-label">National event</span>
+          <strong>{lastEvent.name}</strong>
+          <p>{lastEvent.description}</p>
+        </div>
+      )}
 
       <div className="campaign-strip">
         <div className="campaign-card">
@@ -44,7 +64,9 @@ export default function GameHUD({ gameState, players, myPlayerId, actionPoints }
         <div className="campaign-card">
           <span className="hud-label">Your position</span>
           <strong>{myStanding >= 0 ? `#${myStanding + 1}` : '—'}</strong>
-          <span>{isMyTurn ? 'Your coalition can move now' : 'Await your speaking window'}</span>
+          <span>
+            {isMyTurn ? 'Your coalition can move now' : 'Await your speaking window'}
+          </span>
         </div>
         <div className="campaign-card">
           <span className="hud-label">Active chair</span>
@@ -58,7 +80,9 @@ export default function GameHUD({ gameState, players, myPlayerId, actionPoints }
         <ol>
           {standings.map((s, i) => (
             <li key={s.playerId} className={s.playerId === myPlayerId ? 'highlight' : ''}>
-              <span>{i + 1}. {s.nickname}</span>
+              <span>
+                {i + 1}. {s.nickname}
+              </span>
               <span>{s.total} pts</span>
             </li>
           ))}

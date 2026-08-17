@@ -917,3 +917,350 @@ h1, h2 {
     font-size: 2.8rem;
   }
 }
+
+/* ============================================================
+   PHASE 3 STYLES
+   ============================================================ */
+
+/* ── Checkpoint badge in HUD ── */
+.checkpoint-badge {
+  border-radius: 999px;
+  background: rgba(168, 122, 42, 0.18);
+  color: #6a4a12;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  animation: pulse-gold 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 122, 42, 0); }
+  50% { box-shadow: 0 0 0 6px rgba(168, 122, 42, 0.22); }
+}
+
+/* ── Event banner ── */
+.event-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 14px 0 4px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(61, 107, 159, 0.14), rgba(61, 107, 159, 0.06));
+  border: 1px solid rgba(61, 107, 159, 0.28);
+}
+
+.event-banner-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2a5280;
+}
+
+.event-banner strong {
+  font-size: 1.05rem;
+  color: #1d3a5c;
+}
+
+.event-banner p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: rgba(27, 23, 18, 0.72);
+  line-height: 1.45;
+}
+
+/* ── Scandal / Attack cards ── */
+.scandal-section {
+  margin-top: 24px;
+}
+
+.scandal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scandal-heading h4 {
+  margin: 0 0 4px;
+  color: #7a1a18;
+}
+
+.scandal-badge {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(122, 26, 24, 0.1);
+  color: #7a1a18;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scandal-card {
+  border-color: rgba(122, 26, 24, 0.22) !important;
+  background: linear-gradient(180deg, rgba(255, 242, 240, 1), rgba(245, 220, 218, 0.98)) !important;
+}
+
+.scandal-card--targeting {
+  border-color: rgba(122, 26, 24, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(122, 26, 24, 0.18), 0 18px 24px rgba(72, 20, 18, 0.14) !important;
+}
+
+.scandal-ribbon {
+  background: rgba(122, 26, 24, 0.12) !important;
+  color: #7a1a18 !important;
+}
+
+.scandal-effect {
+  color: #7a1a18 !important;
+}
+
+.scandal-prompt {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7a1a18;
+  letter-spacing: 0.04em;
+}
+
+.scandal-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scandal-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(122, 26, 24, 0.3);
+  background: rgba(255, 244, 242, 0.7);
+}
+
+.scandal-targets .hud-label {
+  width: 100%;
+  margin-bottom: 4px;
+  color: #7a1a18;
+}
+
+.scandal-target-btn {
+  background: linear-gradient(180deg, #8a2020, #5f1515) !important;
+}
+
+/* ── Alliance propose section (inside PlayerHand) ── */
+.alliance-propose-section {
+  margin-top: 24px;
+  border-top: 1px solid rgba(110, 31, 27, 0.1);
+  padding-top: 20px;
+}
+
+.alliance-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 249, 235, 0.7);
+  border: 1px solid rgba(168, 122, 42, 0.2);
+}
+
+.alliance-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.alliance-select {
+  padding: 9px 12px;
+  border: 1px solid rgba(110, 31, 27, 0.18);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  background: rgba(255, 251, 240, 0.95);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.alliance-select:focus {
+  outline: none;
+  border-color: rgba(110, 31, 27, 0.5);
+  box-shadow: 0 0 0 3px rgba(110, 31, 27, 0.1);
+}
+
+.alliance-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* ── Alliance panel (sidebar) ── */
+.alliance-panel {
+  background: linear-gradient(180deg, rgba(252, 246, 230, 0.98), rgba(239, 227, 199, 0.98));
+  border-radius: 22px;
+  border: 1px solid rgba(168, 122, 42, 0.35);
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  padding: 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.alliance-panel::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(110, 31, 27, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.alliance-group {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alliance-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(79, 23, 20, 0.6);
+}
+
+.alliance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(110, 31, 27, 0.1);
+  background: rgba(255, 249, 235, 0.7);
+}
+
+.alliance-row--incoming {
+  border-color: rgba(168, 122, 42, 0.3);
+  background: rgba(255, 249, 224, 0.85);
+}
+
+.alliance-row--active {
+  border-color: rgba(77, 92, 53, 0.3);
+  background: rgba(240, 246, 226, 0.85);
+}
+
+.alliance-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 14px;
+}
+
+.alliance-row-info strong {
+  color: var(--burgundy-deep);
+  font-size: 1rem;
+}
+
+.alliance-blocs {
+  font-size: 13px;
+  color: rgba(27, 23, 18, 0.68);
+}
+
+.alliance-choice-made {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--olive);
+}
+
+.alliance-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+  align-items: flex-end;
+}
+
+.alliance-status-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.alliance-status-badge--pending {
+  background: rgba(168, 122, 42, 0.12);
+  color: #6a4a12;
+}
+
+.alliance-status-badge--active {
+  background: rgba(77, 92, 53, 0.12);
+  color: #31411f;
+}
+
+/* ── Checkpoint pulse on alliance row ── */
+.checkpoint-pulse {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #6a4a12;
+  text-transform: uppercase;
+  animation: pulse-gold 1.8s ease-in-out infinite;
+}
+
+/* ── GameLog entry types ── */
+.log-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid rgba(110, 31, 27, 0.08);
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(27, 23, 18, 0.78);
+}
+
+.log-entry:last-child { border-bottom: 0; }
+
+.log-type-tag {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.log-message {
+  flex: 1;
+}
+
+.log-type--policy   .log-type-tag { background: rgba(85, 107, 47, 0.12);  color: var(--olive); }
+.log-type--scandal  .log-type-tag { background: rgba(122, 26, 24, 0.12);  color: #7a1a18; }
+.log-type--rally    .log-type-tag { background: rgba(61, 107, 159, 0.12); color: #1d4e7c; }
+.log-type--turn     .log-type-tag { background: rgba(110, 31, 27, 0.08);  color: var(--burgundy); }
+.log-type--event    .log-type-tag { background: rgba(61, 107, 159, 0.18); color: #1d3a5c; }
+.log-type--checkpoint .log-type-tag { background: rgba(168, 122, 42, 0.18); color: #6a4a12; }
+.log-type--alliance .log-type-tag { background: rgba(106, 65, 18, 0.12);  color: #6a4112; }
+.log-type--resolve  .log-type-tag { background: rgba(122, 26, 24, 0.18);  color: #7a1a18; }
+.log-type--system   .log-type-tag { background: rgba(27, 23, 18, 0.07);   color: rgba(27,23,18,0.55); }
+
+/* ── Scandal entry highlight in log ── */
+.log-type--scandal  { background: rgba(255, 242, 240, 0.55); }
+.log-type--event    { background: rgba(240, 246, 255, 0.55); }
+.log-type--checkpoint { background: rgba(255, 249, 224, 0.55); }
+.log-type--resolve  { background: rgba(255, 240, 238, 0.7); font-weight: 600; }

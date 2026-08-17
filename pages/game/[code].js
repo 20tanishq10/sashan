@@ -7,6 +7,7 @@ import GameHUD from '../../components/GameHUD'
 import VoterBlocBoard from '../../components/VoterBlocBoard'
 import PlayerHand from '../../components/PlayerHand'
 import GameLog from '../../components/GameLog'
+import AlliancePanel from '../../components/AlliancePanel'
 import { getStandings } from '../../lib/game/scoring'
 
 export default function GameRoom() {
@@ -17,6 +18,7 @@ export default function GameRoom() {
   const [gameState, setGameState] = useState(null)
   const [players, setPlayers] = useState([])
   const [myPlayerState, setMyPlayerState] = useState(null)
+  const [myAlliances, setMyAlliances] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -32,6 +34,7 @@ export default function GameRoom() {
     setGameState(json.gameState)
     setPlayers(json.players)
     setMyPlayerState(json.myPlayerState)
+    setMyAlliances(json.myAlliances || [])
     if (json.lobby.status === 'waiting') {
       router.replace(`/lobby/${code}`)
     }
@@ -77,6 +80,8 @@ export default function GameRoom() {
     }
   }, [gameState?.id, fetchGame])
 
+  // ── Game actions ──────────────────────────────────────────────────────────
+
   async function sendAction(action) {
     if (!player) return
     setActionLoading(true)
@@ -84,11 +89,7 @@ export default function GameRoom() {
     const res = await fetch('/api/game-action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        sessionToken: player.sessionToken,
-        action,
-      }),
+      body: JSON.stringify({ code, sessionToken: player.sessionToken, action }),
     })
     const json = await res.json()
     setActionLoading(false)
@@ -96,21 +97,65 @@ export default function GameRoom() {
       setError(json.error || 'Action failed')
       return
     }
-    if (json.gameOver) {
-      setWinner(json.winner)
+    if (json.gameOver) setWinner(json.winner)
+    await fetchGame()
+  }
+
+  // playCard handles both policy cards (no targetPlayerId) and scandal cards (with targetPlayerId)
+  function handlePlayCard(cardId, targetPlayerId) {
+    const action = { type: 'play_card', cardId }
+    if (targetPlayerId) action.targetPlayerId = targetPlayerId
+    sendAction(action)
+  }
+
+  function handleRally(bloc) {
+    sendAction({ type: 'rally', bloc })
+  }
+
+  function handleProposeAlliance({ targetPlayerId, proposerBloc, targetBloc }) {
+    sendAction({ type: 'propose_alliance', targetPlayerId, proposerBloc, targetBloc })
+  }
+
+  // ── Alliance lifecycle actions ────────────────────────────────────────────
+
+  async function handleAllianceAction(allianceId, actionType, choice) {
+    if (!player) return
+    setActionLoading(true)
+    setError(null)
+    const res = await fetch('/api/alliance-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        sessionToken: player.sessionToken,
+        allianceId,
+        action: { type: actionType, choice },
+      }),
+    })
+    const json = await res.json()
+    setActionLoading(false)
+    if (!res.ok) {
+      setError(json.error || 'Alliance action failed')
+      return
     }
     await fetchGame()
   }
+
+  // ── Derived state ─────────────────────────────────────────────────────────
 
   const isMyTurn = gameState?.current_turn_player_id === player?.playerId
   const isOver = gameState?.phase === 'finished'
   const standings = gameState ? getStandings(gameState, players) : []
   const ap = myPlayerState?.action_points ?? 0
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   if (loading) {
     return (
       <main className="page game-page">
-        <div className="card"><p>Assembling the election board…</p></div>
+        <div className="card">
+          <p>Assembling the election board…</p>
+        </div>
       </main>
     )
   }
@@ -120,7 +165,9 @@ export default function GameRoom() {
       <main className="page game-page">
         <div className="card">
           <p className="error">{error}</p>
-          <Link href="/" className="btn btn-secondary">Return home</Link>
+          <Link href="/" className="btn btn-secondary">
+            Return home
+          </Link>
         </div>
       </main>
     )
@@ -147,8 +194,8 @@ export default function GameRoom() {
             <div className="game-over-banner">
               <h3>Polls closed</h3>
               <p>
-                <strong>{winner?.nickname || standings[0]?.nickname}</strong> carries the election
-                with {winner?.total ?? standings[0]?.total} total support.
+                <strong>{winner?.nickname || standings[0]?.nickname}</strong> carries the
+                election with {winner?.total ?? standings[0]?.total} total support.
               </p>
             </div>
           )}
@@ -181,23 +228,44 @@ export default function GameRoom() {
             hand={myPlayerState?.hand}
             actionPoints={myPlayerState?.action_points}
             isMyTurn={isMyTurn && !isOver}
-            onPlayCard={(cardId) => sendAction({ type: 'play_card', cardId })}
-            onRally={(bloc) => sendAction({ type: 'rally', bloc })}
+            onPlayCard={handlePlayCard}
+            onRally={handleRally}
+            onProposeAlliance={handleProposeAlliance}
+            players={players}
+            myPlayerId={player?.playerId}
             loading={actionLoading}
           />
         </div>
 
         <aside className="game-sidebar">
           <GameLog log={gameState?.board_state?.log} />
+
+          <AlliancePanel
+            myAlliances={myAlliances}
+            myPlayerId={player?.playerId}
+            players={players}
+            currentRound={gameState?.round}
+            onAllianceAction={handleAllianceAction}
+            loading={actionLoading}
+          />
+
           <div className="reference-card">
             <span className="hud-label">Turn rhythm</span>
-            <p>Read the map, spend AP with care, and only yield when your campaign has squeezed enough value from this window.</p>
+            <p>
+              Read the map, spend AP with care, and only yield when your campaign has squeezed
+              enough value from this window.
+            </p>
           </div>
           <div className="reference-card">
             <span className="hud-label">Victory brief</span>
-            <p>Stack support across the whole country. A narrow lead in one zone is fragile, but a broad coalition is hard to uproot.</p>
+            <p>
+              Stack support across the whole country. A narrow lead in one zone is fragile, but
+              a broad coalition is hard to uproot.
+            </p>
           </div>
-          <Link href="/" className="btn btn-secondary btn-sm">Exit to home</Link>
+          <Link href="/" className="btn btn-secondary btn-sm">
+            Exit to home
+          </Link>
         </aside>
       </div>
     </main>
