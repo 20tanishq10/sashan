@@ -7,12 +7,13 @@ export default function LobbyPlayerList({ players, hostId, currentPlayerId }) {
 
   return (
     <ul className="player-list">
-      {players.map((player) => {
+      {players.map((player, index) => {
         const isHost = player.id === hostId
         const isYou = player.id === currentPlayerId
         return (
           <li key={player.id} className={`player-row ${player.is_ready ? 'ready' : ''}`}>
             <div>
+              <span className="seat-number">Seat {index + 1}</span>
               <strong>{player.nickname}</strong>
               {isYou && <span className="badge">You</span>}
               {isHost && <span className="badge badge-host">Host</span>}

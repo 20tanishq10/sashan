@@ -67,11 +67,6 @@ export default function GameRoom() {
         { event: '*', schema: 'public', table: 'game_state', filter: `id=eq.${gameState.id}` },
         () => fetchGame()
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'player_state', filter: `game_state_id=eq.${gameState.id}` },
-        () => fetchGame()
-      )
       .subscribe()
 
     const poll = setInterval(() => fetchGame().catch(() => {}), 4000)
@@ -110,11 +105,12 @@ export default function GameRoom() {
   const isMyTurn = gameState?.current_turn_player_id === player?.playerId
   const isOver = gameState?.phase === 'finished'
   const standings = gameState ? getStandings(gameState, players) : []
+  const ap = myPlayerState?.action_points ?? 0
 
   if (loading) {
     return (
       <main className="page game-page">
-        <div className="card"><p>Loading game…</p></div>
+        <div className="card"><p>Assembling the election board…</p></div>
       </main>
     )
   }
@@ -124,7 +120,7 @@ export default function GameRoom() {
       <main className="page game-page">
         <div className="card">
           <p className="error">{error}</p>
-          <Link href="/" className="btn btn-secondary">Home</Link>
+          <Link href="/" className="btn btn-secondary">Return home</Link>
         </div>
       </main>
     )
@@ -149,10 +145,10 @@ export default function GameRoom() {
 
           {isOver && (
             <div className="game-over-banner">
-              <h3>Campaign Complete</h3>
+              <h3>Polls closed</h3>
               <p>
-                Winner: <strong>{winner?.nickname || standings[0]?.nickname}</strong>{' '}
-                with {winner?.total ?? standings[0]?.total} total support
+                <strong>{winner?.nickname || standings[0]?.nickname}</strong> carries the election
+                with {winner?.total ?? standings[0]?.total} total support.
               </p>
             </div>
           )}
@@ -160,14 +156,23 @@ export default function GameRoom() {
           {error && <p className="error">{error}</p>}
 
           {!isOver && isMyTurn && (
-            <div className="turn-actions">
+            <div className="turn-actions chamber-card">
+              <div>
+                <span className="hud-label">Floor action</span>
+                <h4>Close this speaking window</h4>
+                <p className="board-copy">
+                  {ap > 0
+                    ? `You still have ${ap} AP. Play a card, rally a zone, or yield the floor when your move is complete.`
+                    : 'You are out of AP. Yield the floor to move the election to the next campaign.'}
+                </p>
+              </div>
               <button
                 type="button"
                 className="btn btn-primary"
                 disabled={actionLoading}
                 onClick={() => sendAction({ type: 'end_turn' })}
               >
-                End Turn
+                Yield the floor
               </button>
             </div>
           )}
@@ -184,7 +189,15 @@ export default function GameRoom() {
 
         <aside className="game-sidebar">
           <GameLog log={gameState?.board_state?.log} />
-          <Link href="/" className="btn btn-secondary btn-sm">Leave game</Link>
+          <div className="reference-card">
+            <span className="hud-label">Turn rhythm</span>
+            <p>Read the map, spend AP with care, and only yield when your campaign has squeezed enough value from this window.</p>
+          </div>
+          <div className="reference-card">
+            <span className="hud-label">Victory brief</span>
+            <p>Stack support across the whole country. A narrow lead in one zone is fragile, but a broad coalition is hard to uproot.</p>
+          </div>
+          <Link href="/" className="btn btn-secondary btn-sm">Exit to home</Link>
         </aside>
       </div>
     </main>

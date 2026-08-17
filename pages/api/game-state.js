@@ -63,7 +63,6 @@ export default async function handler(req, res) {
     lobby: { id: lobby.id, code: lobby.code, status: lobby.status },
     gameState,
     players,
-    playerStates,
     myPlayerId,
     myPlayerState,
   })

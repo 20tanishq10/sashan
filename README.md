@@ -13,6 +13,7 @@ npm install
 2. Create a [Supabase](https://supabase.com) project and run migrations in order:
    - `db/migrations/001_init.sql`
    - `db/migrations/002_realtime_rls.sql`
+   - `db/migrations/003_game_realtime.sql`
 
 3. Set environment variables in `.env.local`:
 
@@ -30,7 +31,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Current features (Phase 1)
+## Current features (Phase 2)
 
 - Create lobby with nickname → get a 6-character code
 - Join lobby via code + nickname
@@ -39,6 +40,9 @@ Open [http://localhost:3000](http://localhost:3000).
 - Host-only start game (min 3 players, all ready)
 - Session token rejoin on refresh
 - Leave lobby (host transfer if host leaves)
+- Six-round turn-based campaign with 3 AP per turn
+- Policy cards and rallies that build support across voter blocs
+- Live voter-bloc board, standings, campaign log, and end-game winner
 
 ## Project structure
 
@@ -48,7 +52,7 @@ pages/
   create.js         — Create lobby
   join.js           — Join lobby
   lobby/[code].js   — Waiting room
-  game/[code].js    — Game room (Phase 2 placeholder)
+  game/[code].js    — Live game room
   api/              — Server routes (authoritative mutations)
 lib/
   session.js        — Client session token + player storage
@@ -59,11 +63,10 @@ components/
 db/migrations/      — Postgres schema
 ```
 
-## Next up (Phase 2)
+## Next up (Phase 3)
 
-- Voter bloc board UI
-- Policy card play loop
-- Turn order and AP spending
-- Server-validated game actions
+- Additional card categories
+- Alliances and betrayals
+- Event cards and scoring checkpoints
 
 See `election-game-plan.md` for the full design.

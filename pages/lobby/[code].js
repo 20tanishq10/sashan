@@ -185,23 +185,53 @@ export default function LobbyRoom() {
   }
 
   return (
-    <main className="page">
-      <div className="card lobby-card">
+    <main className="page lobby-page">
+      <div className="card lobby-card campaign-lobby-card">
         <Link href="/" className="back-link">← Home</Link>
-        <h2>Lobby</h2>
-        <div className="code-display">
-          <span className="code">{code}</span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={copyCode}>Copy</button>
+        <div className="lobby-hero">
+          <div>
+            <span className="hud-label">Campaign chamber</span>
+            <h2>Election lobby</h2>
+            <p className="subtitle">
+              {players.length} / {lobby?.maxPlayers || 6} players assembled. Need {MIN_PLAYERS}+ and
+              unanimous readiness before polls open.
+            </p>
+          </div>
+          <div className="code-panel">
+            <span className="hud-label">Election code</span>
+            <div className="code-display">
+              <span className="code">{code}</span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={copyCode}>Copy</button>
+            </div>
+          </div>
         </div>
-        <p className="subtitle">
-          {players.length} / {lobby?.maxPlayers || 6} players · Need {MIN_PLAYERS}+ to start
-        </p>
 
-        <LobbyPlayerList
-          players={players}
-          hostId={lobby?.hostId}
-          currentPlayerId={player?.playerId}
-        />
+        <div className="lobby-grid">
+          <section className="lobby-panel">
+            <div className="section-heading">
+              <span className="hud-label">Delegates</span>
+              <h3>Campaign table</h3>
+            </div>
+
+            <LobbyPlayerList
+              players={players}
+              hostId={lobby?.hostId}
+              currentPlayerId={player?.playerId}
+            />
+          </section>
+
+          <aside className="lobby-panel lobby-brief">
+            <div className="section-heading">
+              <span className="hud-label">Briefing</span>
+              <h3>Before the first round</h3>
+            </div>
+            <ul className="brief-list">
+              <li>Share the code with the full table.</li>
+              <li>Each campaign marks itself ready when seated.</li>
+              <li>The host begins the election when everyone is in place.</li>
+            </ul>
+          </aside>
+        </div>
 
         {error && <p className="error">{error}</p>}
 

@@ -1,5 +1,5 @@
 import { getCard } from '../lib/game/cards'
-import { RALLY_AP_COST } from '../lib/game/constants'
+import { BLOCS, BLOC_IDS, RALLY_AP_COST } from '../lib/game/constants'
 
 export default function PlayerHand({
   hand,
@@ -10,12 +10,20 @@ export default function PlayerHand({
   loading,
 }) {
   if (!hand?.length) {
-    return <p className="muted">No cards in hand.</p>
+    return <p className="muted">No issue cards in hand. Build pressure with a rally or yield the floor.</p>
   }
 
   return (
     <div className="player-hand">
-      <h3>Your Hand</h3>
+      <div className="manifesto-heading">
+        <div>
+          <span className="hud-label">Player mat</span>
+          <h3>Manifesto & field actions</h3>
+        </div>
+        <p className="board-copy">
+          Advance your manifesto through issue cards, or spend political capital on an immediate field push.
+        </p>
+      </div>
       <div className="card-grid">
         {hand.map((cardId) => {
           const card = getCard(cardId)
@@ -29,12 +37,15 @@ export default function PlayerHand({
               disabled={!canPlay}
               onClick={() => onPlayCard(cardId)}
             >
+              <span className="card-ribbon">Ideology</span>
               <span className="card-name">{card.name}</span>
               <span className="card-desc">{card.description}</span>
-              <span className="card-cost">{card.apCost} AP</span>
-              <span className="card-effect">
-                {card.effects.map((e) => `+${e.amount} ${e.bloc.replace(/_/g, ' ')}`).join(', ')}
-              </span>
+              <div className="card-footer">
+                <span className="card-cost">{card.apCost} AP</span>
+                <span className="card-effect">
+                  {card.effects.map((e) => `+${e.amount} ${e.bloc.replace(/_/g, ' ')}`).join(', ')}
+                </span>
+              </div>
             </button>
           )
         })}
@@ -42,18 +53,24 @@ export default function PlayerHand({
 
       {isMyTurn && (
         <div className="rally-section">
-          <h4>Rally (no card needed)</h4>
-          <p className="muted">Spend {RALLY_AP_COST} AP for +10 support in one bloc.</p>
+          <div className="rally-heading">
+            <div>
+              <h4>Rally circuit</h4>
+              <p className="muted">Spend {RALLY_AP_COST} AP to surge one territory by +10 support.</p>
+            </div>
+            <span className="rally-cost-badge">{RALLY_AP_COST} AP action</span>
+          </div>
           <div className="rally-buttons">
-            {['youth', 'farmers', 'business', 'working_class', 'retirees', 'urban_professionals'].map((bloc) => (
+            {BLOC_IDS.map((bloc) => (
               <button
                 key={bloc}
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="rally-button"
                 disabled={actionPoints < RALLY_AP_COST || loading}
                 onClick={() => onRally(bloc)}
               >
-                {bloc.replace(/_/g, ' ')}
+                <span className="rally-button-dot" style={{ backgroundColor: BLOCS[bloc].color }} />
+                {BLOCS[bloc].label}
               </button>
             ))}
           </div>

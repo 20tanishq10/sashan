@@ -5,7 +5,10 @@ export default function GameLog({ log }) {
 
   return (
     <div className="game-log">
-      <h4>Campaign Log</h4>
+      <div className="log-heading">
+        <span className="hud-label">Press desk</span>
+        <h4>Campaign log</h4>
+      </div>
       <ul>
         {entries.map((entry, i) => (
           <li key={`${entry.at}-${i}`}>{entry.message}</li>

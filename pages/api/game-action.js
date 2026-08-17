@@ -62,7 +62,9 @@ export default async function handler(req, res) {
 
   if (!result.ok) return res.status(400).json({ error: result.error })
 
-  const { error: gsError } = await supabase
+  // Only commit if the state we validated is still current. This prevents two
+  // rapid requests from the active player from spending the same AP/hand.
+  const { data: savedGameStates, error: gsError } = await supabase
     .from('game_state')
     .update({
       round: result.gameState.round,
@@ -72,11 +74,16 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', gameState.id)
+    .eq('updated_at', gameState.updated_at)
+    .select('id')
 
   if (gsError) return res.status(500).json({ error: 'Could not save game state' })
+  if (!savedGameStates?.length) {
+    return res.status(409).json({ error: 'The game changed. Please try that action again.' })
+  }
 
   for (const ps of result.playerStates) {
-    await supabase
+    const { error: updatePlayerStateError } = await supabase
       .from('player_state')
       .update({
         hand: ps.hand,
@@ -84,6 +91,9 @@ export default async function handler(req, res) {
         influence_score: ps.influence_score,
       })
       .eq('id', ps.id)
+    if (updatePlayerStateError) {
+      return res.status(500).json({ error: 'Could not save player state' })
+    }
   }
 
   if (result.gameOver) {

@@ -41,18 +41,21 @@ export default function Create() {
   }
 
   return (
-    <main className="page">
-      <div className="card">
+    <main className="page dossier-page">
+      <div className="card dossier-card">
         <Link href="/" className="back-link">← Back</Link>
-        <h2>Create Lobby</h2>
-        <p className="subtitle">You will be the host. Share the lobby code with friends once created.</p>
+        <div className="section-heading">
+          <span className="hud-label">Campaign registration</span>
+          <h2>Open a war room</h2>
+        </div>
+        <p className="subtitle">You will host the table, receive the election code, and convene the rest of the field.</p>
         <form onSubmit={handleCreate} className="form">
           <label>
-            Your nickname
+            Candidate name
             <input
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Enter nickname"
+              placeholder="Enter candidate name"
               maxLength={20}
               required
             />

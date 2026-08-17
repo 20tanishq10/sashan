@@ -42,14 +42,17 @@ export default function Join() {
   }
 
   return (
-    <main className="page">
-      <div className="card">
+    <main className="page dossier-page">
+      <div className="card dossier-card">
         <Link href="/" className="back-link">← Back</Link>
-        <h2>Join Lobby</h2>
-        <p className="subtitle">Enter the 6-character code from your friend&apos;s lobby.</p>
+        <div className="section-heading">
+          <span className="hud-label">Election access</span>
+          <h2>Join an existing table</h2>
+        </div>
+        <p className="subtitle">Enter the six-character code and register the name you want on the ballot.</p>
         <form onSubmit={handleJoin} className="form">
           <label>
-            Lobby code
+            Election code
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -59,11 +62,11 @@ export default function Join() {
             />
           </label>
           <label>
-            Your nickname
+            Candidate name
             <input
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Enter nickname"
+              placeholder="Enter candidate name"
               maxLength={20}
               required
             />
