@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sashan — Preview</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;max-width:900px;margin:40px auto;color:#111}
+    h1,h2{color:#0b3d91}
+    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}
+    a.file{color:#0366d6;text-decoration:none}
+    .row{display:flex;gap:12px}
+    .kbd{background:#eee;padding:2px 6px;border-radius:4px;font-family:monospace}
+  </style>
+</head>
+<body>
+  <h1>Sashan — Phase 1 Preview</h1>
+  <p>This file summarizes the Phase 1 scaffold created in this workspace so you can review it locally.</p>
+
+  <h2>How to run</h2>
+  <p>Install and run the Next.js dev server from the project root:</p>
+  <pre><code>npm install
+npm run dev</code></pre>
+  <p>Set these environment variables in <span class="kbd">.env.local</span> before running:</p>
+  <pre><code>NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=anonkey
+SUPABASE_SERVICE_ROLE_KEY=service_role_key</code></pre>
+
+  <h2>What was created</h2>
+  <ul>
+    <li><a class="file" href="README.md">README.md</a> — quick start and notes.</li>
+    <li><a class="file" href="package.json">package.json</a> — project manifest.</li>
+    <li><a class="file" href="pages/index.js">pages/index.js</a> — homepage with Create/Join links.</li>
+    <li><a class="file" href="pages/create.js">pages/create.js</a> — create lobby UI (calls <code>/api/create-lobby</code>).</li>
+    <li><a class="file" href="pages/join.js">pages/join.js</a> — join/check lobby UI (calls <code>/api/check-lobby</code>).</li>
+    <li><a class="file" href="pages/api/create-lobby.js">pages/api/create-lobby.js</a> — server API to create a lobby (uses Supabase service key).</li>
+    <li><a class="file" href="pages/api/check-lobby.js">pages/api/check-lobby.js</a> — checks lobby existence and status.</li>
+    <li><a class="file" href="db/migrations/001_init.sql">db/migrations/001_init.sql</a> — initial DB schema for lobbies and game state.</li>
+  </ul>
+
+  <h2>Notes & next steps</h2>
+  <ul>
+    <li>Lobby creation requires a Supabase project and the service role key set in the environment.</li>
+    <li>Realtime (player presence, ready toggles) and join flow are next — I can implement those now.</li>
+    <li>Open <a href="http://localhost:3000">http://localhost:3000</a> after running <span class="kbd">npm run dev</span> to use the Create/Join pages.</li>
+  </ul>
+
+  <p>If you want, I can also generate a single self-contained static HTML demo (no Supabase) that simulates lobby flows for offline review.</p>
+</body>
+</html>
