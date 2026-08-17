@@ -1,7 +1,8 @@
 import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
 import { MIN_PLAYERS } from '../../lib/lobbyCodes'
-
-const INITIAL_HAND = ['youth_outreach', 'farm_subsidies', 'tax_cut_business', 'union_support', 'retiree_benefits']
+import { initBoardState } from '../../lib/game/state'
+import { STARTER_HAND } from '../../lib/game/cards'
+import { AP_PER_ROUND } from '../../lib/game/constants'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -34,6 +35,7 @@ export default async function handler(req, res) {
     .from('lobby_players')
     .select('id, is_ready')
     .eq('lobby_id', lobbyId)
+    .order('joined_at', { ascending: true })
 
   if (playersError) return res.status(500).json({ error: 'Could not load players' })
   if (players.length < MIN_PLAYERS) {
@@ -43,16 +45,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'All players must be ready' })
   }
 
-  const boardState = {
-    blocs: {
-      youth: 50,
-      farmers: 50,
-      business: 50,
-      working_class: 50,
-      retirees: 50,
-      urban_professionals: 50,
-    },
-  }
+  const playerIds = players.map((p) => p.id)
+  const boardState = initBoardState(playerIds)
 
   const { data: gameState, error: gameError } = await supabase
     .from('game_state')
@@ -61,7 +55,7 @@ export default async function handler(req, res) {
       round: 1,
       phase: 'campaign',
       board_state: boardState,
-      current_turn_player_id: players[0].id,
+      current_turn_player_id: playerIds[0],
     }])
     .select('id')
     .single()
@@ -71,8 +65,8 @@ export default async function handler(req, res) {
   const playerStateRows = players.map((p) => ({
     game_state_id: gameState.id,
     player_id: p.id,
-    hand: INITIAL_HAND,
-    action_points: 3,
+    hand: STARTER_HAND,
+    action_points: AP_PER_ROUND,
     influence_score: 0,
     ideology_position: { tradition_progress: 50, centralized_local: 50 },
     active_alliances: [],
