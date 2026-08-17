@@ -1,8 +1,8 @@
 const TYPE_META = {
   play_card:         { label: 'Policy',      cls: 'log-tag--policy' },
-  scandal:           { label: 'Attack',      cls: 'log-tag--scandal' },
-  rally:             { label: 'Rally',       cls: 'log-tag--rally' },
-  end_turn:          { label: 'Turn',        cls: 'log-tag--turn' },
+  scandal:           { label: 'Conspiracy',  cls: 'log-tag--scandal' },
+  rally:             { label: 'Canvassing',  cls: 'log-tag--rally' },
+  end_turn:          { label: 'Pass',        cls: 'log-tag--turn' },
   event:             { label: 'Event',       cls: 'log-tag--event' },
   checkpoint:        { label: 'Checkpoint',  cls: 'log-tag--checkpoint' },
   alliance_proposed: { label: 'Alliance',    cls: 'log-tag--alliance' },
@@ -21,13 +21,13 @@ const ENTRY_CLS = {
 
 export default function GameLog({ log }) {
   if (!log?.length) return null
-  const entries = [...log].reverse().slice(0, 12)
+  const entries = [...log].reverse().slice(0, 14)
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <span className="label" style={{ marginBottom: 0 }}>Activity</span>
-        <h4>Game log</h4>
+        <span className="label" style={{ marginBottom: 0 }}>Press Room</span>
+        <h4>Campaign Log</h4>
       </div>
       <div className="log-list">
         {entries.map((entry, i) => {
