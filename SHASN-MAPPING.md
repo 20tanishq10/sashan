@@ -101,20 +101,21 @@ Areas are immune to **all** of these.
 
 ---
 
-## 5. What the rulebook does *not* contain
+## 5. Card content status
 
-It is mechanics-only. **None of the card text is in it.** To "match the rulebook exactly" we still
-need content for:
+The rulebook is mechanics-only and contains none of the card text. Current state:
 
-- **108 Ideology Cards** — question + 2 answers + Ideologue tag + resource payouts each
-- **60 Voter Cards** — resource cost + voter count (1–3)
-- **20 Conspiracy Cards** — effect + 4-or-5 resource cost
-- **20 Headline Cards** — effect
-- **14 Zone Requirement Cards** — 2-player only
+| Deck | Count | Status |
+|---|---:|---|
+| Conspiracy Cards | 20 | ✅ **real** — India deck, verbatim |
+| Headline Cards | 20 | ✅ **real** — India deck, verbatim |
+| Voter Cards | 60 | ⚠ stub, built to spec |
+| Ideology Cards | 108 | ⚠ stub (24 placeholders) |
+| Zone Requirement Cards | 14 | ⚠ stub, built to the three documented types |
 
-That's ~220 cards of content that has to come from somewhere: photograph your physical deck, or
-write originals to the same specs. This is the single largest unknown in the project and it
-gates any "complete" build.
+The two remaining stub decks are what still gates a "complete" build. Each lives in
+its own file under `lib/shasn/data/` and nothing imports card contents directly, so
+each is a one-file swap.
 
 ---
 
@@ -159,9 +160,32 @@ These don't port literally:
 | 4 | L3/L5 powers (8) wired to actions, per-zone Gerrymander limits | ✅ done |
 | 5 | Volatile Areas + Headline Cards | ✅ done |
 | 6 | Conspiracy Cards | ✅ buy/hold/play done; Block & Reverse interrupts pending |
-| 7 | Trading, auction | ⬜ primitives done, flow pending |
-| 8 | 2-player mode + Zone Requirements | ⬜ |
+| 7 | Trading, auctions with debt | ✅ done |
+| 8 | 2-player mode + Zone Requirements | ✅ engine done; 7-zone board geometry still stubbed |
 | — | **Rewire API routes + board UI onto the new engine** | ⬜ **required for multiplayer** |
+
+### Board geometry — recovered from the scan
+
+Adjacency and Volatile counts are no longer guesses. They were extracted from
+`Images/board/` by image analysis: zones segmented by flood fill, adjacency
+measured by dilating zone masks across a sweep of radii (so pairs separated by a
+boundary *line* separate cleanly from pairs separated by a whole *zone*), and the
+11 Volatile Areas located with a ring-shape filter that survives both light and
+dark backgrounds.
+
+Two results worth noting:
+
+- **Volatile Areas: 1 per zone, except North and South with 2 each.** Total 11,
+  matching p.17 and its "every zone has at least one".
+- **Central borders only North and South** — it sits inside the inner diamond, so
+  it does not touch West or East. My original guess had it bordering all four.
+  This changes what Gerrymandering is legal.
+
+Still approximate: the Volatile *indices* within each zone. The scan is cropped at
+the right edge (East is clipped) so a full 129-area coordinate map is not
+recoverable from it. Indices are cosmetic here — areas within a zone are
+interchangeable and only the count affects play. Measured pixel positions are kept
+in `VOLATILE_PIXELS` for whenever real board art turns up.
 
 ### Card content — no longer stubbed
 
@@ -202,8 +226,11 @@ lib/shasn/
   ideology.js    answer flow, redraw, Ideologue tallies, passive income, unlocks
   powers.js      the 8 Ideologue powers + Gerrymander allowances
   cards.js       Headline and Conspiracy handling, effect application
+  trading.js     trades, auctions, bidding on credit, the debt ledger
+  twoPlayer.js   7-zone mode, opening bid, Zone Requirement placement
   game.js        turn machine tying it all together
   data/          real India Headline + Conspiracy decks; stub Voter + Ideology
+                 + stub Zone Requirements
 pages/
   prototype.js   hot-seat playtest UI, drives lib/shasn directly
 tests/
@@ -212,9 +239,10 @@ tests/
   economy.test.mjs   45 assertions
   game.test.mjs      24 assertions, incl. full games played to completion
   powers.test.mjs    41 assertions
+  trading.test.mjs   33 assertions
 ```
 
-`npm test` → **142 assertions**, all green. Every test names the rulebook page it
+`npm test` → **175 assertions**, all green. Every test names the rulebook page it
 enforces. Full games are played to completion for 3, 4 and 5 players across
 multiple seeds, asserting resource conservation and that every zone settles.
 
