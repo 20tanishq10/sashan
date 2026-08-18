@@ -13,6 +13,7 @@ import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib
 import { getSupabase } from '../../lib/supabaseClient'
 import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
 import CardResolver from '../../components/CardResolver'
+import IdeologyPrompt from '../../components/IdeologyPrompt'
 import PlayerMat from '../../components/PlayerMat'
 import VoterCardRow from '../../components/VoterCardRow'
 import * as Board from '../../lib/shasn/board'
@@ -44,6 +45,7 @@ export default function GameRoom() {
   const [powerMode, setPowerMode] = useState(null)
   const [capDiscard, setCapDiscard] = useState(R.emptyPool())
   const [note, setNote] = useState('')
+  const [reveal, setReveal] = useState(null) // ideology card unmasked after answering
 
   // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -197,9 +199,7 @@ export default function GameRoom() {
   const isMyTurn = !isSpectator && active?.id === myPlayerId
   const finished = game.phase === 'finished'
   const colorOf = (pid) => colorForSeat(game.players.findIndex((p) => p.id === pid))
-  const pendingCard = game.pendingIdeologyCard
-    ? Ideology.getIdeologyCard(game.pendingIdeologyCard)
-    : null
+  const pendingIdeology = game.pendingIdeology
   const selectedCard = selection ? Voter.getVoterCard(game.market.open[selection.openIndex]) : null
 
   // ── Board interaction ────────────────────────────────────────────────────
@@ -285,6 +285,22 @@ export default function GameRoom() {
 
   return (
     <Shell>
+      {pendingIdeology && !finished && (
+        <IdeologyPrompt
+          pending={pendingIdeology}
+          reveal={reveal}
+          busy={busy}
+          canRedraw={isMyTurn}
+          spectatorName={isMyTurn ? null : active?.name}
+          onAnswer={async (answerIndex) => {
+            const r = await send('answer_ideology', { answerIndex })
+            if (r?.reveal) setReveal(r.reveal)
+          }}
+          onRedraw={() => send('redraw_ideology')}
+          onRevealDone={() => setReveal(null)}
+        />
+      )}
+
       <div style={S.topBar}>
         <div>
           <h1 style={S.h1}>SHASN</h1>
@@ -339,38 +355,6 @@ export default function GameRoom() {
             <p style={S.hint}>Waiting for {active?.name}…</p>
           )}
 
-          {isMyTurn && game.turnPhase === TURN_PHASES.IDEOLOGY && pendingCard && (
-            <div style={S.subPanel}>
-              <p style={S.prompt}>{pendingCard.prompt}</p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {pendingCard.answers.map((a) => (
-                  <button
-                    key={a.ideologue}
-                    disabled={busy}
-                    style={{ ...S.answerBtn, borderColor: IDEOLOGUES[a.ideologue].color }}
-                    onClick={() => send('answer_ideology', { ideologue: a.ideologue })}
-                  >
-                    <strong style={{ color: IDEOLOGUES[a.ideologue].color }}>
-                      {IDEOLOGUES[a.ideologue].label}
-                    </strong>
-                    <span style={S.small}>{a.text}</span>
-                    <span style={S.payout}>
-                      {RESOURCE_IDS.filter((id) => a.resources[id])
-                        .map((id) => `+${a.resources[id]} ${RESOURCES[id].label}`)
-                        .join(' · ')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <button
-                style={{ ...S.btnGhost, marginTop: 10 }}
-                disabled={busy}
-                onClick={() => send('redraw_ideology')}
-              >
-                Redraw for any 4 resources
-              </button>
-            </div>
-          )}
 
           {isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me && (
             <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>

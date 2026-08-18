@@ -38,7 +38,12 @@ function dispatch(game, rng, action, actorId) {
   const p = action.payload || {}
   switch (action.type) {
     case 'answer_ideology':
-      return Game.answerIdeology(game, p.ideologue)
+      // Answered by index: the active player is not shown which Ideologue is
+      // which (p.12), so their client cannot name one.
+      return Game.answerIdeology(
+        game,
+        typeof p.answerIndex === 'number' ? p.answerIndex : p.ideologue
+      )
     case 'redraw_ideology':
       return Game.redrawIdeology(game, rng, p.allocation)
     case 'discard_to_cap':
@@ -163,5 +168,7 @@ export default async function handler(req, res) {
     standings: Game.getStandings(next),
     manual: result.manual || false,
     card: result.card || null,
+    // Only present on answer_ideology — the card unmasked now the answer is in.
+    reveal: result.reveal || null,
   })
 }

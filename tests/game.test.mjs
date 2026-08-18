@@ -14,6 +14,7 @@ import {
   game as G,
   persistence as P,
   voterCardData,
+  ideologyCardData,
   zones,
   consts,
   createRunner,
@@ -514,11 +515,96 @@ check('a player view hides other hands and the undrawn decks', () => {
   ok(typeof view.conspiracyDeck.size === 'number', 'only deck sizes leak')
 })
 
-check('only the active player sees their pending Ideology Card', () => {
+check('the answering player is not shown the payouts (p.12)', () => {
   const { game } = newGame()
-  ok(P.viewFor(game, 'p1').pendingIdeologyCard, 'active player sees it')
-  eq(P.viewFor(game, 'p2').pendingIdeologyCard, null, 'others do not:')
-  eq(P.viewFor(game, null).pendingIdeologyCard, null, 'spectators do not:')
+  const mine = P.viewFor(game, 'p1').pendingIdeology
+
+  ok(mine.hidden, 'flagged hidden for the answering player')
+  ok(mine.prompt, 'they still get the question')
+  eq(mine.answers.length, 2)
+  for (const a of mine.answers) {
+    ok(a.text, 'answer text is read aloud')
+    eq(a.ideologue, undefined, 'Ideologue withheld:')
+    eq(a.resources, undefined, 'payout withheld:')
+  }
+  eq(mine.cardId, undefined, 'card id withheld so it cannot be looked up:')
+})
+
+check('everyone else sees the full card, as the reader does', () => {
+  const { game } = newGame()
+  const theirs = P.viewFor(game, 'p2').pendingIdeology
+
+  ok(!theirs.hidden, 'not hidden from opponents')
+  for (const a of theirs.answers) {
+    ok(a.ideologue, 'Ideologue visible')
+    ok(a.resources, 'payout visible')
+  }
+})
+
+check('the raw pending card id never leaves the server', () => {
+  const { game } = newGame()
+  for (const viewer of ['p1', 'p2', null]) {
+    eq(P.viewFor(game, viewer).pendingIdeologyCard, undefined, `viewer ${viewer}:`)
+  }
+})
+
+check('an Ideology Card can be answered by index', () => {
+  const { game } = newGame()
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+
+  const byIndex = G.answerIdeology(game, 1)
+  ok(!byIndex.error, byIndex.error)
+  eq(byIndex.game.players[0].ideologyCards[0].ideologue, card.answers[1].ideologue)
+
+  const byName = G.answerIdeology(game, card.answers[1].ideologue)
+  eq(
+    byName.game.players[0].ideologyCards[0].ideologue,
+    byIndex.game.players[0].ideologyCards[0].ideologue,
+    'index and name agree:'
+  )
+  ok(G.answerIdeology(game, 7).error, 'out-of-range index refused')
+})
+
+check('answering returns the unmasked card for the reveal', () => {
+  const { game } = newGame()
+  const r = G.answerIdeology(game, 0)
+  ok(!r.error, r.error)
+
+  const rv = r.reveal
+  ok(rv, 'reveal payload present')
+  ok(rv.chosen.ideologue, 'names the Ideologue backed')
+  ok(rv.chosen.text, 'and what was said')
+  ok(rv.granted, 'and what was actually received')
+  eq(rv.rejected.length, 1, 'the road not taken is shown too:')
+  ok(rv.rejected[0].ideologue !== rv.chosen.ideologue, 'and it is the other one')
+  eq(rv.heldAfter[rv.chosen.ideologue], 1, 'card is now on the mat:')
+})
+
+check('the reveal announces newly unlocked powers', () => {
+  let { game } = newGame()
+  // Two Capitalist cards already held; a third unlocks Prospecting.
+  const cardId = ideologyCardData.IDEOLOGY_CARD_IDS.find((id) =>
+    ideologyCardData.IDEOLOGY_CARDS[id].answers.some((a) => a.ideologue === 'capitalist')
+  )
+  const idx = ideologyCardData.IDEOLOGY_CARDS[cardId].answers.findIndex(
+    (a) => a.ideologue === 'capitalist'
+  )
+  game = {
+    ...game,
+    pendingIdeologyCard: cardId,
+    players: game.players.map((p, i) =>
+      i === 0
+        ? { ...p, ideologyCards: [
+            { cardId: 'a', ideologue: 'capitalist' },
+            { cardId: 'b', ideologue: 'capitalist' },
+          ] }
+        : p
+    ),
+  }
+
+  const r = G.answerIdeology(game, idx)
+  ok(!r.error, r.error)
+  eq(r.reveal.unlocked, [{ ideologue: 'capitalist', level: 3 }])
 })
 
 check('a player view keeps the board and scores fully public', () => {

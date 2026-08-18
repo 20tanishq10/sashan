@@ -21,6 +21,7 @@ import * as Voter from '../lib/shasn/voterCards'
 import * as Cards from '../lib/shasn/cards'
 import ShasnBoard, { colorForSeat } from '../components/ShasnBoard'
 import CardResolver from '../components/CardResolver'
+import IdeologyPrompt from '../components/IdeologyPrompt'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
   RESOURCES,
@@ -39,6 +40,7 @@ export default function Prototype() {
   const [capDiscard, setCapDiscard] = useState(R.emptyPool())
   const [powerMode, setPowerMode] = useState(null) // activated Ideologue power
   const [resolutionNote, setResolutionNote] = useState('')
+  const [reveal, setReveal] = useState(null)
   const rngRef = useRef(null)
 
   const player = game ? Game.activePlayer(game) : null
@@ -331,34 +333,25 @@ export default function Prototype() {
 
           {/* --- Ideology phase --- */}
           {game.turnPhase === TURN_PHASES.IDEOLOGY && pendingCard && (
-            <div style={S.subPanel}>
-              <p style={S.prompt}>{pendingCard.prompt}</p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {pendingCard.answers.map((a) => (
-                  <button
-                    key={a.ideologue}
-                    style={{ ...S.answerBtn, borderColor: IDEOLOGUES[a.ideologue].color }}
-                    onClick={() => apply(Game.answerIdeology(game, a.ideologue))}
-                  >
-                    <strong style={{ color: IDEOLOGUES[a.ideologue].color }}>
-                      {IDEOLOGUES[a.ideologue].label}
-                    </strong>
-                    <span style={S.answerText}>{a.text}</span>
-                    <span style={S.payout}>
-                      {RESOURCE_IDS.filter((id) => a.resources[id])
-                        .map((id) => `+${a.resources[id]} ${RESOURCES[id].label}`)
-                        .join(' · ')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <button
-                style={{ ...S.btnGhost, marginTop: 10 }}
-                onClick={() => apply(Game.redrawIdeology(game, rngRef.current))}
-              >
-                Redraw for any 4 resources
-              </button>
-            </div>
+            <IdeologyPrompt
+              pending={{
+                prompt: pendingCard.prompt,
+                advisory: pendingCard.advisory,
+                // Hot-seat: the answering player must not see the payouts either
+                // (p.12), so redact locally the way the server does online.
+                answers: pendingCard.answers.map((a) => ({ text: a.text })),
+              }}
+              reveal={reveal}
+              onAnswer={(i) => {
+                const r = Game.answerIdeology(game, i)
+                if (r.error) return setError(r.error)
+                setError(null)
+                setGame(r.game)
+                setReveal(r.reveal)
+              }}
+              onRedraw={() => apply(Game.redrawIdeology(game, rngRef.current))}
+              onRevealDone={() => setReveal(null)}
+            />
           )}
 
           {/* --- Resource cap phase --- */}
