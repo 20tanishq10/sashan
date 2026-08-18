@@ -8,6 +8,7 @@ import {
   ideology as I,
   powers as P,
   cards as C,
+  effects as Effects,
   game as G,
   conspiracyData,
   headlineData,
@@ -456,17 +457,181 @@ check("Vikas Model's resource option grants any 4", () => {
   eq(r.game.players[0].pool.trust, 4, 'took 4 trust:')
 })
 
-check('a negotiation card is handed to the table rather than guessed at', () => {
-  const { game } = ready({ conspiracyCards: ['the_hawala_network'] })
-  const r = G.playConspiracy(game, { cardId: 'the_hawala_network' })
+check('a card needing a multi-player flow is handed to the table', () => {
+  // Jumla hands you an extra Ideology Card that opponents can buy off you and
+  // that you may re-file each turn — a flow that does not exist yet, so it is
+  // deliberately left to the players rather than half-applied.
+  const { game } = ready({ conspiracyCards: ['jumla'] })
+  const r = G.playConspiracy(game, { cardId: 'jumla' })
   ok(!r.error, r.error)
   ok(r.manual, 'should require manual resolution')
   ok(r.game.awaitingResolution, 'awaiting resolution recorded')
 
-  const done = G.resolveManually(r.game, { note: 'Hawala active for the rest of the game.' })
+  const done = G.resolveManually(r.game, { note: 'Placed under The Idealist.' })
   ok(!done.error, done.error)
   eq(done.game.awaitingResolution, null, 'cleared:')
   eq(done.game.players[0].conspiracyCards.length, 0, 'card spent:')
+})
+
+check('The Hawala Network installs a standing exchange with the Reserve', () => {
+  const { game } = ready({ conspiracyCards: ['the_hawala_network'], pool: pool({ funds: 4 }) })
+  const r = G.playConspiracy(game, { cardId: 'the_hawala_network' })
+  ok(!r.error, r.error)
+  ok(!r.manual, 'resolves in-engine now')
+
+  const me = r.game.players[0]
+  ok(Effects.canUseHawala(me), 'exchange unlocked')
+
+  const swap = Effects.hawalaExchange({
+    player: me,
+    reserve: r.game.reserve,
+    give: pool({ funds: 2 }),
+    take: pool({ trust: 1 }),
+  })
+  ok(!swap.error, swap.error)
+  eq(swap.player.pool.funds, 2, 'gave 2 funds:')
+  eq(swap.player.pool.trust, 1, 'took 1 trust:')
+
+  ok(
+    Effects.hawalaExchange({ player: me, reserve: r.game.reserve, give: pool({ funds: 1, trust: 1 }), take: pool({ media: 1 }) }).error,
+    'both given resources must match'
+  )
+})
+
+check('Pythonpost makes every Conspiracy Card cost more, for good', () => {
+  const { game, rng } = ready({ pool: pool({ funds: 6, trust: 6 }) })
+  const before = R.poolTotal(game.players[0].pool)
+  const plain = G.buyConspiracy(game, rng)
+  const paidNormally = before - R.poolTotal(plain.game.players[0].pool)
+
+  const taxed = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 0 ? Effects.withEffects(p, { conspiracySurcharge: 1 }) : p
+    ),
+  }
+  const r = G.buyConspiracy(taxed, rng)
+  ok(!r.error, r.error)
+  eq(
+    before - R.poolTotal(r.game.players[0].pool),
+    paidNormally + 1,
+    'one resource more than normal:'
+  )
+})
+
+check('Nayi Soch kills the voters you Gerrymander instead of moving them', () => {
+  let { game } = ready({})
+  const west = B.emptyAreaIndices(game.board, 'west').slice(0, 4)
+  game = { ...game, board: B.placeVoters(game.board, 'west', 'p1', west).board }
+  game = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 0 ? Effects.withEffects(p, { lethalGerrymander: 3 }) : p
+    ),
+  }
+  const before = B.voterCount(game.board, 'west', 'p1')
+
+  const sw = B.emptyAreaIndices(game.board, 'south_west')[0]
+  const r = G.gerrymander(game, {
+    rightsZoneId: 'west',
+    from: { zoneId: 'west', areaIndex: west[0] },
+    to: { zoneId: 'south_west', areaIndex: sw },
+  })
+  ok(!r.error, r.error)
+  eq(B.voterCount(r.game.board, 'west', 'p1'), before - 1, 'left the zone:')
+  eq(B.voterCount(r.game.board, 'south_west', 'p1'), 0, 'but never arrived — it died:')
+  eq(Effects.effectsOf(r.game.players[0]).lethalGerrymander, 2, 'one charge spent:')
+})
+
+check('Too Much Freedom taxes Voter Cards, then lapses next turn', () => {
+  const { game } = ready({})
+  const taxed = Effects.withEffects(game.players[0], { voterCardSurcharge: 1 })
+  eq(Effects.voterCardSurcharge(taxed), 1, 'in force:')
+  eq(Effects.voterCardSurcharge(Effects.expireTurnEffects(taxed)), 0, 'lapses at turn start:')
+})
+
+check('a persistent effect survives the turn boundary', () => {
+  const { game } = ready({})
+  const p = Effects.withEffects(game.players[0], { conspiracySurcharge: 1, hawala: true })
+  const after = Effects.expireTurnEffects(p)
+  eq(Effects.conspiracySurcharge(after), 1, 'Pythonpost persists:')
+  ok(Effects.canUseHawala(after), 'Hawala persists')
+})
+
+check('Khaki Terror and auction debt both freeze purchases', () => {
+  const { game } = ready({})
+  const base = game.players[0]
+  eq(Effects.purchasesBlocked(base), null, 'clear by default:')
+  ok(Effects.purchasesBlocked({ ...base, auctionDebt: 2 }), 'auction debt blocks')
+  ok(Effects.purchasesBlocked(Effects.withEffects(base, { owedTithe: true })), 'unpaid tithe blocks')
+})
+
+check('Chai-Paani siphons a named resource away from the Reserve', () => {
+  const { game } = ready({})
+  const diverted = Effects.setDiversion(game, {
+    ownerId: 'p1',
+    victimId: 'p2',
+    resource: 'funds',
+  })
+  eq(Effects.divertedTo(diverted, 'p2', 'funds'), 'p1', 'routed to the card holder:')
+  eq(Effects.divertedTo(diverted, 'p2', 'trust'), null, 'only the named resource:')
+  eq(Effects.divertedTo(diverted, 'p3', 'funds'), null, 'only the named victim:')
+
+  const routed = Effects.routePayment(diverted, 'p2', pool({ funds: 2, trust: 1 }))
+  eq(routed.toReserve.funds, 0, 'funds never reach the Reserve:')
+  eq(routed.toReserve.trust, 1, 'other resources still do:')
+  eq(routed.toPlayers.p1.funds, 2, 'and land with the thief:')
+
+  // "If another such card is played, this one will get discarded."
+  const replaced = Effects.setDiversion(diverted, { ownerId: 'p3', victimId: 'p1', resource: 'trust' })
+  eq(replaced.diversions.length, 1, 'only one diversion at a time:')
+})
+
+check('Demonetisation wipes every opponent and keeps half, rounded up', () => {
+  const { game } = ready({ pool: R.emptyPool() })
+  const g = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 0 ? p : { ...p, pool: pool({ funds: 2, trust: 1 }) }
+    ),
+  }
+  // 2 opponents x 3 = 6 discarded, keep 3.
+  const res = C.applyEffect(conspiracyData.CONSPIRACY_CARDS.demonetisation.effect, {
+    players: g.players,
+    board: g.board,
+    reserve: g.reserve,
+    actorId: 'p1',
+    choice: { resources: pool({ funds: 3 }) },
+  })
+  ok(!res.error, res.error)
+  eq(R.poolTotal(res.players[1].pool), 0, 'opponent wiped:')
+  eq(R.poolTotal(res.players[2].pool), 0, 'and the other:')
+  eq(res.players[0].pool.funds, 3, 'kept half, rounded up:')
+})
+
+check('Vikas Model x3 seizes a 6/11 zone but spares Volatile Areas', () => {
+  const { game } = ready({})
+  const volatileIdx = zones.ZONES.north_west.volatile[0]
+  const free = B.emptyAreaIndices(game.board, 'north_west').filter((i) => i !== volatileIdx)
+  let b = B.placeVoters(game.board, 'north_west', 'p2', free.slice(0, 4)).board
+  b = B.placeVoters(b, 'north_west', 'p2', [volatileIdx]).board
+
+  const res = C.applyEffect(
+    conspiracyData.CONSPIRACY_CARDS.vikas_model.effect.options.find((o) => o.id === 'seize_zone').effect,
+    { players: game.players, board: b, reserve: game.reserve, actorId: 'p1', choice: { zoneId: 'north_west' } }
+  )
+  ok(!res.error, res.error)
+  eq(B.voterCount(res.board, 'north_west', 'p1'), 4, 'took the ordinary voters:')
+  eq(res.board.zones.north_west.owners[volatileIdx], 'p2', 'Volatile voter untouched:')
+})
+
+check('Vikas Model refuses a zone that is not 6/11', () => {
+  const { game } = ready({})
+  const res = C.applyEffect(
+    conspiracyData.CONSPIRACY_CARDS.vikas_model.effect.options.find((o) => o.id === 'seize_zone').effect,
+    { players: game.players, board: game.board, reserve: game.reserve, actorId: 'p1', choice: { zoneId: 'north' } }
+  )
+  ok(res.error, 'North is 11/21, not 6/11')
 })
 
 // ===========================================================================

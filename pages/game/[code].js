@@ -16,6 +16,7 @@ import CardResolver from '../../components/CardResolver'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
 import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
+import PowerPanel from '../../components/PowerPanel'
 import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
 import * as Board from '../../lib/shasn/board'
@@ -762,7 +763,18 @@ const S = {
   sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
   boardCell: { minWidth: 0 },
   deckStrip: { display: 'flex', justifyContent: 'center' },
-  myMat: { marginTop: 12 },
+  // Your own mat stays pinned to the bottom of the window while you scroll the
+  // board — centred and width-constrained rather than full-bleed, so it reads as
+  // your mat on the table rather than a browser chrome bar.
+  myMat: {
+    position: 'sticky',
+    bottom: 10,
+    zIndex: 20,
+    marginTop: 12,
+    maxWidth: 760,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
   seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
   rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
   h1: { fontSize: 24, margin: '0 0 2px', letterSpacing: 4, fontWeight: 700 },

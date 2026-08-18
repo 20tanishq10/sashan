@@ -24,6 +24,7 @@ import CardResolver from '../components/CardResolver'
 import IdeologyPrompt from '../components/IdeologyPrompt'
 import Scoreboard from '../components/Scoreboard'
 import ResourceChain from '../components/ResourceChain'
+import SharedPowerPanel from '../components/PowerPanel'
 import DeckStrip from '../components/DeckStrip'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
@@ -166,11 +167,11 @@ export default function Prototype() {
     const occupant = game.board.zones[zoneId].owners[areaIndex]
 
     // Board-targeted Ideologue powers.
-    if (powerMode && ['breakingGround', 'payback', 'toughLove'].includes(powerMode.action)) {
+    if (powerMode && ['breaking_ground', 'payback', 'tough_love'].includes(powerMode.action)) {
       if (!occupant) return setError('Select a voter.')
       setError(null)
 
-      if (powerMode.action === 'breakingGround') {
+      if (powerMode.action === 'breaking_ground') {
         apply(Game.breakingGround(game, { zoneId, areaIndex }))
         setPowerMode(null)
         return
@@ -565,13 +566,14 @@ export default function Prototype() {
                 </div>
               )}
               {powerMode && (
-                <PowerPanel
+                <SharedPowerPanel
                   power={powerMode}
-                  game={game}
-                  player={player}
+                  players={game.players}
+                  me={player}
                   onCancel={() => setPowerMode(null)}
-                  onRun={(result) => {
-                    apply(result)
+                  onRun={(action, payload) => {
+                    const fn = { prospect: Game.prospect, donations: Game.donations }[action]
+                    if (fn) apply(fn(game, payload))
                     setPowerMode(null)
                   }}
                 />

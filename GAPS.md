@@ -3,36 +3,48 @@
 Every page of the Essential Edition India rulebook checked against the code, plus
 a sweep for engine features with no UI path. Ordered by what actually hurts.
 
-**Headline number: 7 of the 40 real Conspiracy and Headline cards resolve
-mechanically.** The other 33 fall through to the table — and 21 of those are
-tagged in the data as something the engine *should* handle. That mismatch is the
-single biggest gap in the project.
+> **Status after the first fix pass:** 24 of 36 unique cards now resolve in the
+> engine, up from 7. The two dead Ideologue powers are fixed. Remaining items are
+> marked ⬜ below.
+
+**Original headline: 7 of the 40 real Conspiracy and Headline cards resolved
+mechanically.** The other 33 fell through to the table — and 21 of those were
+tagged in the data as something the engine *should* handle.
 
 ---
 
 ## 1. Live bugs
 
-### 1.1 Two Ideologue powers are dead ends in the multiplayer room ⚠️
+### 1.1 Two Ideologue powers are dead ends in the multiplayer room — ✅ FIXED
 
 `Prospecting` (Capitalist L3) and `Donations` (Supremo L3) can be clicked on your
 mat, which arms a power mode — and then nothing can complete it. Both need a
 resource picker, not a board target, and the game room only implements board
 targeting. The prototype has the pickers; `/game/[code]` does not.
 
-The API accepts `prospect` and `donations`; **the UI never sends either.**
+~~The API accepts `prospect` and `donations`; the UI never sends either.~~
+
+**Fixed.** `components/PowerPanel.js` is now shared by both pages and carries the
+resource pickers, so both powers complete.
 
 This matters more than a normal missing control: Prospecting is the rulebook's own
 escape hatch from a starved economy (p.23), and `isStalled()` already counts on it
 existing. Right now a table can deadlock with the cure sitting unusable on a mat.
 
-### 1.2 Cards silently do nothing
+### 1.2 Cards silently do nothing — ✅ MOSTLY FIXED
 
 21 cards declare `mode: auto | choice | persistent | delayed` — my own marker for
 "the engine resolves this" — but `applyEffect` has no branch for their effect
 type, so they fall to the manual box and have no mechanical result. A player reads
 the card, agrees an outcome, and the game state does not move.
 
-Missing effect types:
+17 of the 21 missing effect types are now implemented, along with
+`lib/shasn/effects.js` for the persistent, delayed and counted effects they
+install. Four remain, all needing a sequenced multi-player flow that does not
+exist yet: `roundOfGerrymanders`, `sharePowers`, `wildIdeologyCard`,
+`cashOutVoterCards`.
+
+Originally missing:
 
 ```
 cashOutVoterCards   checklistVoters      conditionalDiscard   conspiracySurcharge
@@ -67,11 +79,12 @@ The engine is done and tested; there is no way to use it from the browser.
 
 | Feature | Engine | UI |
 |---|---|---|
-| **Trading** — any ratio, resources + Conspiracy Cards | ✅ tested | ❌ none |
-| **Auctions** — bidding above your holdings, debt ledger that freezes purchases | ✅ tested | ❌ none |
-| **2-player mode** — 7 zones, opening bid, Zone Requirements | ✅ tested | ❌ lobby caps at 3–5, and the 7-zone board geometry is invented |
+| **Trading** — any ratio, resources + Conspiracy Cards | ✅ tested | ⬜ none |
+| **Auctions** — bidding above your holdings, debt ledger that freezes purchases | ✅ tested | ⬜ none |
+| **2-player mode** — 7 zones, opening bid, Zone Requirements | ✅ tested | ⬜ lobby caps at 3–5, and the 7-zone board geometry is invented |
 
-Unreachable API actions: `trade`, `bid`, `repay_debt`, `prospect`, `donations`.
+Unreachable API actions: `trade`, `bid`, `repay_debt`.
+(`prospect` and `donations` are now wired.)
 
 ---
 
@@ -115,11 +128,10 @@ Checked and passing, so they need no further work:
 
 ## 6. Suggested order
 
-1. **Fix Prospecting and Donations.** A live dead end on two powers, one of which
-   is the anti-deadlock valve. Small job.
-2. **Implement the 21 missing effect types.** Biggest single win — it takes the
-   real card decks from decorative to functional.
-3. **Trading UI.** The engine is done, it is the most-used social mechanic in the
+1. ~~**Fix Prospecting and Donations.**~~ ✅ done
+2. ~~**Implement the missing effect types.**~~ ✅ 17 of 21 done; the last four need
+   a sequenced multi-player flow
+3. **Trading UI.** ⬜ next The engine is done, it is the most-used social mechanic in the
    book, and it is the other half of the deadlock cure.
 4. **Conspiracy interrupt window**, which unlocks Block and Reverse and finishes
    the Conspiracy rules properly.
