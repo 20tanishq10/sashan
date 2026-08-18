@@ -77,19 +77,19 @@ export default function ResourceChain({
                 ...S.slot,
                 width: size,
                 height: size,
-                background: id ? RESOURCES[id].color : '#00000055',
+                background: id ? RESOURCES[id].color : 'var(--surface)',
                 borderColor: overflow
-                  ? '#b3452f'
+                  ? 'var(--danger)'
                   : isMarked
-                  ? '#fff'
+                  ? 'var(--ink)'
                   : id
-                  ? 'rgba(0,0,0,.35)'
-                  : 'rgba(255,255,255,.18)',
-                borderWidth: isMarked || overflow ? 3 : id ? 2 : 1,
+                  ? 'rgba(0,0,0,.14)'
+                  : 'var(--border-2)',
+                borderWidth: isMarked || overflow ? 2.5 : id ? 1.5 : 1,
                 cursor: clickable ? 'pointer' : 'default',
-                opacity: isMarked ? 0.45 : 1,
+                opacity: isMarked ? 0.4 : 1,
                 transform: isMarked ? 'translateY(-3px)' : 'none',
-                boxShadow: id && !isMarked ? 'inset 0 -2px 3px rgba(0,0,0,.25)' : 'none',
+                boxShadow: id && !isMarked ? 'inset 0 -2px 3px rgba(0,0,0,.16)' : 'none',
               }}
             />
           )
@@ -127,7 +127,7 @@ const S = {
     position: 'absolute',
     left: 0,
     right: 42,
-    background: '#17150f',
+    background: 'var(--border)',
     borderRadius: 999,
     zIndex: 0,
   },
@@ -137,17 +137,18 @@ const S = {
     borderStyle: 'solid',
     padding: 0,
     flexShrink: 0,
-    transition: 'transform .12s ease, opacity .12s ease',
+    transition: 'transform 140ms var(--ease), opacity 140ms var(--ease-out)',
   },
   count: {
     marginLeft: 'auto',
     fontSize: 13,
     fontVariantNumeric: 'tabular-nums',
-    fontWeight: 700,
+    fontWeight: 650,
+    color: 'var(--ink)',
     zIndex: 1,
   },
-  capText: { fontStyle: 'normal', fontWeight: 400, opacity: 0.7, fontSize: 11 },
-  legend: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 9.5, opacity: 0.9 },
+  capText: { fontStyle: 'normal', fontWeight: 400, color: 'var(--ink-3)', fontSize: 11 },
+  legend: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 9.5, color: 'var(--ink-2)' },
   legendItem: { display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' },
   legendDot: { width: 9, height: 9, borderRadius: '50%', display: 'inline-block' },
 }

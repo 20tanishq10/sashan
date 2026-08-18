@@ -11,6 +11,7 @@
 //
 // The end-game view adds the per-zone scorecard so the result is auditable.
 
+import { useEffect, useRef, useState } from 'react'
 import { ZONES } from '../lib/shasn/zones'
 import { TOTAL_MAJORITY_POINTS } from '../lib/shasn/zones'
 
@@ -27,10 +28,14 @@ export default function Scoreboard({
   const winners = standings.filter((r) => r.rank === 1)
   const awarded = breakdown ? breakdown.reduce((n, z) => n + z.points, 0) : null
 
+  // Which rows changed place since the last render — the table is a leaderboard
+  // and overtaking somebody is the whole point.
+  const moved = useMovedRows(standings)
+
   return (
     <div>
       {finished && (
-        <div style={S.verdict}>
+        <div style={S.verdict} className="shasn-winner">
           {winners.length > 1 ? (
             <>
               <strong style={S.verdictName}>
@@ -65,7 +70,11 @@ export default function Scoreboard({
           {standings.map((row) => {
             const mine = row.playerId === myPlayerId
             return (
-              <tr key={row.playerId} style={mine ? S.myRow : undefined}>
+              <tr
+                key={row.playerId}
+                style={mine ? S.myRow : undefined}
+                className={moved.has(row.playerId) ? 'shasn-rank-move' : undefined}
+              >
                 <td style={S.td}>
                   <span style={{ ...S.dot, background: colorOf(row.playerId) }} />
                   {row.nickname}
@@ -74,7 +83,7 @@ export default function Scoreboard({
                 </td>
 
                 <td style={{ ...S.td, textAlign: 'right' }}>
-                  <strong style={S.points}>{row.score}</strong>
+                  <Ticker value={row.score} style={S.points} />
                   {!finished && row.projected > row.score && (
                     <span style={S.projected} title="Best score still reachable">
                       → {row.projected}
@@ -103,7 +112,7 @@ export default function Scoreboard({
                               key={c.zoneId}
                               style={{
                                 ...S.contestChip,
-                                borderColor: c.leading ? colorOf(row.playerId) : '#d8d2c4',
+                                borderColor: c.leading ? colorOf(row.playerId) : 'var(--border)',
                                 opacity: c.reachable ? 1 : 0.45,
                               }}
                               title={
@@ -147,8 +156,12 @@ export default function Scoreboard({
               </tr>
             </thead>
             <tbody>
-              {breakdown.map((z) => (
-                <tr key={z.zoneId}>
+              {breakdown.map((z, i) => (
+                <tr
+                  key={z.zoneId}
+                  className="shasn-tally"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
                   <td style={S.td}>{z.label}</td>
                   <td style={S.td}>
                     {z.majority} of {z.areas}
@@ -188,54 +201,119 @@ export default function Scoreboard({
   )
 }
 
+/** Player ids whose rank changed since last render. */
+function useMovedRows(standings) {
+  const prev = useRef(new Map())
+  const [moved, setMoved] = useState(new Set())
+
+  useEffect(() => {
+    const now = new Map(standings.map((r, i) => [r.playerId, i]))
+    const changed = new Set()
+    for (const [id, i] of now) {
+      const was = prev.current.get(id)
+      if (was !== undefined && was !== i) changed.add(id)
+    }
+    prev.current = now
+    if (!changed.size) return
+    setMoved(changed)
+    const t = setTimeout(() => setMoved(new Set()), 700)
+    return () => clearTimeout(t)
+  }, [standings])
+
+  return moved
+}
+
+/** A score that counts to its new value rather than snapping to it. */
+function Ticker({ value, style, duration = 520 }) {
+  const [shown, setShown] = useState(value)
+  const [dir, setDir] = useState(null)
+  const from = useRef(value)
+
+  useEffect(() => {
+    if (value === from.current) return
+    const start = from.current
+    const delta = value - start
+    setDir(delta > 0 ? 'up' : 'down')
+
+    let raf
+    const t0 = performance.now()
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / duration)
+      setShown(Math.round(start + delta * (1 - Math.pow(1 - t, 3))))
+      if (t < 1) raf = requestAnimationFrame(step)
+      else {
+        from.current = value
+        setTimeout(() => setDir(null), 260)
+      }
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+
+  return (
+    <strong
+      key={dir || 'idle'}
+      className={dir === 'up' ? 'shasn-score-up' : dir === 'down' ? 'shasn-score-down' : undefined}
+      style={style}
+    >
+      {shown}
+    </strong>
+  )
+}
+
 const S = {
   verdict: {
-    background: '#3d5145',
-    color: '#fff',
-    borderRadius: 10,
-    padding: '14px 16px',
-    marginBottom: 14,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderLeft: '3px solid var(--good)',
+    color: 'var(--ink)',
+    borderRadius: 'var(--r-lg)',
+    padding: '16px 18px',
+    marginBottom: 16,
     display: 'flex',
     flexDirection: 'column',
     gap: 3,
+    boxShadow: 'var(--sh-1)',
   },
-  verdictName: { fontSize: 20, letterSpacing: 0.4 },
-  verdictSub: { fontSize: 12, opacity: 0.85 },
+  verdictName: { fontSize: 21, fontWeight: 650, letterSpacing: '-0.02em' },
+  verdictSub: { fontSize: 12.5, color: 'var(--ink-3)' },
 
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: {
     textAlign: 'left',
     padding: '6px 8px',
-    borderBottom: '1px solid #e6e0d2',
+    borderBottom: '1px solid var(--border)',
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
-    color: '#8a8478',
+    color: 'var(--ink-3)',
     fontWeight: 600,
   },
-  td: { padding: '8px 8px', borderBottom: '1px solid #f0ece1', verticalAlign: 'top' },
-  myRow: { background: '#fbf8f0' },
+  td: { padding: '9px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'top' },
+  myRow: { background: 'var(--accent-bg)' },
   dot: {
     display: 'inline-block', width: 9, height: 9, borderRadius: '50%',
     marginRight: 7, verticalAlign: 'middle',
   },
   youTag: {
-    fontSize: 9, background: '#e6e0d2', color: '#6b6559', borderRadius: 3,
-    padding: '1px 5px', marginLeft: 6, letterSpacing: 0.5,
+    fontSize: 9, background: 'var(--surface-3)', color: 'var(--ink-3)', borderRadius: 999,
+    padding: '1px 7px', marginLeft: 6, letterSpacing: '0.08em',
+    textTransform: 'uppercase', fontWeight: 600,
   },
   crown: { marginLeft: 6 },
-  points: { fontSize: 17, fontVariantNumeric: 'tabular-nums' },
-  projected: { fontSize: 11, color: '#8a8478', marginLeft: 6 },
+  points: { fontSize: 17, fontWeight: 650, fontVariantNumeric: 'tabular-nums', display: 'inline-block' },
+  projected: { fontSize: 11, color: 'var(--ink-3)', marginLeft: 6 },
   zoneList: { fontSize: 12 },
-  none: { color: '#a8a294', fontSize: 12 },
+  none: { color: 'var(--ink-3)', fontSize: 12 },
   contestWrap: { display: 'flex', gap: 4, flexWrap: 'wrap' },
   contestChip: {
-    fontSize: 10, border: '1.5px solid', borderRadius: 10,
-    padding: '2px 7px', background: '#fff', whiteSpace: 'nowrap',
+    fontSize: 10, border: '1.5px solid', borderRadius: 999,
+    padding: '2px 8px', background: 'var(--surface)', whiteSpace: 'nowrap',
+    fontVariantNumeric: 'tabular-nums',
   },
-  footnote: { fontSize: 11, color: '#8a8478', lineHeight: 1.5, marginTop: 10 },
+  footnote: { fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 10 },
   h4: {
-    fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.7,
-    color: '#6b6559', margin: '20px 0 8px',
+    fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.09em',
+    fontWeight: 600, color: 'var(--ink-3)', margin: '22px 0 8px',
   },
 }

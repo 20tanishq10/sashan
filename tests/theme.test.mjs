@@ -1,0 +1,160 @@
+// SHASN — the design system holds together.
+//
+// Two things can quietly rot here and neither shows up as a crash:
+//
+//   1. A component references `var(--something)` that :root never declares. The
+//      browser silently falls back to nothing and you get a transparent panel or
+//      black text on black.
+//   2. The board draws with literal hexes (RAW in lib/ui/theme.js) because SVG
+//      filters cannot resolve var(), so those literals have to stay in step with
+//      :root by hand. Nothing enforces that but this test.
+//
+// Run with:  node tests/theme.test.mjs
+
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { createRunner, eq, ok } from './harness.mjs'
+
+const { check, report } = createRunner()
+
+const css = readFileSync('styles/globals.css', 'utf8')
+const root = css.match(/:root \{([\s\S]*?)\n\}/)[1]
+const TOKENS = Object.fromEntries(
+  [...root.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map(([, k, v]) => [k, v.trim()])
+)
+
+/** Custom properties set inline by JS on the element itself. */
+const SET_INLINE = new Set(['--gx', '--gy', '--shasn-file-x'])
+
+function sourceFiles() {
+  const out = []
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (e.name.endsWith('.js') && !p.includes('prototype')) out.push(p)
+    }
+  }
+  walk('components')
+  walk('pages')
+  walk('lib/ui')
+  return out
+}
+
+const stripComments = (s) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+// ---------------------------------------------------------------------------
+
+check('every token a component asks for is actually declared', () => {
+  const missing = []
+  for (const f of sourceFiles()) {
+    const src = stripComments(readFileSync(f, 'utf8'))
+    for (const [, name] of src.matchAll(/var\((--[a-z0-9-]+)/g)) {
+      if (!TOKENS[name] && !SET_INLINE.has(name)) missing.push(`${name} in ${f}`)
+    }
+  }
+  eq(missing, [], 'undeclared tokens:')
+})
+
+check('the stylesheet only uses tokens it declares', () => {
+  const body = css.slice(css.indexOf('\n}', css.indexOf(':root')))
+  const missing = [...body.matchAll(/var\((--[a-z0-9-]+)/g)]
+    .map(([, n]) => n)
+    .filter((n) => !TOKENS[n] && !SET_INLINE.has(n))
+  eq([...new Set(missing)], [], 'undeclared tokens in globals.css:')
+})
+
+check('the board’s literal palette matches the tokens', async () => {
+  const theme = readFileSync('lib/ui/theme.js', 'utf8')
+  const raw = theme.match(/export const RAW = \{([\s\S]*?)\n\}/)[1]
+
+  const literals = Object.fromEntries(
+    [...raw.matchAll(/^\s*([a-zA-Z0-9]+):\s*'(#[0-9a-fA-F]{6})'/gm)].map(([, k, v]) => [
+      k,
+      v.toLowerCase(),
+    ])
+  )
+  const players = [...raw.matchAll(/'(#[0-9a-fA-F]{6})'/g)]
+    .map(([, v]) => v.toLowerCase())
+    .slice(0, 6)
+
+  // RAW.p must be exactly --p0 … --p5.
+  for (let i = 0; i < 6; i++) {
+    eq(players[i], TOKENS[`--p${i}`].toLowerCase(), `RAW.p[${i}] vs --p${i}:`)
+  }
+
+  const pairs = {
+    ink: '--ink',
+    ink2: '--ink-2',
+    ink3: '--ink-3',
+    surface: '--surface',
+    boardBg: '--board-bg',
+    zone: '--zone',
+    zone2: '--zone-2',
+    zone3: '--zone-3',
+    zoneLine: '--zone-line',
+    pip: '--pip',
+    pipLine: '--pip-line',
+    danger: '--danger',
+    accent: '--accent',
+  }
+  for (const [key, token] of Object.entries(pairs)) {
+    ok(literals[key], `RAW.${key} is missing`)
+    eq(literals[key], TOKENS[token].toLowerCase(), `RAW.${key} vs ${token}:`)
+  }
+})
+
+check('no shasn-* class is used without a rule to back it', () => {
+  const defined = new Set([...css.matchAll(/\.(shasn-[a-z-]+)/g)].map(([, c]) => c))
+  const used = new Set()
+  for (const f of sourceFiles()) {
+    const src = readFileSync(f, 'utf8').replace(/['"`]shasn-mat[^'"`]*/g, '')
+    for (const [, attr] of src.matchAll(/className=\{?[`'"]([^`'"]*)/g)) {
+      for (const [, c] of attr.matchAll(/(shasn-[a-z-]+)/g)) used.add(c)
+    }
+  }
+  eq([...used].filter((c) => !defined.has(c)), [], 'classes with no rule:')
+})
+
+check('no keyframe name is defined twice', () => {
+  const names = [...css.matchAll(/@keyframes\s+([\w-]+)/g)].map(([, n]) => n)
+  const dupes = [...new Set(names.filter((n) => names.filter((m) => m === n).length > 1))]
+  eq(dupes, [], 'duplicated keyframes:')
+})
+
+check('motion is disabled for people who ask for that', () => {
+  ok(css.includes('prefers-reduced-motion'), 'the guard exists')
+  const block = css.slice(css.indexOf('@media (prefers-reduced-motion'))
+  ok(block.includes('animation-duration'), 'animations are neutralised')
+  ok(block.includes('transition-duration'), 'transitions are neutralised')
+})
+
+check('the four resource colours are distinct and legible', () => {
+  const constants = readFileSync('lib/shasn/constants.js', 'utf8')
+  const block = constants.match(/export const RESOURCES = \{([\s\S]*?)\n\}/)[1]
+  const colors = [...block.matchAll(/color: '(#[0-9a-f]{6})'/g)].map(([, c]) => c)
+  eq(colors.length, 4, 'four resources:')
+  eq(new Set(colors).size, 4, 'all different:')
+
+  // Every one carries an explicit text colour, so no label is white on yellow.
+  eq([...block.matchAll(/ink: '(#[0-9a-f]{6})'/g)].length, 4, 'each declares its ink:')
+})
+
+check('each Ideologue is coloured as the resource it pays', () => {
+  const constants = readFileSync('lib/shasn/constants.js', 'utf8')
+  const resources = Object.fromEntries(
+    [...constants.matchAll(/^\s{2}(\w+): \{ id: '\w+'.*?color: '(#[0-9a-f]{6})'/gm)].map(
+      ([, k, v]) => [k, v]
+    )
+  )
+  const ideologues = [
+    ...constants.matchAll(/resource: '(\w+)',\n\s*color: '(#[0-9a-f]{6})'/g),
+  ]
+  eq(ideologues.length, 4, 'four Ideologues:')
+  for (const [, resource, color] of ideologues) {
+    eq(color, resources[resource], `${resource} Ideologue vs its resource:`)
+  }
+})
+
+report('Design system')

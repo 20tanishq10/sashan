@@ -53,7 +53,7 @@ export default function VoterCardRow({
                 ...S.card,
                 cursor: clickable ? 'pointer' : 'default',
                 opacity: disabled ? 0.55 : affordable ? 1 : 0.5,
-                borderColor: selected ? '#2b2b2b' : '#d8d2c4',
+                borderColor: selected ? 'var(--ink)' : 'var(--border)',
                 borderWidth: selected ? 3 : 1,
                 transform: selected ? 'translateY(-4px)' : 'none',
               }}
@@ -77,7 +77,7 @@ export default function VoterCardRow({
                 {Array.from({ length: cost.any || 0 }, (_, k) => (
                   <span
                     key={`any${k}`}
-                    style={{ ...S.pip, background: '#fff', border: '1.5px solid #8a8478' }}
+                    style={{ ...S.pip, background: 'var(--surface)', border: '1.5px solid var(--ink-3)' }}
                     title="Any resource of your choice"
                   />
                 ))}
@@ -120,7 +120,7 @@ const S = {
     justifyContent: 'center',
     alignItems: 'flex-start',
     flexWrap: 'wrap',
-    background: '#3a2f26',
+    background: 'var(--board-bg)',
     padding: '12px 14px 9px',
     borderRadius: '12px 12px 4px 4px',
   },
@@ -129,7 +129,7 @@ const S = {
     fontSize: 8.5,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: '#c8bda9',
+    color: 'var(--border-2)',
     display: 'flex',
     gap: 5,
     alignItems: 'baseline',
@@ -138,8 +138,8 @@ const S = {
   card: {
     width: 74,
     height: 96,
-    background: '#fdfcf8',
-    border: '1px solid #d8d2c4',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: 7,
     display: 'flex',
     flexDirection: 'column',
@@ -149,11 +149,11 @@ const S = {
     transition: 'transform .12s ease',
     position: 'relative',
   },
-  voters: { fontSize: 34, fontWeight: 700, lineHeight: 1, color: '#2b2b2b' },
+  voters: { fontSize: 34, fontWeight: 700, lineHeight: 1, color: 'var(--ink)' },
   pips: { display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 62 },
   pip: { width: 11, height: 11, borderRadius: '50%', display: 'inline-block' },
   costTotal: {
-    position: 'absolute', top: 4, right: 6, fontSize: 9, color: '#8a8478',
+    position: 'absolute', top: 4, right: 6, fontSize: 9, color: 'var(--ink-3)',
   },
 
 

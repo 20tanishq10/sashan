@@ -127,13 +127,20 @@ export default function FloatingMat({ storageKey = 'shasn-mat', player, color, i
       : { left: '50%', bottom: 12, transform: 'translateX(-50%)' }),
   }
 
+  // The mat lifts once, as the turn arrives — not for as long as it lasts.
+  const justBecameMyTurn = useJustTurnedTrue(isMyTurn)
+
   const counts = Ideology.ideologueCounts(player.ideologyCards)
   const powers = Ideology.activePowerList(player.ideologyCards).length
   const total = R.poolTotal(player.pool)
   const overCap = total > player.resourceCap
 
   return (
-    <div ref={boxRef} style={frame} className="shasn-floating-mat">
+    <div
+      ref={boxRef}
+      style={frame}
+      className={`shasn-floating-mat${justBecameMyTurn ? ' shasn-your-turn' : ''}`}
+    >
       {/* ── Title bar: drag handle, and the whole control set ────────────── */}
       <div
         style={{ ...S.bar, background: color, cursor: dragRef.current ? 'grabbing' : 'grab' }}
@@ -163,7 +170,7 @@ export default function FloatingMat({ storageKey = 'shasn-mat', player, color, i
                 {player.pool[id] || 0}
               </span>
             ))}
-            <span style={{ ...S.sumItem, color: overCap ? '#ffd9d1' : undefined }}>
+            <span style={{ ...S.sumItem, color: overCap ? 'var(--danger-bg)' : undefined }}>
               <strong>{total}</strong>
               <em style={S.sumLabel}>/{player.resourceCap}</em>
             </span>
@@ -172,7 +179,7 @@ export default function FloatingMat({ storageKey = 'shasn-mat', player, color, i
 
             {IDEOLOGUE_IDS.map((id) => (
               <span key={id} style={S.ideoItem} title={`${IDEOLOGUES[id].label}: ${counts[id]}`}>
-                <IdeologueMark ideologue={id} size={13} color="#fff" stroke={2.4} />
+                <IdeologueMark ideologue={id} size={13} color="var(--surface)" stroke={2.4} />
                 <strong>{counts[id]}</strong>
               </span>
             ))}
@@ -229,13 +236,30 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v))
 }
 
+/** True for a moment after `on` flips from false to true. */
+function useJustTurnedTrue(on, ms = 700) {
+  const prev = useRef(on)
+  const [hit, setHit] = useState(false)
+  useEffect(() => {
+    if (on && !prev.current) {
+      setHit(true)
+      const t = setTimeout(() => setHit(false), ms)
+      prev.current = on
+      return () => clearTimeout(t)
+    }
+    prev.current = on
+  }, [on, ms])
+  return hit
+}
+
 const S = {
   frame: {
     position: 'fixed',
     zIndex: 40,
-    borderRadius: 12,
-    boxShadow: '0 10px 34px rgba(20,14,8,.45)',
-    background: '#241f17',
+    borderRadius: 'var(--r-lg)',
+    boxShadow: 'var(--sh-4)',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     overflow: 'hidden',
     maxWidth: 'calc(100vw - 16px)',
   },
@@ -245,14 +269,14 @@ const S = {
     alignItems: 'center',
     gap: 10,
     padding: '0 10px',
-    color: '#fff',
+    color: 'var(--surface)',
     userSelect: 'none',
     touchAction: 'none',
   },
   grip: { opacity: 0.65, fontSize: 15, letterSpacing: -1 },
   name: { fontSize: 14, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 },
   turnDot: {
-    width: 8, height: 8, borderRadius: '50%', background: '#fff',
+    width: 8, height: 8, borderRadius: '50%', background: 'var(--surface)',
     boxShadow: '0 0 0 3px rgba(255,255,255,.35)',
   },
 
@@ -264,7 +288,7 @@ const S = {
     overflowX: 'auto',
     fontSize: 12,
   },
-  sumItem: { display: 'flex', alignItems: 'baseline', gap: 3, whiteSpace: 'nowrap' },
+  sumItem: { display: 'flex', alignItems: 'baseline', gap: 3, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' },
   sumLabel: { fontStyle: 'normal', fontSize: 9, opacity: 0.75, textTransform: 'uppercase', letterSpacing: 0.5 },
   sumDivider: { width: 1, height: 18, background: 'rgba(255,255,255,.3)', flexShrink: 0 },
   resDot: {
@@ -277,10 +301,10 @@ const S = {
   controls: { marginLeft: 'auto', display: 'flex', gap: 4 },
   ctrl: {
     width: 26, height: 24, borderRadius: 5, border: '1px solid rgba(255,255,255,.35)',
-    background: 'rgba(0,0,0,.2)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1,
+    background: 'rgba(0,0,0,.2)', color: 'var(--surface)', cursor: 'pointer', fontSize: 12, lineHeight: 1,
   },
 
-  body: { maxHeight: '62vh', overflowY: 'auto' },
+  body: { maxHeight: '62vh', overflowY: 'auto', background: 'var(--surface)' },
   resize: {
     position: 'absolute',
     right: 0,
@@ -289,7 +313,7 @@ const S = {
     height: 18,
     cursor: 'nwse-resize',
     background:
-      'linear-gradient(135deg, transparent 0 46%, rgba(255,255,255,.5) 46% 54%, transparent 54% 74%, rgba(255,255,255,.5) 74% 82%, transparent 82%)',
+      'linear-gradient(135deg, transparent 0 46%, var(--border-3) 46% 54%, transparent 54% 74%, var(--border-3) 74% 82%, transparent 82%)',
     touchAction: 'none',
   },
 }

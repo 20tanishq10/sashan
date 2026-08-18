@@ -106,7 +106,7 @@ const SECTIONS = [
               key={id}
               style={{
                 background: RESOURCES[id].color,
-                color: '#fff',
+                color: 'var(--surface)',
                 padding: '3px 10px',
                 borderRadius: 10,
                 fontSize: 12,
@@ -193,11 +193,11 @@ export default function Rulebook() {
   const [open, setOpen] = useState(null)
   return (
     <div className="rulebook">
-      <h2 style={{ fontSize: 16, textTransform: 'uppercase', letterSpacing: 0.6, color: '#6b6559' }}>
+      <h2 style={{ fontSize: 16, textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--ink-2)' }}>
         How to play
       </h2>
       {SECTIONS.map((s, i) => (
-        <div key={s.title} style={{ borderBottom: '1px solid #e6e0d2' }}>
+        <div key={s.title} style={{ borderBottom: '1px solid var(--border)' }}>
           <button
             onClick={() => setOpen(open === i ? null : i)}
             style={{
@@ -213,10 +213,10 @@ export default function Rulebook() {
             }}
           >
             <span>{s.icon} &nbsp;{s.title}</span>
-            <span style={{ color: '#a09a8c' }}>{open === i ? '−' : '+'}</span>
+            <span style={{ color: 'var(--ink-3)' }}>{open === i ? '−' : '+'}</span>
           </button>
           {open === i && (
-            <div style={{ padding: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: '#4a4a4a' }}>
+            <div style={{ padding: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: 'var(--ink-2)' }}>
               {s.body}
             </div>
           )}
@@ -244,7 +244,7 @@ export function RulebookModal({ onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#fff',
+          background: 'var(--surface)',
           borderRadius: 10,
           padding: 22,
           maxWidth: 620,
@@ -259,8 +259,8 @@ export function RulebookModal({ onClose }) {
           style={{
             marginTop: 14,
             padding: '8px 16px',
-            background: '#2b2b2b',
-            color: '#fff',
+            background: 'var(--ink)',
+            color: 'var(--surface)',
             border: 'none',
             borderRadius: 6,
             cursor: 'pointer',

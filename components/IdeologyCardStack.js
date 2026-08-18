@@ -39,7 +39,7 @@ export default function IdeologyCardStack({
     return (
       <div style={{ ...S.wrap, width, height: cardH }}>
         <div style={{ ...S.emptySlot, width, height: cardH }}>
-          <IdeologueMark ideologue={ideologue} size={width * 0.42} color="#ffffff33" stroke={1.4} />
+          <IdeologueMark ideologue={ideologue} size={width * 0.42} color="var(--border-3)" stroke={1.4} />
         </div>
       </div>
     )
@@ -64,8 +64,8 @@ export default function IdeologyCardStack({
               // Cards further under the mat sit in its shadow.
               filter: depth ? `brightness(${1 - Math.min(depth, 4) * 0.11})` : 'none',
               boxShadow: isTop
-                ? '0 3px 7px rgba(20,14,8,.45)'
-                : '0 1px 2px rgba(20,14,8,.35)',
+                ? '0 3px 8px rgba(21,24,29,.28)'
+                : '0 1px 2px rgba(21,24,29,.18)',
             }}
           >
             <span style={S.rule} />
@@ -123,8 +123,8 @@ const S = {
   },
   emptySlot: {
     borderRadius: 5,
-    border: '1px dashed rgba(255,255,255,.28)',
-    background: 'rgba(0,0,0,.18)',
+    border: '1px dashed var(--border-2)',
+    background: 'var(--surface)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -136,10 +136,10 @@ const S = {
     minWidth: 20,
     height: 20,
     padding: '0 5px',
-    borderRadius: 10,
-    background: '#17150f',
+    borderRadius: 999,
+    background: 'var(--ink)',
     border: '2px solid',
-    color: '#fff',
+    color: 'var(--on-dark)',
     fontSize: 11,
     fontWeight: 700,
     display: 'flex',
@@ -152,12 +152,12 @@ const S = {
     position: 'absolute',
     left: -7,
     bottom: -6,
-    borderRadius: 4,
-    color: '#17150f',
+    borderRadius: 'var(--r-sm)',
+    color: 'var(--on-dark)',
     fontSize: 9,
     fontWeight: 700,
     padding: '1px 4px',
     zIndex: 20,
-    border: '1px solid rgba(0,0,0,.35)',
+    border: '1px solid rgba(0,0,0,.18)',
   },
 }

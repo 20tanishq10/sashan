@@ -46,7 +46,7 @@ export default function PowerPanel({ power, players, me, onRun, onCancel, busy =
                   ...S.chip,
                   background: RESOURCES[id].color,
                   opacity: held < 1 ? 0.3 : give === id ? 1 : 0.55,
-                  outline: give === id ? '2px solid #2b2b2b' : 'none',
+                  outline: give === id ? '2px solid var(--ink)' : 'none',
                 }}
               >
                 {RESOURCES[id].label} ({held})
@@ -103,7 +103,7 @@ export default function PowerPanel({ power, players, me, onRun, onCancel, busy =
                 setTarget(o.id)
                 setResource(null)
               }}
-              style={{ ...S.ghost, borderColor: target === o.id ? '#2b2b2b' : '#d8d2c4' }}
+              style={{ ...S.ghost, borderColor: target === o.id ? 'var(--ink)' : 'var(--border)' }}
             >
               {o.name} ({R.poolTotal(o.pool)})
             </button>
@@ -125,7 +125,7 @@ export default function PowerPanel({ power, players, me, onRun, onCancel, busy =
                       ...S.chip,
                       background: RESOURCES[id].color,
                       opacity: held < 1 ? 0.3 : resource === id ? 1 : 0.55,
-                      outline: resource === id ? '2px solid #2b2b2b' : 'none',
+                      outline: resource === id ? '2px solid var(--ink)' : 'none',
                     }}
                   >
                     {RESOURCES[id].label} ({held})
@@ -185,32 +185,32 @@ function Stepper({ id, value, onDown, onUp, upDisabled }) {
 
 const S = {
   panel: {
-    border: '1px solid #e0d6b8',
-    background: '#fffdf4',
+    border: '1px solid var(--border-2)',
+    background: 'var(--surface)',
     borderRadius: 9,
     padding: 12,
     marginTop: 10,
   },
   prompt: { fontSize: 13, margin: '0 0 10px', lineHeight: 1.45 },
-  label: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: '#8a8478', margin: '10px 0 5px' },
+  label: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-3)', margin: '10px 0 5px' },
   row: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' },
   chip: {
-    padding: '4px 10px', borderRadius: 11, fontSize: 11, color: '#fff',
+    padding: '4px 10px', borderRadius: 11, fontSize: 11, color: 'var(--surface)',
     border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
   },
   stepper: { display: 'flex', alignItems: 'center', gap: 4 },
   step: {
-    width: 21, height: 21, border: '1px solid #d8d2c4', background: '#fff',
+    width: 21, height: 21, border: '1px solid var(--border)', background: 'var(--surface)',
     borderRadius: 4, cursor: 'pointer', lineHeight: 1,
   },
   num: { minWidth: 14, textAlign: 'center', fontSize: 13 },
   foot: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 },
   btn: {
-    padding: '8px 15px', background: '#2b2b2b', color: '#fff', border: 'none',
+    padding: '8px 15px', background: 'var(--ink)', color: 'var(--surface)', border: 'none',
     borderRadius: 6, fontSize: 13, cursor: 'pointer',
   },
   ghost: {
-    padding: '6px 11px', background: '#fff', border: '1px solid #d8d2c4',
+    padding: '6px 11px', background: 'var(--surface)', border: '1px solid var(--border)',
     borderRadius: 6, fontSize: 12, cursor: 'pointer',
   },
 }

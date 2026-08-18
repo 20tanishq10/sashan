@@ -27,9 +27,24 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
   const takeTotal = R.poolTotal(take)
 
   return (
-    <div style={S.wrap}>
+    <div style={S.wrap} className="shasn-deal">
+      <span
+        style={{
+          ...S.tone,
+          background: kind === 'headline' ? 'var(--amber)' : 'var(--danger)',
+        }}
+      />
       <div style={S.head}>
-        <span style={S.kind}>{kind === 'headline' ? 'Headline' : 'Conspiracy'}</span>
+        <span
+          style={{
+            ...S.kind,
+            background: kind === 'headline' ? 'var(--amber-bg)' : 'var(--danger-bg)',
+            color: kind === 'headline' ? 'var(--amber)' : 'var(--danger)',
+            borderColor: kind === 'headline' ? 'var(--amber-brd)' : 'var(--danger-brd)',
+          }}
+        >
+          {kind === 'headline' ? 'Headline' : 'Conspiracy'}
+        </span>
         <strong style={S.name}>{card.name}</strong>
       </div>
 
@@ -49,8 +64,8 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
                 }}
                 style={{
                   ...S.option,
-                  borderColor: picked === o.id ? '#2b2b2b' : '#d8d2c4',
-                  background: picked === o.id ? '#fffdf6' : '#fff',
+                  borderColor: picked === o.id ? 'var(--accent)' : 'var(--border)',
+                  background: picked === o.id ? 'var(--accent-bg)' : 'var(--surface)',
                 }}
               >
                 {labelFor(o)}
@@ -144,21 +159,55 @@ function labelFor(option) {
 }
 
 const S = {
-  wrap: { border: '1px solid #e0d6b8', background: '#fffdf4', borderRadius: 10, padding: 14, marginTop: 12 },
-  head: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 },
-  kind: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.2, background: '#3d5145', color: '#fff', padding: '2px 7px', borderRadius: 4 },
-  name: { fontSize: 17 },
-  text: { fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', fontFamily: 'inherit', background: '#fff', border: '1px solid #efe8d6', padding: 11, borderRadius: 7, margin: '0 0 8px' },
-  clar: { fontSize: 11, color: '#8a8478', fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.5 },
-  prompt: { fontSize: 13, margin: '12px 0 8px', fontWeight: 600 },
+  wrap: {
+    position: 'relative', overflow: 'hidden',
+    border: '1px solid var(--border)', background: 'var(--surface)',
+    borderRadius: 'var(--r-lg)', padding: '16px 14px 14px', marginTop: 12,
+    boxShadow: 'var(--sh-2)',
+  },
+  // The hairline that says which deck this came off.
+  tone: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
+  head: { display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 9, flexWrap: 'wrap' },
+  kind: {
+    fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600,
+    border: '1px solid', padding: '1px 8px', borderRadius: 999,
+  },
+  name: { fontSize: 17, fontWeight: 600 },
+  text: {
+    fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', fontFamily: 'inherit',
+    background: 'var(--surface-2)', border: '1px solid var(--border)',
+    padding: 12, borderRadius: 'var(--r-md)', margin: '0 0 8px',
+  },
+  clar: { fontSize: 11.5, color: 'var(--ink-3)', margin: '0 0 10px', lineHeight: 1.5 },
+  prompt: { fontSize: 13, margin: '13px 0 8px', fontWeight: 600 },
   options: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  option: { flex: '1 1 190px', textAlign: 'left', padding: '10px 12px', border: '2px solid #d8d2c4', borderRadius: 8, cursor: 'pointer', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 },
-  badge: { fontSize: 10, color: '#8a8478' },
+  option: {
+    flex: '1 1 190px', textAlign: 'left', padding: '10px 12px',
+    border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', cursor: 'pointer',
+    fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4,
+    background: 'var(--surface)',
+    transition: 'border-color 140ms var(--ease-out), background 140ms var(--ease-out)',
+  },
+  badge: { fontSize: 10, color: 'var(--ink-3)' },
   steppers: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 },
   stepper: { display: 'flex', alignItems: 'center', gap: 5 },
-  chip: { display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, color: '#fff', whiteSpace: 'nowrap' },
-  step: { width: 22, height: 22, border: '1px solid #d8d2c4', background: '#fff', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
-  num: { minWidth: 16, textAlign: 'center', fontSize: 13 },
-  input: { padding: '8px 10px', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 13, width: '100%', boxSizing: 'border-box', marginBottom: 8 },
-  primary: { padding: '9px 18px', background: '#2b2b2b', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer', marginTop: 10 },
+  chip: {
+    display: 'inline-block', padding: '2px 9px', borderRadius: 999, fontSize: 11,
+    color: 'var(--on-dark)', whiteSpace: 'nowrap', fontWeight: 550,
+  },
+  step: {
+    width: 22, height: 22, border: '1px solid var(--border-2)', background: 'var(--surface)',
+    borderRadius: 'var(--r-sm)', cursor: 'pointer', lineHeight: 1,
+  },
+  num: { minWidth: 16, textAlign: 'center', fontSize: 13, fontVariantNumeric: 'tabular-nums' },
+  input: {
+    padding: '9px 11px', border: '1px solid var(--border-2)', borderRadius: 'var(--r-md)',
+    fontSize: 13, width: '100%', boxSizing: 'border-box', marginBottom: 8,
+    background: 'var(--surface)',
+  },
+  primary: {
+    padding: '9px 18px', background: 'var(--accent)', color: 'var(--on-dark)',
+    border: 'none', borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 550,
+    cursor: 'pointer', marginTop: 10,
+  },
 }

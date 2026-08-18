@@ -40,6 +40,7 @@ export default function DeckStrip({
         label="Conspiracy"
         caption="Put any combination of resources"
         count={conDraw}
+        tone="conspiracy"
         cost={CONSPIRACY_COST_MIN + surcharge}
         onClick={onBuyConspiracy}
         disabled={!canBuy}
@@ -50,6 +51,7 @@ export default function DeckStrip({
         label="Conspiracy"
         caption="Discard pile"
         count={conDiscard}
+        tone="conspiracy"
         empty={conDiscard === 0}
       />
 
@@ -65,6 +67,7 @@ export default function DeckStrip({
         label="Headline"
         caption="Discard pile"
         count={headDiscard}
+        tone="headline"
         empty={headDiscard === 0}
       />
 
@@ -72,6 +75,7 @@ export default function DeckStrip({
         label="Headline"
         caption="Draw at end of turn"
         count={headDraw}
+        tone="headline"
         highlight={pendingHeadlines > 0}
       />
 
@@ -91,16 +95,17 @@ const S = {
     justifyContent: 'center',
     alignItems: 'flex-start',
     flexWrap: 'wrap',
-    background: '#3a2f26',
-    padding: '14px 14px 12px',
-    borderRadius: '4px 4px 12px 12px',
+    background: 'var(--board-bg)',
+    padding: '16px 16px 14px',
+    borderRadius: '2px 2px 14px 14px',
+    borderTop: '1px solid var(--border-2)',
   },
   gap: { minWidth: 20, display: 'flex', alignItems: 'center' },
   handNote: {
     fontSize: 9,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: '#c8bda9',
+    color: 'var(--ink-3)',
     writingMode: 'vertical-rl',
     textOrientation: 'mixed',
   },
@@ -109,8 +114,8 @@ const S = {
     fontSize: 10,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    background: '#b3452f',
-    color: '#fff',
+    background: 'var(--danger)',
+    color: 'var(--surface)',
     borderRadius: 10,
     padding: '3px 9px',
   },

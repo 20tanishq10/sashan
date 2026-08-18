@@ -10,7 +10,7 @@
 //
 // Drawn as line art on a filled disc, matching the tokens.
 
-export default function IdeologueMark({ ideologue, size = 28, color = '#fff', stroke = 1.6 }) {
+export default function IdeologueMark({ ideologue, size = 28, color = 'currentColor', stroke = 1.6 }) {
   const common = {
     width: size,
     height: size,

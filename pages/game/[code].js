@@ -6,7 +6,7 @@
 // Sync is Supabase Realtime on the game_state row, with a 4s poll as a fallback
 // for when the socket drops.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib/session'
@@ -355,14 +355,17 @@ export default function GameRoom() {
         />
       )}
 
-      <div style={S.topBar}>
-        <div>
+      <header style={S.topBar}>
+        <div style={S.brand}>
           <h1 style={S.h1}>SHASN</h1>
-          <span style={S.muted}>
-            Room {code} · Turn {game.turnNumber}
+          <span style={S.roomLine}>
+            {code} · Turn {game.turnNumber}
             {isSpectator && ' · spectating'}
           </span>
         </div>
+
+        {/* The seating. Whoever is up is the only one at full strength — the
+            turn passing should be impossible to miss. */}
         <div style={S.seats}>
           {game.players.map((p, i) => {
             const isUp = i === game.activeSeat
@@ -370,25 +373,29 @@ export default function GameRoom() {
             return (
               <div
                 key={p.id}
-                style={{
-                  ...S.seat,
-                  borderColor: colorForSeat(i),
-                  background: isUp ? colorForSeat(i) : '#fff',
-                  color: isUp ? '#fff' : '#2b2b2b',
-                }}
+                className={`shasn-seat ${isUp ? 'shasn-seat--active' : 'shasn-seat--idle'}`}
+                style={S.seat}
                 title={isUp ? 'Playing now' : ''}
               >
-                <strong>{p.name}{p.id === myPlayerId ? ' (you)' : ''}</strong>
-                <span style={{ opacity: 0.85 }}>{s?.score ?? 0}</span>
+                <span style={{ ...S.seatDot, background: colorForSeat(i) }} />
+                <strong style={S.seatName}>
+                  {p.name}
+                  {p.id === myPlayerId && <span style={S.you}>you</span>}
+                </strong>
+                <Ticker value={s?.score ?? 0} style={S.seatScore} />
               </div>
             )
           })}
         </div>
-        <Link href="/" style={S.btnGhost}>Leave</Link>
-      </div>
+
+        <Link href="/" className="btn btn--ghost btn--sm">Leave</Link>
+      </header>
+
+      {/* One line announcing the handoff, then it gets out of the way. */}
+      {!finished && <TurnBanner active={active} isMyTurn={isMyTurn} />}
 
       {finished ? (
-        <div style={{ ...S.panel, borderColor: '#4fa363' }}>
+        <div style={{ ...S.panel, borderColor: 'var(--good)' }}>
           <h2 style={S.h2}>Election over</h2>
           <Scoreboard
             standings={standings}
@@ -399,7 +406,7 @@ export default function GameRoom() {
           />
         </div>
       ) : (
-        <div style={{ ...S.panel, borderColor: isMyTurn ? colorOf(myPlayerId) : '#d8d2c4' }}>
+        <div style={{ ...S.panel, borderColor: isMyTurn ? colorOf(myPlayerId) : 'var(--border)' }}>
           <div style={S.rowBetween}>
             <h2 style={S.h2}>
               <span style={{ ...S.dot, background: colorOf(active?.id) }} />
@@ -441,7 +448,7 @@ export default function GameRoom() {
 
 
           {isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me && (
-            <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
+            <div style={{ ...S.subPanel, borderColor: 'var(--amber)' }}>
               <p style={S.prompt}>
                 Over the cap of {me.resourceCap}. Hand back exactly{' '}
                 <strong>{R.excessOverCap(me.pool, me.resourceCap)}</strong> — click tokens on your
@@ -504,7 +511,7 @@ export default function GameRoom() {
                   {myRightsZones.map((z) => (
                     <button
                       key={z}
-                      style={{ ...S.btnGhost, borderColor: gerry?.rightsZoneId === z ? '#111' : '#d8d2c4' }}
+                      style={{ ...S.btnGhost, borderColor: gerry?.rightsZoneId === z ? 'var(--ink)' : 'var(--border)' }}
                       onClick={() => {
                         setSelection(null)
                         setGerry(gerry?.rightsZoneId === z ? null : { rightsZoneId: z, from: null })
@@ -554,7 +561,7 @@ export default function GameRoom() {
           )}
 
           {isMyTurn && game.pendingHeadlines?.length > 0 && !game.awaitingResolution && (
-            <div style={{ ...S.subPanel, borderColor: '#b3452f' }}>
+            <div style={{ ...S.subPanel, borderColor: 'var(--danger)' }}>
               <p style={S.prompt}>
                 <strong>{game.pendingHeadlines.length} Headline(s) pending.</strong> A voter landed
                 in a Volatile Area (p.17).
@@ -580,7 +587,7 @@ export default function GameRoom() {
                 onManual={(n) => send('resolve_awaiting', { note: n })}
               />
             ) : (
-              <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
+              <div style={{ ...S.subPanel, borderColor: 'var(--amber)' }}>
                 <ManualCard resolution={game.awaitingResolution} />
                 <p style={S.hint}>Waiting for {active?.name} to resolve it.</p>
               </div>
@@ -601,12 +608,12 @@ export default function GameRoom() {
         {/* ── Left rail: negotiation, away from the board ───────────────── */}
         {me && !finished && (
           <aside style={S.rail} className="shasn-rail">
-            <section style={{ ...S.railBox, borderColor: openAuctions > 0 ? '#c9a227' : '#d8d2c4' }}>
+            <section style={{ ...S.railBox, borderColor: openAuctions > 0 ? 'var(--amber)' : 'var(--border)' }}>
               <h3 style={S.railHead}>
                 Auction
                 {openAuctions > 0 && <span style={S.railBadge}>{openAuctions} live</span>}
                 {(me.auctionDebt || 0) > 0 && (
-                  <span style={{ ...S.railBadge, background: '#b3452f' }}>
+                  <span style={{ ...S.railBadge, background: 'var(--danger)' }}>
                     owe {me.auctionDebt}
                   </span>
                 )}
@@ -621,7 +628,7 @@ export default function GameRoom() {
               />
             </section>
 
-            <section style={{ ...S.railBox, borderColor: incomingTrades > 0 ? '#b3452f' : '#d8d2c4' }}>
+            <section style={{ ...S.railBox, borderColor: incomingTrades > 0 ? 'var(--danger)' : 'var(--border)' }}>
               <h3 style={S.railHead}>
                 Trading
                 {incomingTrades > 0 && (
@@ -775,6 +782,77 @@ export default function GameRoom() {
 
 // ── Small components ───────────────────────────────────────────────────────
 
+/**
+ * A number that counts to its new value rather than snapping to it, and flashes
+ * green up or red down. Scores move by small amounts and a jump is easy to miss.
+ */
+function Ticker({ value, style, duration = 520 }) {
+  const [shown, setShown] = useState(value)
+  const [dir, setDir] = useState(null)
+  const from = useRef(value)
+
+  useEffect(() => {
+    if (value === from.current) return
+    const start = from.current
+    const delta = value - start
+    setDir(delta > 0 ? 'up' : 'down')
+
+    let raf
+    const t0 = performance.now()
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setShown(Math.round(start + delta * eased))
+      if (t < 1) raf = requestAnimationFrame(step)
+      else {
+        from.current = value
+        setTimeout(() => setDir(null), 260)
+      }
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+
+  return (
+    <span
+      key={dir || 'idle'}
+      className={dir === 'up' ? 'shasn-score-up' : dir === 'down' ? 'shasn-score-down' : undefined}
+      style={{ fontVariantNumeric: 'tabular-nums', ...style }}
+    >
+      {shown}
+    </span>
+  )
+}
+
+/** A single line announcing the handoff, shown briefly when the turn changes. */
+function TurnBanner({ active, isMyTurn }) {
+  const [shown, setShown] = useState(null)
+  const last = useRef(active?.id)
+
+  useEffect(() => {
+    if (!active?.id || active.id === last.current) return
+    last.current = active.id
+    setShown(isMyTurn ? 'Your turn' : `${active.name} is up`)
+    const t = setTimeout(() => setShown(null), 2400)
+    return () => clearTimeout(t)
+  }, [active?.id, active?.name, isMyTurn])
+
+  if (!shown) return null
+  return (
+    <div style={S.bannerWrap} aria-live="polite">
+      <span
+        className="shasn-turn-banner"
+        style={{
+          ...S.banner,
+          background: isMyTurn ? 'var(--accent)' : 'var(--ink)',
+        }}
+      >
+        {shown}
+      </span>
+    </div>
+  )
+}
+
 function ManualCard({ resolution }) {
   const card =
     resolution.kind === 'headline'
@@ -817,86 +895,281 @@ function Shell({ children }) {
 }
 
 const S = {
-  page: { background: '#efe9dc', minHeight: '100vh', padding: '20px 16px 40px', fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif', color: '#2b2b2b' },
-  container: { maxWidth: 1180, margin: '0 auto', paddingBottom: 120 },
-  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' },
-  seats: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
+  // ── Shell ──────────────────────────────────────────────────────────────
+  page: {
+    background: 'var(--bg)',
+    minHeight: '100vh',
+    padding: '18px 20px 40px',
+    fontFamily: 'var(--sans)',
+    color: 'var(--ink)',
+  },
+  // Wide. The board is the centrepiece and was being squeezed to about 480px
+  // between the rail and the two mat columns; it now gets roughly double that.
+  container: { width: '100%', maxWidth: 1640, margin: '0 auto', paddingBottom: 130 },
 
-  // The table. Voter cards on top, board centre, opponents down each side,
-  // your own mat along the bottom — the seating of a physical game.
+  // ── Header ─────────────────────────────────────────────────────────────
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+  brand: { display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 },
+  h1: { fontSize: 17, margin: 0, letterSpacing: '0.22em', fontWeight: 650 },
+  roomLine: { fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' },
+
+  seats: { display: 'flex', gap: 7, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
+  seat: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
+    padding: '5px 12px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 999,
+    fontSize: 12.5,
+    whiteSpace: 'nowrap',
+    boxShadow: 'var(--sh-1)',
+  },
+  seatDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  seatName: { fontWeight: 550, display: 'flex', alignItems: 'baseline', gap: 5 },
+  you: {
+    fontSize: 9,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--ink-3)',
+    fontWeight: 600,
+  },
+  seatScore: { fontWeight: 650, color: 'var(--ink-2)' },
+
+  bannerWrap: {
+    position: 'sticky',
+    top: 8,
+    zIndex: 30,
+    display: 'flex',
+    justifyContent: 'center',
+    height: 0,
+    pointerEvents: 'none',
+  },
+  banner: {
+    padding: '6px 18px',
+    borderRadius: 999,
+    color: 'var(--on-dark)',
+    fontSize: 13,
+    fontWeight: 550,
+    boxShadow: 'var(--sh-3)',
+  },
+
+  // ── The table ──────────────────────────────────────────────────────────
+  // Voter cards on top, board centre, opponents down each side, your own mat
+  // floating along the bottom — the seating of a physical game.
   withRail: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(230px, 280px) minmax(0, 1fr)',
-    gap: 14,
+    gridTemplateColumns: 'minmax(240px, 300px) minmax(0, 1fr)',
+    gap: 16,
     alignItems: 'start',
   },
-  rail: { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12 },
-  railBox: { background: '#fff', border: '1.5px solid #d8d2c4', borderRadius: 10, padding: 12 },
+  rail: { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 14 },
+  railBox: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r-lg)',
+    padding: 14,
+    transition: 'border-color 220ms var(--ease)',
+  },
   railHead: {
-    fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b6559',
-    margin: '0 0 9px', display: 'flex', alignItems: 'center', gap: 7,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: '0.09em',
+    color: 'var(--ink-3)',
+    fontWeight: 600,
+    margin: '0 0 10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
   },
   railBadge: {
-    fontSize: 9.5, background: '#b3452f', color: '#fff', borderRadius: 9,
-    padding: '2px 7px', letterSpacing: 0.3, textTransform: 'none',
+    fontSize: 9.5,
+    background: 'var(--danger)',
+    color: 'var(--on-dark)',
+    borderRadius: 999,
+    padding: '1px 7px',
+    letterSpacing: 0,
+    textTransform: 'none',
+    fontWeight: 600,
   },
+
   table: { margin: '0 0 18px' },
   voterStrip: { display: 'flex', justifyContent: 'center' },
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 1fr) minmax(150px, 200px)',
-    gap: 12,
+    gridTemplateColumns: 'minmax(160px, 215px) minmax(0, 1fr) minmax(160px, 215px)',
+    gap: 14,
     alignItems: 'start',
-    background: '#3a2f26',
-    padding: 12,
-    borderRadius: '4px 4px 12px 12px',
-  },
-  tradeBadge: {
-    marginLeft: 8, fontSize: 10, background: '#b3452f', color: '#fff',
-    borderRadius: 9, padding: '2px 8px', letterSpacing: 0.4, textTransform: 'none',
+    background: 'var(--bg-2)',
+    border: '1px solid var(--border)',
+    borderTop: 'none',
+    borderBottom: 'none',
+    padding: 14,
   },
   sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
   boardCell: { minWidth: 0 },
   deckStrip: { display: 'flex', justifyContent: 'center' },
-  seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
-  rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  h1: { fontSize: 24, margin: '0 0 2px', letterSpacing: 4, fontWeight: 700 },
-  h2: { fontSize: 19, margin: '0 0 4px' },
-  h3: { fontSize: 14, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.6, color: '#6b6559' },
-  h4: { fontSize: 12, margin: '16px 0 8px', textTransform: 'uppercase', letterSpacing: 0.6, color: '#6b6559' },
-  muted: { color: '#6b6559', fontSize: 13 },
-  hint: { color: '#8a8478', fontSize: 12, margin: '4px 0' },
-  small: { fontSize: 11, color: '#4a4a4a' },
-  panel: { background: '#fff', border: '1px solid #d8d2c4', borderRadius: 10, padding: 16, marginBottom: 16 },
-  subPanel: { border: '1px solid #e6e0d2', borderRadius: 8, padding: 12, marginTop: 10 },
-  input: { padding: '7px 10px', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 14, width: '100%', boxSizing: 'border-box' },
-  btn: { padding: '9px 16px', background: '#2b2b2b', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' },
-  btnGhost: { padding: '7px 12px', background: '#fff', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 13, cursor: 'pointer', textDecoration: 'none', color: '#2b2b2b', display: 'inline-block' },
-  miniBtn: { fontSize: 10, padding: '3px 6px', border: '1px solid #d8d2c4', borderRadius: 4, background: '#fff', cursor: 'pointer' },
-  link: { background: 'none', border: 'none', color: '#b3452f', textDecoration: 'underline', cursor: 'pointer', fontSize: 12, padding: 0 },
-  stepBtn: { width: 22, height: 22, border: '1px solid #d8d2c4', background: '#fff', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
-  stepper: { display: 'flex', alignItems: 'center', gap: 5 },
-  answerBtn: { flex: '1 1 240px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4, padding: 12, background: '#fff', border: '2px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
-  payout: { fontSize: 11, color: '#6b6559' },
-  prompt: { fontSize: 15, margin: '0 0 12px', lineHeight: 1.45 },
-  phaseTag: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, background: '#efeadd', padding: '3px 8px', borderRadius: 4, color: '#6b6559' },
-  callout: { background: '#fdf6e3', border: '1px solid #e8dcb8', borderRadius: 6, padding: '8px 10px', fontSize: 13, margin: '10px 0' },
-  error: { color: '#b3452f', fontSize: 13, marginTop: 10 },
-  stall: { background: '#fdecea', border: '1px solid #e8b4ae', borderRadius: 6, padding: '10px 12px', fontSize: 13, marginTop: 10 },
-  dot: { display: 'inline-block', width: 10, height: 10, borderRadius: '50%', marginRight: 7, verticalAlign: 'middle' },
-  chip: { display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, color: '#fff', marginRight: 4, whiteSpace: 'nowrap' },
-  voterCard: { width: 92, border: '1px solid #d8d2c4', borderRadius: 8, padding: 10, cursor: 'pointer', background: '#fff', textAlign: 'center' },
-  voterCount: { fontSize: 28, fontWeight: 700, lineHeight: 1 },
-  pips: { display: 'flex', gap: 3, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' },
-  pip: { width: 10, height: 10, borderRadius: '50%', display: 'inline-block' },
-  conspiracyCard: { width: 150, border: '1px solid #d8d2c4', borderRadius: 8, padding: 9, background: '#fffdf6', display: 'flex', flexDirection: 'column', gap: 5 },
-  cardText: { fontSize: 10, color: '#6b6559', lineHeight: 1.45, whiteSpace: 'pre-wrap', maxHeight: 70, overflowY: 'auto' },
-  cardBody: { fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontFamily: 'inherit', background: '#fbf8f0', padding: 10, borderRadius: 6, margin: '0 0 8px' },
-  powerBtn: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '7px 11px', background: '#fff', border: '2px solid #ddd', borderRadius: 7, cursor: 'pointer', fontSize: 12, textAlign: 'left' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e6e0d2', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6b6559' },
-  td: { padding: '6px 8px', borderBottom: '1px solid #f0ece1' },
-  log: { maxHeight: 300, overflowY: 'auto', fontSize: 12, lineHeight: 1.6 },
-  logLine: { padding: '3px 0', borderBottom: '1px solid #f4f1ea' },
-  logType: { display: 'inline-block', minWidth: 74, fontSize: 10, textTransform: 'uppercase', color: '#a09a8c' },
+
+  // ── Type ───────────────────────────────────────────────────────────────
+  rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  h2: { fontSize: 17, margin: '0 0 4px', display: 'flex', alignItems: 'center' },
+  h4: {
+    fontSize: 10.5,
+    margin: '18px 0 8px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.09em',
+    color: 'var(--ink-3)',
+    fontWeight: 600,
+  },
+  muted: { color: 'var(--ink-3)', fontSize: 13.5 },
+  hint: { color: 'var(--ink-3)', fontSize: 12, margin: '4px 0', lineHeight: 1.5 },
+
+  // ── Surfaces ───────────────────────────────────────────────────────────
+  panel: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r-lg)',
+    padding: 16,
+    marginBottom: 16,
+    transition: 'border-color 260ms var(--ease)',
+  },
+  subPanel: {
+    border: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+    borderRadius: 'var(--r-md)',
+    padding: 12,
+    marginTop: 10,
+  },
+  callout: {
+    background: 'var(--amber-bg)',
+    border: '1px solid var(--amber-brd)',
+    borderRadius: 'var(--r-md)',
+    padding: '9px 12px',
+    fontSize: 13,
+    margin: '10px 0',
+  },
+  stall: {
+    background: 'var(--danger-bg)',
+    border: '1px solid var(--danger-brd)',
+    borderRadius: 'var(--r-md)',
+    padding: '10px 12px',
+    fontSize: 13,
+    marginTop: 10,
+  },
+  error: { color: 'var(--danger)', fontSize: 13, marginTop: 10 },
+
+  // ── Controls ───────────────────────────────────────────────────────────
+  btn: {
+    padding: '8px 16px',
+    background: 'var(--accent)',
+    color: 'var(--on-dark)',
+    border: 'none',
+    borderRadius: 'var(--r-md)',
+    fontSize: 14,
+    fontWeight: 550,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block',
+  },
+  btnGhost: {
+    padding: '7px 13px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border-2)',
+    borderRadius: 'var(--r-md)',
+    fontSize: 13,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    color: 'var(--ink)',
+    display: 'inline-block',
+  },
+  miniBtn: {
+    fontSize: 10.5,
+    padding: '3px 7px',
+    border: '1px solid var(--border-2)',
+    borderRadius: 'var(--r-sm)',
+    background: 'var(--surface)',
+    cursor: 'pointer',
+  },
+  link: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--accent)',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    fontSize: 12,
+    padding: 0,
+  },
+
+  // ── Bits ───────────────────────────────────────────────────────────────
+  prompt: { fontSize: 15, margin: '0 0 12px', lineHeight: 1.5 },
+  phaseTag: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: '0.09em',
+    fontWeight: 600,
+    background: 'var(--surface-3)',
+    padding: '3px 9px',
+    borderRadius: 999,
+    color: 'var(--ink-3)',
+  },
+  dot: {
+    display: 'inline-block',
+    width: 9,
+    height: 9,
+    borderRadius: '50%',
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  chip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '2px 9px',
+    borderRadius: 999,
+    fontSize: 11.5,
+    fontWeight: 550,
+    color: 'var(--on-dark)',
+    whiteSpace: 'nowrap',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  // A Conspiracy card sitting in your hand, off-turn
+  conspiracyCard: {
+    width: 158,
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r-md)',
+    padding: 10,
+    background: 'var(--surface)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+    boxShadow: 'var(--sh-1)',
+  },
+  cardText: {
+    fontSize: 10.5,
+    color: 'var(--ink-2)',
+    lineHeight: 1.5,
+    whiteSpace: 'pre-wrap',
+    maxHeight: 74,
+    overflowY: 'auto',
+  },
+  cardBody: {
+    fontSize: 12.5,
+    lineHeight: 1.55,
+    whiteSpace: 'pre-wrap',
+    fontFamily: 'inherit',
+    background: 'var(--surface-2)',
+    border: '1px solid var(--border)',
+    padding: 11,
+    borderRadius: 'var(--r-md)',
+    margin: '0 0 8px',
+  },
 }

@@ -67,7 +67,7 @@ export default function InterruptPrompt({ interrupt, game, me, busy = false, onR
         <div style={S.actions}>
           {myBlock && (
             <button
-              style={{ ...S.btn, background: '#b3452f' }}
+              style={{ ...S.btn, background: 'var(--danger)' }}
               disabled={busy}
               onClick={() => onRespond({ action: 'block', cardId: 'block' })}
             >
@@ -77,7 +77,7 @@ export default function InterruptPrompt({ interrupt, game, me, busy = false, onR
           )}
           {myReverse && (
             <button
-              style={{ ...S.btn, background: '#3d5145' }}
+              style={{ ...S.btn, background: 'var(--good)' }}
               disabled={busy}
               onClick={() => onRespond({ action: 'reverse', cardId: 'reverse' })}
             >
@@ -100,7 +100,7 @@ export default function InterruptPrompt({ interrupt, game, me, busy = false, onR
 
 const S = {
   card: {
-    background: '#fdfcf6',
+    background: 'var(--surface)',
     borderRadius: 14,
     padding: '20px 22px 16px',
     maxWidth: 520,
@@ -108,29 +108,29 @@ const S = {
     boxShadow: '0 20px 50px rgba(20,14,8,.45)',
   },
   eyebrow: {
-    fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#8a8478',
+    fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink-3)',
   },
   title: { fontSize: 19, margin: '6px 0 12px' },
   body: {
     fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', fontFamily: 'inherit',
-    background: '#fff', border: '1px solid #efe8d6', padding: 11, borderRadius: 7, margin: 0,
+    background: 'var(--surface)', border: '1px solid var(--border)', padding: 11, borderRadius: 7, margin: 0,
   },
-  clar: { fontSize: 11, color: '#8a8478', fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 },
+  clar: { fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
-    padding: '10px 15px', color: '#fff', border: 'none', borderRadius: 8,
+    padding: '10px 15px', color: 'var(--surface)', border: 'none', borderRadius: 8,
     fontSize: 14, cursor: 'pointer', textAlign: 'left',
   },
   sub: { fontStyle: 'normal', fontSize: 10, opacity: 0.85 },
   pass: {
-    padding: '10px 15px', background: '#fff', border: '1px solid #cfc7b4',
+    padding: '10px 15px', background: 'var(--surface)', border: '1px solid var(--border-2)',
     borderRadius: 8, fontSize: 13, cursor: 'pointer',
   },
-  note: { fontSize: 10.5, color: '#8a8478', marginTop: 12, fontStyle: 'italic', lineHeight: 1.5 },
+  note: { fontSize: 10.5, color: 'var(--ink-3)', marginTop: 12, fontStyle: 'italic', lineHeight: 1.5 },
 
   watch: {
-    background: '#fdf6e3', border: '1px solid #e8dcb8', borderRadius: 8,
+    background: 'var(--amber-bg)', border: '1px solid var(--amber-brd)', borderRadius: 8,
     padding: '9px 12px', marginTop: 10,
   },
   text: { fontSize: 13, margin: '4px 0 0', lineHeight: 1.45 },

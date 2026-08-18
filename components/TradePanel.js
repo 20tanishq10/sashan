@@ -68,7 +68,7 @@ export default function TradePanel({
       {/* ── Offers waiting on you ───────────────────────────────────────── */}
       {incoming.length > 0 && (
         <div style={S.section}>
-          <h4 style={{ ...S.h4, color: '#b3452f' }}>
+          <h4 style={{ ...S.h4, color: 'var(--danger)' }}>
             {incoming.length} offer{incoming.length === 1 ? '' : 's'} for you
           </h4>
           {incoming.map((t) => {
@@ -76,7 +76,7 @@ export default function TradePanel({
             const chosen = giving[t.id] || []
             const ready = chosen.length === need
             return (
-              <div key={t.id} style={{ ...S.offer, borderColor: '#b3452f' }}>
+              <div key={t.id} style={{ ...S.offer, borderColor: 'var(--danger)' }}>
                 <TradeTerms trade={t} nameOf={nameOf} youAre="target" />
 
                 {need > 0 && (
@@ -91,7 +91,7 @@ export default function TradePanel({
                         return (
                           <button
                             key={key}
-                            style={{ ...S.cardChip, borderColor: on ? '#2b2b2b' : '#d8d2c4' }}
+                            style={{ ...S.cardChip, borderColor: on ? 'var(--ink)' : 'var(--border)' }}
                             onClick={() =>
                               setGiving({
                                 ...giving,
@@ -194,7 +194,7 @@ export default function TradePanel({
                   onClick={() => setTarget(o.id)}
                   style={{
                     ...S.ghost,
-                    borderColor: target === o.id ? '#2b2b2b' : '#d8d2c4',
+                    borderColor: target === o.id ? 'var(--ink)' : 'var(--border)',
                     opacity: canTradeWith(o.id) ? 1 : 0.4,
                   }}
                   title={canTradeWith(o.id) ? '' : 'Neither of you is the active player'}
@@ -302,7 +302,7 @@ function Pips({ pool, extra }) {
           {pool[id]} {RESOURCES[id].label}
         </span>
       ))}
-      {extra && <span style={{ ...S.chip, background: '#5f7167' }}>{extra}</span>}
+      {extra && <span style={{ ...S.chip, background: 'var(--good)' }}>{extra}</span>}
     </span>
   )
 }
@@ -356,7 +356,7 @@ function Side({
               return (
                 <button
                   key={key}
-                  style={{ ...S.cardChip, borderColor: on ? '#2b2b2b' : '#d8d2c4' }}
+                  style={{ ...S.cardChip, borderColor: on ? 'var(--ink)' : 'var(--border)' }}
                   onClick={() =>
                     onCardsChange(
                       on ? selectedCards.filter((c) => c !== key) : [...selectedCards, key]
@@ -373,7 +373,7 @@ function Side({
 
       {cardCount !== null && (
         <div style={{ ...S.stepRow, marginTop: 6 }}>
-          <span style={{ ...S.chip, background: '#5f7167' }}>Conspiracy Cards</span>
+          <span style={{ ...S.chip, background: 'var(--good)' }}>Conspiracy Cards</span>
           <button
             style={S.step}
             onClick={() => onCardCountChange(Math.max(0, cardCount - 1))}
@@ -400,34 +400,34 @@ function Side({
 
 const S = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 12 },
-  section: { borderTop: '1px solid #efe8d6', paddingTop: 10 },
-  h4: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b6559', margin: '0 0 8px' },
-  hint: { fontSize: 11, color: '#8a8478', fontStyle: 'italic' },
+  section: { borderTop: '1px solid var(--border)', paddingTop: 10 },
+  h4: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-2)', margin: '0 0 8px' },
+  hint: { fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic' },
   row: { display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' },
 
-  offer: { border: '1.5px solid #d8d2c4', borderRadius: 8, padding: 10, marginBottom: 8, background: '#fff' },
+  offer: { border: '1.5px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8, background: 'var(--surface)' },
   terms: { display: 'flex', flexDirection: 'column', gap: 5 },
   who: { fontSize: 13, fontWeight: 700 },
   termRow: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
-  termLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, color: '#8a8478', minWidth: 62 },
-  chip: { padding: '2px 8px', borderRadius: 10, fontSize: 10.5, color: '#fff', whiteSpace: 'nowrap' },
+  termLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--ink-3)', minWidth: 62 },
+  chip: { padding: '2px 8px', borderRadius: 10, fontSize: 10.5, color: 'var(--surface)', whiteSpace: 'nowrap' },
 
   cardPick: { marginTop: 9 },
-  pickLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, color: '#8a8478', display: 'block', marginBottom: 4 },
-  cardChip: { fontSize: 10, padding: '3px 8px', border: '1.5px solid', borderRadius: 6, background: '#fff', cursor: 'pointer' },
+  pickLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--ink-3)', display: 'block', marginBottom: 4 },
+  cardChip: { fontSize: 10, padding: '3px 8px', border: '1.5px solid', borderRadius: 6, background: 'var(--surface)', cursor: 'pointer' },
 
   actions: { display: 'flex', gap: 7, marginTop: 10, flexWrap: 'wrap' },
-  accept: { padding: '7px 14px', background: '#3d5145', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' },
-  ghost: { padding: '6px 11px', background: '#fff', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
-  playing: { fontStyle: 'normal', fontSize: 9, color: '#8a8478' },
+  accept: { padding: '7px 14px', background: 'var(--good)', color: 'var(--surface)', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' },
+  ghost: { padding: '6px 11px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+  playing: { fontStyle: 'normal', fontSize: 9, color: 'var(--ink-3)' },
 
   builder: { display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 10, flexWrap: 'wrap' },
-  side: { flex: '1 1 210px', display: 'flex', flexDirection: 'column', gap: 4, background: '#fff', border: '1px solid #efe8d6', borderRadius: 8, padding: 9 },
-  sideLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.7, color: '#6b6559', marginBottom: 3 },
-  swap: { alignSelf: 'center', fontSize: 18, color: '#8a8478' },
+  side: { flex: '1 1 210px', display: 'flex', flexDirection: 'column', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 9 },
+  sideLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.7, color: 'var(--ink-2)', marginBottom: 3 },
+  swap: { alignSelf: 'center', fontSize: 18, color: 'var(--ink-3)' },
   stepRow: { display: 'flex', alignItems: 'center', gap: 4 },
-  step: { width: 20, height: 20, border: '1px solid #d8d2c4', background: '#fff', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
+  step: { width: 20, height: 20, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
   num: { minWidth: 14, textAlign: 'center', fontSize: 12 },
-  have: { fontSize: 9.5, color: '#a8a294' },
-  rule: { fontSize: 10.5, color: '#8a8478', margin: '8px 0 0', fontStyle: 'italic' },
+  have: { fontSize: 9.5, color: 'var(--ink-3)' },
+  rule: { fontSize: 10.5, color: 'var(--ink-3)', margin: '8px 0 0', fontStyle: 'italic' },
 }

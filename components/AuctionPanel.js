@@ -130,9 +130,9 @@ export default function AuctionPanel({ game, me, busy = false, onBid, onClose, o
 
       {/* ── Paying off what you owe ─────────────────────────────────────── */}
       {debt > 0 && (
-        <div style={{ ...S.auction, borderColor: '#b3452f' }}>
+        <div style={{ ...S.auction, borderColor: 'var(--danger)' }}>
           <div style={S.head}>
-            <span style={{ ...S.eyebrow, color: '#b3452f' }}>You owe {debt}</span>
+            <span style={{ ...S.eyebrow, color: 'var(--danger)' }}>You owe {debt}</span>
           </div>
           <p style={S.warn}>
             No purchases until this is cleared (p.11). Pay it down whenever you like.
@@ -181,22 +181,22 @@ export default function AuctionPanel({ game, me, busy = false, onBid, onClose, o
 
 const S = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 10 },
-  idle: { fontSize: 11, color: '#8a8478', lineHeight: 1.55, margin: 0, fontStyle: 'italic' },
-  auction: { border: '1.5px solid #d8d2c4', borderRadius: 8, padding: 10, background: '#fff' },
+  idle: { fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.55, margin: 0, fontStyle: 'italic' },
+  auction: { border: '1.5px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--surface)' },
   head: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  eyebrow: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b6559', fontWeight: 700 },
-  min: { fontSize: 10, color: '#8a8478' },
-  seller: { fontSize: 11, color: '#6b6559', margin: '5px 0 0' },
+  eyebrow: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-2)', fontWeight: 700 },
+  min: { fontSize: 10, color: 'var(--ink-3)' },
+  seller: { fontSize: 11, color: 'var(--ink-2)', margin: '5px 0 0' },
   leading: { fontSize: 12, margin: '6px 0 0' },
-  hint: { fontSize: 10.5, color: '#8a8478', margin: '6px 0 0', fontStyle: 'italic' },
-  warn: { fontSize: 10.5, color: '#b3452f', margin: '6px 0 0', lineHeight: 1.45 },
+  hint: { fontSize: 10.5, color: 'var(--ink-3)', margin: '6px 0 0', fontStyle: 'italic' },
+  warn: { fontSize: 10.5, color: 'var(--danger)', margin: '6px 0 0', lineHeight: 1.45 },
   bidRow: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 9 },
   bidValue: { fontSize: 20, fontWeight: 700, minWidth: 26, textAlign: 'center', fontVariantNumeric: 'tabular-nums' },
   repayRow: { display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 },
-  chip: { padding: '2px 7px', borderRadius: 9, fontSize: 10, color: '#fff', whiteSpace: 'nowrap', minWidth: 84 },
-  step: { width: 21, height: 21, border: '1px solid #d8d2c4', background: '#fff', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
+  chip: { padding: '2px 7px', borderRadius: 9, fontSize: 10, color: 'var(--surface)', whiteSpace: 'nowrap', minWidth: 84 },
+  step: { width: 21, height: 21, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 4, cursor: 'pointer', lineHeight: 1 },
   num: { minWidth: 14, textAlign: 'center', fontSize: 12 },
   actions: { display: 'flex', gap: 7, marginTop: 10 },
-  btn: { padding: '7px 14px', background: '#3d5145', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12.5, cursor: 'pointer' },
-  ghost: { padding: '5px 10px', background: '#fff', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 11, cursor: 'pointer' },
+  btn: { padding: '7px 14px', background: 'var(--good)', color: 'var(--surface)', border: 'none', borderRadius: 6, fontSize: 12.5, cursor: 'pointer' },
+  ghost: { padding: '5px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, cursor: 'pointer' },
 }

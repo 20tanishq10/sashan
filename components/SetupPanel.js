@@ -275,7 +275,7 @@ const S = {
     padding: '7px 13px', borderRadius: 20, border: '1px solid rgba(0,0,0,.18)',
     background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'inherit',
   },
-  choiceOn: { background: '#3d5145', color: '#fff', borderColor: '#3d5145' },
+  choiceOn: { background: 'var(--good)', color: 'var(--surface)', borderColor: 'var(--good)' },
   picker: { display: 'grid', gap: 5 },
   pickRow: { display: 'flex', alignItems: 'center', gap: 8 },
   swatch: { width: 12, height: 12, borderRadius: 3, flexShrink: 0 },
