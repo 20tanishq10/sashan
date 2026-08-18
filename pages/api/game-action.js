@@ -5,7 +5,7 @@ import { hydrate, mirrorColumns, rngFor, bumpRng, viewFor } from '../../lib/shas
 // Actions only the player whose turn it is may take.
 //
 // Deliberately absent: trades and auction bids (p.11 lets any player be party to
-// a trade, and auctions are open to everyone), and answer_ideology_timeout —
+// a trade and either party may be the active one), and answer_ideology_timeout —
 // ANY player may fire the shot clock, otherwise a player who closes their tab
 // stalls the table forever. The engine re-checks the deadline against the
 // server's clock, so this cannot be rushed.
@@ -84,9 +84,11 @@ function dispatch(game, rng, action, actorId) {
       return Game.payback(game, p)
     case 'tough_love':
       return Game.toughLove(game, p)
-    case 'trade':
-      // Either party may initiate, but the caller can only offer their own goods.
-      return Game.trade(game, { ...p, proposerId: actorId })
+    case 'propose_trade':
+      // Either party may initiate, but you can only ever offer your own goods.
+      return Game.proposeTrade(game, { ...p, proposerId: actorId })
+    case 'respond_trade':
+      return Game.respondTrade(game, { ...p, playerId: actorId })
     case 'bid':
       return Game.bid(game, { ...p, playerId: actorId })
     case 'repay_debt':

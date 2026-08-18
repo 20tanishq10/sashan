@@ -127,112 +127,17 @@ check('gerrymandering between Central and West is now illegal', () => {
 // ===========================================================================
 // Phase 7 — trading
 // ===========================================================================
+//
+// Trading moved from a single immediate call to a propose/accept/counter
+// negotiation, so its tests live in tests/trades.test.mjs. The primitives below
+// (validateTradeOffer / executeTrade) remain as the low-level building blocks.
 
-check('a trade needs at least 1 resource from each side (p.11)', () => {
-  const { game } = ready({ pool: pool({ funds: 4 }) })
-  const g = { ...game, players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ trust: 4 }) } : p)) }
-
-  ok(
-    G.trade(g, { proposerId: 'p1', targetId: 'p2', offer: {}, request: { resources: { trust: 1 } } }).error,
-    'empty offer refused'
-  )
-  ok(
-    G.trade(g, { proposerId: 'p1', targetId: 'p2', offer: { resources: { funds: 1 } }, request: {} }).error,
-    'empty request refused'
-  )
-})
-
-check('trades work at any ratio and conserve resources', () => {
-  const { game } = ready({ pool: pool({ funds: 5 }) })
-  const g = { ...game, players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ trust: 4 }) } : p)) }
-  const before = worldTotal(g)
-
-  const r = G.trade(g, {
-    proposerId: 'p1',
-    targetId: 'p2',
-    offer: { resources: { funds: 3 } },
-    request: { resources: { trust: 1 } },
-  })
-  ok(!r.error, r.error)
-  eq(r.game.players[0].pool.funds, 2, 'gave 3 funds:')
-  eq(r.game.players[0].pool.trust, 1, 'got 1 trust:')
-  eq(r.game.players[1].pool.funds, 3, 'they got 3 funds:')
-  eq(worldTotal(r.game), before, 'conserved:')
-})
-
-check('Conspiracy Cards can ride along on a trade', () => {
-  const { game } = ready({ pool: pool({ funds: 3 }), conspiracyCards: ['benaami'] })
-  const g = {
-    ...game,
-    players: game.players.map((p, i) =>
-      i === 1 ? { ...p, pool: pool({ trust: 3 }), conspiracyCards: ['nayi_soch'] } : p
-    ),
-  }
-
-  const r = G.trade(g, {
-    proposerId: 'p1',
-    targetId: 'p2',
-    offer: { resources: { funds: 1 }, conspiracyCards: ['benaami'] },
-    request: { resources: { trust: 1 }, conspiracyCards: ['nayi_soch'] },
-  })
-  ok(!r.error, r.error)
-  eq(r.game.players[0].conspiracyCards, ['nayi_soch'])
-  eq(r.game.players[1].conspiracyCards, ['benaami'])
-})
-
-check('you cannot trade what you do not hold', () => {
-  const { game } = ready({ pool: pool({ funds: 1 }) })
-  const g = { ...game, players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ trust: 1 }) } : p)) }
-  ok(
-    G.trade(g, {
-      proposerId: 'p1',
-      targetId: 'p2',
-      offer: { resources: { funds: 9 } },
-      request: { resources: { trust: 1 } },
-    }).error,
-    'refused'
-  )
-  ok(
-    G.trade(g, {
-      proposerId: 'p1',
-      targetId: 'p2',
-      offer: { resources: { funds: 1 }, conspiracyCards: ['benaami'] },
-      request: { resources: { trust: 1 } },
-    }).error,
-    'card not held'
-  )
-})
-
-check('a trade must involve the active player (p.11)', () => {
-  const { game } = ready({})
-  const g = {
-    ...game,
-    players: game.players.map((p, i) =>
-      i === 0 ? p : { ...p, pool: pool({ trust: 3, funds: 3 }) }
-    ),
-  }
-  const r = G.trade(g, {
-    proposerId: 'p2',
-    targetId: 'p3',
-    offer: { resources: { trust: 1 } },
-    request: { resources: { funds: 1 } },
-  })
-  ok(r.error, 'two inactive players cannot trade')
-})
-
-check('a trade that busts the cap forces a discard', () => {
-  const { game } = ready({ pool: pool({ funds: 12 }) })
-  const g = { ...game, players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ trust: 5 }) } : p)) }
-
-  const r = G.trade(g, {
-    proposerId: 'p1',
-    targetId: 'p2',
-    offer: { resources: { funds: 1 } },
-    request: { resources: { trust: 4 } },
-  })
-  ok(!r.error, r.error)
-  eq(R.poolTotal(r.game.players[0].pool), 15, 'now over the cap:')
-  eq(r.game.turnPhase, consts.TURN_PHASES.RESOURCE_CAP, 'forced into cap discard:')
+check('the low-level trade primitives still enforce the ratio rule', () => {
+  const a = pool({ funds: 3 })
+  const b = pool({ trust: 3 })
+  ok(!R.validateTrade(pool(), pool({ trust: 1 }), a, b).ok, 'empty offer rejected')
+  ok(!R.validateTrade(pool({ funds: 1 }), pool(), a, b).ok, 'empty request rejected')
+  ok(R.validateTrade(pool({ funds: 1 }), pool({ trust: 1 }), a, b).ok, 'valid')
 })
 
 // ===========================================================================

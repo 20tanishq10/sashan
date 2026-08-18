@@ -17,6 +17,7 @@ import IdeologyPrompt from '../../components/IdeologyPrompt'
 import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
 import PowerPanel from '../../components/PowerPanel'
+import TradePanel from '../../components/TradePanel'
 import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
 import * as Board from '../../lib/shasn/board'
@@ -143,6 +144,8 @@ export default function GameRoom() {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function send(type, payload = {}) {
+    // Spectators cannot act at all, but players can respond to trades and fire
+    // the shot clock on someone else's turn — so this is not gated on isMyTurn.
     if (isSpectator || busy) return
     setBusy(true)
     setError(null)
@@ -208,6 +211,9 @@ export default function GameRoom() {
   const colorOf = (pid) => colorForSeat(game.players.findIndex((p) => p.id === pid))
   const pendingIdeology = game.pendingIdeology
   const selectedCard = selection ? Voter.getVoterCard(game.market.open[selection.openIndex]) : null
+  const incomingTrades = (game.pendingTrades || []).filter(
+    (t) => t.status === 'pending' && t.targetId === myPlayerId
+  ).length
 
   // ── Board interaction ────────────────────────────────────────────────────
 
@@ -677,6 +683,25 @@ export default function GameRoom() {
         )}
       </div>
 
+      {me && !finished && (
+        <div style={{ ...S.panel, borderColor: incomingTrades > 0 ? '#b3452f' : '#d8d2c4' }}>
+          <h3 style={S.h3}>
+            Trading
+            {incomingTrades > 0 && (
+              <span style={S.tradeBadge}>{incomingTrades} waiting on you</span>
+            )}
+          </h3>
+          <TradePanel
+            game={game}
+            me={me}
+            isMyTurn={isMyTurn}
+            busy={busy}
+            onPropose={(payload) => send('propose_trade', payload)}
+            onRespond={(payload) => send('respond_trade', payload)}
+          />
+        </div>
+      )}
+
       <div style={S.columns}>
         <div style={S.panel}>
           <h3 style={S.h3}>Scores</h3>
@@ -766,6 +791,10 @@ const S = {
   // Your own mat stays pinned to the bottom of the window while you scroll the
   // board — centred and width-constrained rather than full-bleed, so it reads as
   // your mat on the table rather than a browser chrome bar.
+  tradeBadge: {
+    marginLeft: 8, fontSize: 10, background: '#b3452f', color: '#fff',
+    borderRadius: 9, padding: '2px 8px', letterSpacing: 0.4, textTransform: 'none',
+  },
   myMat: {
     position: 'sticky',
     bottom: 10,

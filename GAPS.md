@@ -79,12 +79,12 @@ The engine is done and tested; there is no way to use it from the browser.
 
 | Feature | Engine | UI |
 |---|---|---|
-| **Trading** — any ratio, resources + Conspiracy Cards | ✅ tested | ⬜ none |
+| **Trading** — any ratio, resources + Conspiracy Cards | ✅ tested | ✅ **done** — propose/accept/decline/counter |
 | **Auctions** — bidding above your holdings, debt ledger that freezes purchases | ✅ tested | ⬜ none |
 | **2-player mode** — 7 zones, opening bid, Zone Requirements | ✅ tested | ⬜ lobby caps at 3–5, and the 7-zone board geometry is invented |
 
-Unreachable API actions: `trade`, `bid`, `repay_debt`.
-(`prospect` and `donations` are now wired.)
+Unreachable API actions: `bid`, `repay_debt` (auctions).
+(`prospect`, `donations` and both trade actions are now wired.)
 
 ---
 
@@ -131,9 +131,8 @@ Checked and passing, so they need no further work:
 1. ~~**Fix Prospecting and Donations.**~~ ✅ done
 2. ~~**Implement the missing effect types.**~~ ✅ 17 of 21 done; the last four need
    a sequenced multi-player flow
-3. **Trading UI.** ⬜ next The engine is done, it is the most-used social mechanic in the
-   book, and it is the other half of the deadlock cure.
-4. **Conspiracy interrupt window**, which unlocks Block and Reverse and finishes
+3. ~~**Trading UI.**~~ ✅ done — full negotiation, not just a transfer button
+4. **Conspiracy interrupt window** ⬜ next, which unlocks Block and Reverse and finishes
    the Conspiracy rules properly.
 5. **Real Ideology Card content** — the largest content job, and it needs your
    physical deck.
