@@ -1,6 +1,84 @@
 import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
-import { applyAction } from '../../lib/game/state'
-import { getWinner } from '../../lib/game/scoring'
+import * as Game from '../../lib/shasn/game'
+import { hydrate, mirrorColumns, rngFor, bumpRng, viewFor } from '../../lib/shasn/persistence'
+
+// Actions only the player whose turn it is may take. Trades and auction bids are
+// deliberately absent: p.11 lets any player be party to a trade, and auctions are
+// open to everyone.
+const TURN_ACTIONS = new Set([
+  'answer_ideology',
+  'redraw_ideology',
+  'discard_to_cap',
+  'influence',
+  'gerrymander',
+  'place_evicted',
+  'buy_conspiracy',
+  'play_conspiracy',
+  'resolve_headline',
+  'resolve_manually',
+  'end_turn',
+  'prospect',
+  'breaking_ground',
+  'donations',
+  'payback',
+  'tough_love',
+])
+
+// Actions that consume randomness and therefore need the rng counter advanced.
+const RANDOM_ACTIONS = new Set([
+  'influence',
+  'redraw_ideology',
+  'buy_conspiracy',
+  'resolve_headline',
+  'end_turn',
+])
+
+function dispatch(game, rng, action, actorId) {
+  const p = action.payload || {}
+  switch (action.type) {
+    case 'answer_ideology':
+      return Game.answerIdeology(game, p.ideologue)
+    case 'redraw_ideology':
+      return Game.redrawIdeology(game, rng, p.allocation)
+    case 'discard_to_cap':
+      return Game.discardToCap(game, p.discard)
+    case 'influence':
+      return Game.influence(game, rng, p)
+    case 'gerrymander':
+      return Game.gerrymander(game, p)
+    case 'place_evicted':
+      return Game.placeEvicted(game, p)
+    case 'buy_conspiracy':
+      return Game.buyConspiracy(game, rng, p)
+    case 'play_conspiracy':
+      return Game.playConspiracy(game, p)
+    case 'resolve_headline':
+      return Game.resolveNextHeadline(game, rng, p)
+    case 'resolve_manually':
+      return Game.resolveManually(game, p)
+    case 'end_turn':
+      return Game.endTurn(game, rng)
+    case 'prospect':
+      return Game.prospect(game, p)
+    case 'breaking_ground':
+      return Game.breakingGround(game, p)
+    case 'donations':
+      return Game.donations(game, p)
+    case 'payback':
+      return Game.payback(game, p)
+    case 'tough_love':
+      return Game.toughLove(game, p)
+    case 'trade':
+      // Either party may initiate, but the caller can only offer their own goods.
+      return Game.trade(game, { ...p, proposerId: actorId })
+    case 'bid':
+      return Game.bid(game, { ...p, playerId: actorId })
+    case 'repay_debt':
+      return Game.repayAuctionDebt(game, { ...p, playerId: actorId })
+    default:
+      return { error: `Unknown action ${action.type}` }
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -13,7 +91,6 @@ export default async function handler(req, res) {
   const supabase = getSupabaseAdmin()
   const lobbyCode = code.trim().toUpperCase()
 
-  // --- Lobby ---
   const { data: lobby, error: lobbyError } = await supabase
     .from('lobbies')
     .select('id, code, status')
@@ -21,121 +98,67 @@ export default async function handler(req, res) {
     .single()
   if (lobbyError || !lobby) return res.status(404).json({ error: 'Lobby not found' })
 
-  // --- Player ---
   const { data: player, error: playerError } = await supabase
     .from('lobby_players')
     .select('id, nickname')
     .eq('lobby_id', lobby.id)
     .eq('session_token', sessionToken)
     .single()
-  if (playerError || !player) return res.status(403).json({ error: 'Player not in game' })
+  if (playerError || !player) return res.status(403).json({ error: 'You are not in this game' })
 
-  // --- Game state ---
-  const { data: gameState, error: gameError } = await supabase
+  const { data: row, error: gameError } = await supabase
     .from('game_state')
     .select('*')
     .eq('lobby_id', lobby.id)
     .order('updated_at', { ascending: false })
     .limit(1)
     .single()
-  if (gameError || !gameState) return res.status(404).json({ error: 'Game not found' })
+  if (gameError || !row) return res.status(404).json({ error: 'Game not found' })
 
-  // --- Player states ---
-  const { data: playerStates, error: psError } = await supabase
-    .from('player_state')
-    .select('*')
-    .eq('game_state_id', gameState.id)
-  if (psError) return res.status(500).json({ error: 'Could not load player states' })
+  const game = hydrate(row)
+  if (!game) {
+    return res.status(409).json({ error: 'This game predates the current engine.', legacy: true })
+  }
+  if (game.phase === 'finished') return res.status(400).json({ error: 'The election is over' })
 
-  // --- All players (for winner calculation and nicknames) ---
-  const { data: players } = await supabase
-    .from('lobby_players')
-    .select('id, nickname')
-    .eq('lobby_id', lobby.id)
-
-  // Validate scandal card target is actually in this game
-  if (action.type === 'play_card' && action.targetPlayerId) {
-    const targetInGame = (players || []).some((p) => p.id === action.targetPlayerId)
-    if (!targetInGame) return res.status(400).json({ error: 'Target player not in this game' })
+  // Server-side turn ownership. The client must never be trusted for this.
+  if (TURN_ACTIONS.has(action.type)) {
+    const active = game.players[game.activeSeat]
+    if (!active || active.id !== player.id) {
+      return res.status(403).json({ error: 'It is not your turn' })
+    }
   }
 
-  // --- Apply action (pure logic) ---
-  const result = applyAction(
-    gameState,
-    playerStates,
-    player.id,
-    action,
-    player.nickname
-  )
-  if (!result.ok) return res.status(400).json({ error: result.error })
+  const rng = rngFor(game)
+  const result = dispatch(game, rng, action, player.id)
+  if (result.error) return res.status(400).json({ error: result.error })
 
-  // --- Commit game state (optimistic lock on updated_at) ---
-  const { data: savedGameStates, error: gsError } = await supabase
+  let next = result.game
+  if (RANDOM_ACTIONS.has(action.type)) next = bumpRng(next)
+
+  // Optimistic lock: refuse the write if anything changed under us. Two players
+  // acting at once is normal in a realtime game and must not silently clobber.
+  const { data: saved, error: saveError } = await supabase
     .from('game_state')
-    .update({
-      round: result.gameState.round,
-      phase: result.gameState.phase,
-      board_state: result.gameState.board_state,
-      current_turn_player_id: result.gameState.current_turn_player_id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', gameState.id)
-    .eq('updated_at', gameState.updated_at)
+    .update(mirrorColumns(next))
+    .eq('id', row.id)
+    .eq('updated_at', row.updated_at)
     .select('id')
 
-  if (gsError) return res.status(500).json({ error: 'Could not save game state' })
-  if (!savedGameStates?.length) {
-    return res.status(409).json({ error: 'The game changed. Please try that action again.' })
+  if (saveError) return res.status(500).json({ error: `Could not save: ${saveError.message}` })
+  if (!saved?.length) {
+    return res.status(409).json({ error: 'The game moved on. Try that again.' })
   }
 
-  // --- Commit player states ---
-  for (const ps of result.playerStates) {
-    const { error: updateErr } = await supabase
-      .from('player_state')
-      .update({
-        hand: ps.hand,
-        action_points: ps.action_points,
-        influence_score: ps.influence_score,
-      })
-      .eq('id', ps.id)
-    if (updateErr) return res.status(500).json({ error: 'Could not save player state' })
-  }
-
-  // --- Alliance proposal: write the pact row ---
-  if (action.type === 'propose_alliance') {
-    const allianceId = `alliance_${player.id}_${action.targetPlayerId}_r${gameState.round}`
-    const { error: pactError } = await supabase
-      .from('alliance_pacts')
-      .upsert({
-        id: allianceId,
-        game_state_id: gameState.id,
-        proposer_id: player.id,
-        target_id: action.targetPlayerId,
-        proposer_bloc: action.proposerBloc,
-        target_bloc: action.targetBloc,
-        round: gameState.round,
-        status: 'pending',
-      })
-    if (pactError) {
-      // Non-fatal — the board_state already has the pending alliance recorded
-      console.error('Could not write alliance_pacts row:', pactError.message)
-    }
-    return res.status(200).json({ ok: true, allianceProposed: true, allianceId })
-  }
-
-  // --- Game over ---
-  if (result.gameOver) {
-    const winner = getWinner(result.gameState, players || [])
+  if (next.phase === 'finished') {
     await supabase.from('lobbies').update({ status: 'finished' }).eq('id', lobby.id)
-    return res.status(200).json({ ok: true, gameOver: true, winner })
   }
 
   return res.status(200).json({
     ok: true,
-    endedRound: result.endedRound || false,
-    isCheckpoint: result.isCheckpoint || false,
-    firedEvent: result.firedEvent
-      ? { id: result.firedEvent.id, name: result.firedEvent.name, description: result.firedEvent.description }
-      : null,
+    game: viewFor(next, player.id),
+    standings: Game.getStandings(next),
+    manual: result.manual || false,
+    card: result.card || null,
   })
 }

@@ -1,14 +1,15 @@
 import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
-import { MIN_PLAYERS } from '../../lib/lobbyCodes'
-import { initBoardState } from '../../lib/game/state'
-import { STARTER_HAND } from '../../lib/game/cards'
-import { AP_PER_ROUND } from '../../lib/game/constants'
+import { createGame } from '../../lib/shasn/game'
+import { MIN_PLAYERS, MAX_PLAYERS } from '../../lib/shasn/constants'
+import { mirrorColumns } from '../../lib/shasn/persistence'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const { lobbyId, sessionToken } = req.body || {}
-  if (!lobbyId || !sessionToken) return res.status(400).json({ error: 'Missing lobbyId or sessionToken' })
+  if (!lobbyId || !sessionToken) {
+    return res.status(400).json({ error: 'Missing lobbyId or sessionToken' })
+  }
 
   const supabase = getSupabaseAdmin()
 
@@ -29,59 +30,60 @@ export default async function handler(req, res) {
     .single()
 
   if (hostError || !hostPlayer) return res.status(403).json({ error: 'Player not in lobby' })
-  if (hostPlayer.id !== lobby.host_id) return res.status(403).json({ error: 'Only the host can start the game' })
+  if (hostPlayer.id !== lobby.host_id) {
+    return res.status(403).json({ error: 'Only the host can start the game' })
+  }
 
   const { data: players, error: playersError } = await supabase
     .from('lobby_players')
-    .select('id, is_ready')
+    .select('id, nickname, is_ready')
     .eq('lobby_id', lobbyId)
     .order('joined_at', { ascending: true })
 
   if (playersError) return res.status(500).json({ error: 'Could not load players' })
+
+  // The box ships 5 player mats (rulebook p.3). 2-player is a separate board side
+  // and is not wired into the lobby flow yet.
   if (players.length < MIN_PLAYERS) {
     return res.status(400).json({ error: `Need at least ${MIN_PLAYERS} players to start` })
+  }
+  if (players.length > MAX_PLAYERS) {
+    return res.status(400).json({ error: `SHASN supports at most ${MAX_PLAYERS} players` })
   }
   if (players.some((p) => !p.is_ready)) {
     return res.status(400).json({ error: 'All players must be ready' })
   }
 
-  const playerIds = players.map((p) => p.id)
-  const boardState = initBoardState(playerIds)
+  // Seat order follows join order. p.6 staggers the starting resources by seat.
+  const created = createGame({
+    players: players.map((p) => ({ id: p.id, name: p.nickname })),
+    seed: Math.floor(Math.random() * 2 ** 31),
+  })
+  if (created.error) return res.status(400).json({ error: created.error })
+
+  const game = { ...created.game, rngTicks: 0 }
 
   const { data: gameState, error: gameError } = await supabase
     .from('game_state')
-    .insert([{
-      lobby_id: lobby.id,
-      round: 1,
-      phase: 'campaign',
-      board_state: boardState,
-      current_turn_player_id: playerIds[0],
-    }])
+    .insert([{ lobby_id: lobby.id, ...mirrorColumns(game) }])
     .select('id')
     .single()
 
-  if (gameError) return res.status(500).json({ error: 'Could not create game state' })
+  if (gameError) {
+    return res.status(500).json({ error: `Could not create game state: ${gameError.message}` })
+  }
 
-  const playerStateRows = players.map((p) => ({
+  // player_state rows are kept as thin pointers so existing joins and the
+  // rejoin flow keep working. The engine's own player objects are authoritative.
+  const rows = players.map((p, i) => ({
     game_state_id: gameState.id,
     player_id: p.id,
-    hand: STARTER_HAND,
-    action_points: AP_PER_ROUND,
-    influence_score: 0,
-    ideology_position: { tradition_progress: 50, centralized_local: 50 },
-    active_alliances: [],
-    resources: {
-      [RESOURCES.trust.id]: 0,
-      [RESOURCES.clout.id]: 0,
-      [RESOURCES.media.id]: 0,
-      [RESOURCES.funds.id]: 0,
-    },
+    seat_index: i,
   }))
-
-  const { error: playerStateError } = await supabase.from('player_state').insert(playerStateRows)
-  if (playerStateError) {
+  const { error: psError } = await supabase.from('player_state').insert(rows)
+  if (psError) {
     await supabase.from('game_state').delete().eq('id', gameState.id)
-    return res.status(500).json({ error: 'Could not initialize player state' })
+    return res.status(500).json({ error: `Could not initialise players: ${psError.message}` })
   }
 
   const { error: statusError } = await supabase
@@ -91,8 +93,5 @@ export default async function handler(req, res) {
 
   if (statusError) return res.status(500).json({ error: 'Could not update lobby status' })
 
-  return res.status(200).json({
-    gameStateId: gameState.id,
-    code: lobby.code,
-  })
+  return res.status(200).json({ gameStateId: gameState.id, code: lobby.code })
 }

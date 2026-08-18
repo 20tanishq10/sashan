@@ -12,6 +12,7 @@ import {
   ideology as I,
   voterCards as V,
   game as G,
+  persistence as P,
   voterCardData,
   zones,
   consts,
@@ -448,6 +449,83 @@ check('players unlock Ideologue powers over a full game', () => {
   const { game } = playOut(2024)
   const anyUnlocked = game.players.some((p) => I.activePowerList(p.ideologyCards).length > 0)
   ok(anyUnlocked, 'at least one player should unlock a power')
+})
+
+// ===========================================================================
+// Persistence — the game object must survive a round trip through Postgres
+// ===========================================================================
+
+check('a game survives JSON serialisation unchanged', () => {
+  const { game } = newGame()
+  const round = JSON.parse(JSON.stringify(game))
+  eq(round.players.length, game.players.length)
+  eq(round.board.zones.north.owners.length, 21)
+  ok(P.hydrate({ board_state: round }), 'hydrates back')
+})
+
+check('a mid-game state round-trips and stays playable', () => {
+  const { game } = playOut(2024, 3, 40) // partial game
+  const stored = JSON.parse(JSON.stringify(P.mirrorColumns(game).board_state))
+  const back = P.hydrate({ board_state: stored })
+  ok(back, 'hydrated')
+  eq(B.scores(back.board), B.scores(game.board), 'scores identical:')
+  eq(back.turnNumber, game.turnNumber)
+  eq(back.log.length, game.log.length)
+})
+
+check('mirrored columns track the engine state', () => {
+  const { game } = newGame()
+  const cols = P.mirrorColumns(game)
+  eq(cols.current_turn_player_id, game.players[0].id, 'active player mirrored:')
+  eq(cols.phase, game.phase)
+  eq(cols.turn_phase, game.turnPhase)
+})
+
+check('hydrate rejects a legacy row rather than rendering nonsense', () => {
+  eq(P.hydrate({ board_state: { playerSupport: {}, turnOrder: [] } }), null, 'old engine shape:')
+  eq(P.hydrate({ board_state: null }), null, 'empty:')
+  eq(P.hydrate(null), null, 'missing row:')
+})
+
+check('the rng counter advances so repeated requests differ', () => {
+  const { game } = newGame()
+  const a = P.rngFor(game)()
+  const b = P.rngFor(game)()
+  eq(a, b, 'same ticks give the same stream:')
+  const bumped = P.bumpRng(game)
+  ok(P.rngFor(bumped)() !== a, 'bumping changes the stream')
+  eq(bumped.rngTicks, 1)
+})
+
+check('a player view hides other hands and the undrawn decks', () => {
+  let { game } = newGame()
+  game = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 1 ? { ...p, conspiracyCards: ['benaami', 'jumla'] } : p
+    ),
+  }
+  const view = P.viewFor(game, 'p1')
+
+  eq(view.players[1].conspiracyCards, [], "opponent's hand hidden:")
+  eq(view.players[1].conspiracyCardCount, 2, 'but the count is public:')
+  ok(!view.market.drawPile, 'voter draw pile hidden')
+  eq(view.market.open.length, 3, 'the open row stays visible')
+  ok(typeof view.conspiracyDeck.size === 'number', 'only deck sizes leak')
+})
+
+check('only the active player sees their pending Ideology Card', () => {
+  const { game } = newGame()
+  ok(P.viewFor(game, 'p1').pendingIdeologyCard, 'active player sees it')
+  eq(P.viewFor(game, 'p2').pendingIdeologyCard, null, 'others do not:')
+  eq(P.viewFor(game, null).pendingIdeologyCard, null, 'spectators do not:')
+})
+
+check('a player view keeps the board and scores fully public', () => {
+  const { game } = playOut(808, 3, 30)
+  const view = P.viewFor(game, 'p1')
+  eq(B.scores(view.board), B.scores(game.board), 'board is public:')
+  eq(view.players.map((p) => R.poolTotal(p.pool)), game.players.map((p) => R.poolTotal(p.pool)))
 })
 
 report('Turn machine + full games')

@@ -160,7 +160,7 @@ export default function LobbyRoom() {
           <div className="lobby-title-block">
             <span className="label">Waiting room</span>
             <h2>Election lobby</h2>
-            <p>{players.length} / {lobby?.maxPlayers || 6} players — need {MIN_PLAYERS}+ all ready to begin</p>
+            <p>{players.length} / {lobby?.maxPlayers || 5} players — need {MIN_PLAYERS}+ all ready to begin</p>
           </div>
 
           <div className="code-block">
