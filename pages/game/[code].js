@@ -298,6 +298,29 @@ export default function GameRoom() {
           busy={busy}
           canRedraw={isMyTurn}
           spectatorName={isMyTurn ? null : active?.name}
+          deadline={game.ideologyDeadline}
+          onTimeout={() => {
+            // Any player may fire the clock, so a stalled tab cannot hold up the
+            // table. The server re-checks the deadline before acting.
+            fetch('/api/game-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code,
+                sessionToken: getOrCreateSessionToken(),
+                action: { type: 'answer_ideology_timeout' },
+              }),
+            })
+              .then((r) => r.json())
+              .then((j) => {
+                if (j?.ok) {
+                  setGame(j.game)
+                  setStandings(j.standings || [])
+                  if (j.reveal) setReveal(j.reveal)
+                }
+              })
+              .catch(() => {})
+          }}
           onAnswer={async (answerIndex) => {
             const r = await send('answer_ideology', { answerIndex })
             if (r?.reveal) setReveal(r.reveal)

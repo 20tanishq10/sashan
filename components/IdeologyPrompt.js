@@ -17,8 +17,14 @@
 // Opponents get a different view entirely: they can already see the whole card,
 // exactly as the player reading it aloud can, and simply watch you decide.
 
-import { useEffect, useState } from 'react'
-import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import { useEffect, useRef, useState } from 'react'
+import {
+  IDEOLOGUES,
+  IDEOLOGUE_IDS,
+  RESOURCES,
+  RESOURCE_IDS,
+  IDEOLOGY_ANSWER_MS,
+} from '../lib/shasn/constants'
 import IdeologueMark from './IdeologueMark'
 
 const REVEAL_MS = 2600
@@ -33,9 +39,36 @@ export default function IdeologyPrompt({
   canRedraw = true,
   busy = false,
   spectatorName = null, // set when watching someone else answer
+  deadline = null,      // house-rule shot clock: epoch ms, or null for no clock
+  onTimeout = null,     // fired once the clock hits zero
 }) {
   const [stage, setStage] = useState('ask')
   const [picked, setPicked] = useState(null)
+  const [remaining, setRemaining] = useState(null)
+  const firedRef = useRef(false)
+
+  // House rule: a shot clock on answering. Everyone counts down to the same
+  // server-stamped instant, and whoever's client reaches zero first fires it —
+  // the server re-checks the deadline, so a stalled tab cannot hold the table up.
+  useEffect(() => {
+    firedRef.current = false
+    if (!deadline || reveal) {
+      setRemaining(null)
+      return
+    }
+    const tick = () => {
+      const left = Math.max(0, deadline - Date.now())
+      setRemaining(left)
+      if (left <= 0 && !firedRef.current) {
+        firedRef.current = true
+        onTimeout?.()
+      }
+    }
+    tick()
+    const id = setInterval(tick, 100)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline, reveal])
 
   useEffect(() => {
     if (!reveal) return
@@ -74,6 +107,7 @@ export default function IdeologyPrompt({
             {ideo.label.toUpperCase()}
           </div>
 
+          {reveal.timedOut && <p style={S.timedOut}>The clock decided this one.</p>}
           <p style={S.revealPrompt}>{reveal.prompt}</p>
           <p style={S.revealAnswer}>“{reveal.chosen.text}”</p>
 
@@ -123,7 +157,10 @@ export default function IdeologyPrompt({
       <div style={S.watchPanel}>
         <div style={S.watchHead}>
           <span style={S.eyebrow}>{spectatorName} is answering</span>
-          <span style={S.readAloud}>read this out</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {remaining !== null && <Clock remaining={remaining} small />}
+            <span style={S.readAloud}>read this out</span>
+          </span>
         </div>
         <p style={S.watchPrompt}>{pending.prompt}</p>
         <div style={S.watchAnswers}>
@@ -157,7 +194,10 @@ export default function IdeologyPrompt({
       <div className="shasn-drop" style={S.askCard}>
         <div style={S.askHead}>
           <span style={S.eyebrow}>Ideology Card</span>
-          {pending.advisory && <span style={S.advisory}>sensitive theme</span>}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {pending.advisory && <span style={S.advisory}>sensitive theme</span>}
+            {remaining !== null && <Clock remaining={remaining} />}
+          </span>
         </div>
 
         <p style={S.askPrompt}>{pending.prompt}</p>
@@ -185,7 +225,9 @@ export default function IdeologyPrompt({
 
         <div style={S.askFoot}>
           <span style={S.hiddenNote}>
-            The card stays face down until you commit — you are choosing a position, not a payout.
+            {remaining !== null && remaining < 4000
+              ? 'Out of time and the card answers itself — at random.'
+              : 'The card stays face down until you commit — you are choosing a position, not a payout.'}
           </span>
           {canRedraw && (
             <button style={S.redraw} disabled={busy || picked !== null} onClick={onRedraw}>
@@ -198,7 +240,64 @@ export default function IdeologyPrompt({
   )
 }
 
+/** Countdown ring. Turns amber then red as the clock runs down. */
+function Clock({ remaining, small = false }) {
+  const total = IDEOLOGY_ANSWER_MS || 1
+  const frac = Math.max(0, Math.min(1, remaining / total))
+  const secs = Math.ceil(remaining / 1000)
+  const size = small ? 30 : 40
+  const r = size / 2 - 3
+  const circ = 2 * Math.PI * r
+  const colour = frac > 0.5 ? '#3d5145' : frac > 0.25 ? '#c9a227' : '#b3452f'
+
+  return (
+    <span
+      style={{ position: 'relative', width: size, height: size, display: 'inline-block' }}
+      title="Answer before the clock runs out, or the card answers itself at random"
+    >
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e6e0d2" strokeWidth="3" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={colour}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - frac)}
+          style={{ transition: 'stroke-dashoffset .1s linear, stroke .3s' }}
+        />
+      </svg>
+      <span
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: small ? 11 : 14,
+          fontWeight: 700,
+          color: colour,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {secs}
+      </span>
+    </span>
+  )
+}
+
 const S = {
+  timedOut: {
+    margin: '12px 18px 0',
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: '#b3452f',
+    fontWeight: 700,
+  },
   askCard: {
     background: '#fdfcf6',
     borderRadius: 14,

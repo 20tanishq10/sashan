@@ -335,6 +335,13 @@ export default function Prototype() {
                 setGame(r.game)
                 setReveal(r.reveal)
               }}
+              deadline={game.ideologyDeadline}
+              onTimeout={() => {
+                const r = Game.answerIdeologyByTimeout(game, rngRef.current)
+                if (r.error) return
+                setGame(r.game)
+                setReveal(r.reveal)
+              }}
               onRedraw={() => apply(Game.redrawIdeology(game, rngRef.current))}
               onRevealDone={() => {
                 setJustTucked(reveal?.chosen?.ideologue || null)

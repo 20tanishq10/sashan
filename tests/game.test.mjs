@@ -10,6 +10,7 @@ import {
   board as B,
   resources as R,
   ideology as I,
+  deck as D,
   voterCards as V,
   game as G,
   persistence as P,
@@ -145,6 +146,85 @@ check('going over the cap forces a discard before acting', () => {
   ok(!d.error, d.error)
   eq(d.game.turnPhase, consts.TURN_PHASES.ACTIONS)
   eq(R.poolTotal(d.game.players[0].pool), 12, 'down to cap:')
+})
+
+// ---------------------------------------------------------------------------
+// House rule: the shot clock on answering
+// ---------------------------------------------------------------------------
+
+check('a deadline is stamped when a card is put in front of you', () => {
+  const { game } = newGame()
+  ok(game.ideologyDeadline, 'deadline set at turn start')
+  const left = game.ideologyDeadline - Date.now()
+  ok(left > 0 && left <= consts.IDEOLOGY_ANSWER_MS + 50, `~${consts.IDEOLOGY_ANSWER_SECONDS}s, got ${left}ms`)
+})
+
+check('the clock cannot be fired early', () => {
+  const { game, rng } = newGame()
+  const r = G.answerIdeologyByTimeout(game, rng)
+  ok(r.error, 'should be refused')
+  ok(r.error.includes('time'), `unexpected: ${r.error}`)
+})
+
+check('once expired, the card answers itself at random', () => {
+  const { game, rng } = newGame()
+  const expired = { ...game, ideologyDeadline: Date.now() - 1 }
+
+  const r = G.answerIdeologyByTimeout(expired, rng)
+  ok(!r.error, r.error)
+  ok(r.timedOut, 'flagged as a timeout')
+  eq(r.game.turnPhase, consts.TURN_PHASES.ACTIONS, 'turn proceeds:')
+  eq(r.game.players[0].ideologyCards.length, 1, 'a card was still kept:')
+  ok(r.reveal.timedOut, 'the reveal says the clock decided')
+  ok(r.game.log.some((l) => l.message.includes('ran out of time')), 'logged')
+})
+
+check('the random pick comes from the game rng, so it stays replayable', () => {
+  const { game } = newGame()
+  const expired = { ...game, ideologyDeadline: Date.now() - 1 }
+
+  const a = G.answerIdeologyByTimeout(expired, D.makeRng(4242))
+  const b = G.answerIdeologyByTimeout(expired, D.makeRng(4242))
+  eq(
+    a.game.players[0].ideologyCards[0].ideologue,
+    b.game.players[0].ideologyCards[0].ideologue,
+    'same rng seed, same answer:'
+  )
+})
+
+check('the clock is cleared once the card is answered', () => {
+  const { game } = newGame()
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+  const r = G.answerIdeology(game, card.answers[0].ideologue)
+  eq(r.game.ideologyDeadline, null, 'no clock during your actions:')
+})
+
+check('a redraw earns a fresh clock', () => {
+  let { game, rng } = newGame()
+  game = { ...game, players: game.players.map((p, i) => (i === 0 ? { ...p, pool: { ...R.emptyPool(), funds: 6 } } : p)) }
+  const nearlyUp = { ...game, ideologyDeadline: Date.now() + 200 }
+
+  const r = G.redrawIdeology(nearlyUp, rng)
+  ok(!r.error, r.error)
+  ok(
+    r.game.ideologyDeadline - Date.now() > consts.IDEOLOGY_ANSWER_MS - 500,
+    'the clock restarted with the new card'
+  )
+})
+
+check('the deadline is public so every client counts down together', () => {
+  const { game } = newGame()
+  for (const viewer of ['p1', 'p2', null]) {
+    eq(P.viewFor(game, viewer).ideologyDeadline, game.ideologyDeadline, `viewer ${viewer}:`)
+  }
+})
+
+check('the clock only runs while an Ideology answer is pending', () => {
+  const { game, rng } = newGame()
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+  const answered = G.answerIdeology(game, card.answers[0].ideologue).game
+  const r = G.answerIdeologyByTimeout({ ...answered, ideologyDeadline: Date.now() - 1 }, rng)
+  ok(r.error, 'should be refused outside the ideology phase')
 })
 
 // ---------------------------------------------------------------------------

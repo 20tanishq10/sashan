@@ -2,9 +2,13 @@ import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
 import * as Game from '../../lib/shasn/game'
 import { hydrate, mirrorColumns, rngFor, bumpRng, viewFor } from '../../lib/shasn/persistence'
 
-// Actions only the player whose turn it is may take. Trades and auction bids are
-// deliberately absent: p.11 lets any player be party to a trade, and auctions are
-// open to everyone.
+// Actions only the player whose turn it is may take.
+//
+// Deliberately absent: trades and auction bids (p.11 lets any player be party to
+// a trade, and auctions are open to everyone), and answer_ideology_timeout —
+// ANY player may fire the shot clock, otherwise a player who closes their tab
+// stalls the table forever. The engine re-checks the deadline against the
+// server's clock, so this cannot be rushed.
 const TURN_ACTIONS = new Set([
   'answer_ideology',
   'redraw_ideology',
@@ -27,6 +31,7 @@ const TURN_ACTIONS = new Set([
 
 // Actions that consume randomness and therefore need the rng counter advanced.
 const RANDOM_ACTIONS = new Set([
+  'answer_ideology_timeout',
   'influence',
   'redraw_ideology',
   'buy_conspiracy',
@@ -44,6 +49,9 @@ function dispatch(game, rng, action, actorId) {
         game,
         typeof p.answerIndex === 'number' ? p.answerIndex : p.ideologue
       )
+    case 'answer_ideology_timeout':
+      // House rule: the clock ran out, so the card answers itself at random.
+      return Game.answerIdeologyByTimeout(game, rng)
     case 'redraw_ideology':
       return Game.redrawIdeology(game, rng, p.allocation)
     case 'discard_to_cap':
