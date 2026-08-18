@@ -368,38 +368,22 @@ export default function GameRoom() {
           {isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me && (
             <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
               <p style={S.prompt}>
-                Over the cap of {me.resourceCap}. Discard exactly{' '}
-                <strong>{R.excessOverCap(me.pool, me.resourceCap)}</strong> (p.11).
+                Over the cap of {me.resourceCap}. Hand back exactly{' '}
+                <strong>{R.excessOverCap(me.pool, me.resourceCap)}</strong> — click tokens on your
+                chain to lift them off (p.11).
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                {RESOURCE_IDS.map((id) => (
-                  <div key={id} style={S.stepper}>
-                    <span style={{ ...S.chip, background: RESOURCES[id].color }}>
-                      {RESOURCES[id].label}
-                    </span>
-                    <button
-                      style={S.stepBtn}
-                      onClick={() => setCapDiscard({ ...capDiscard, [id]: Math.max(0, capDiscard[id] - 1) })}
-                    >−</button>
-                    <span style={{ minWidth: 18, textAlign: 'center' }}>{capDiscard[id]}</span>
-                    <button
-                      style={S.stepBtn}
-                      onClick={() =>
-                        setCapDiscard({ ...capDiscard, [id]: Math.min(me.pool[id], capDiscard[id] + 1) })
-                      }
-                    >+</button>
-                  </div>
-                ))}
-              </div>
+              <p style={S.hint}>
+                Marked: {R.poolTotal(capDiscard)} of {R.excessOverCap(me.pool, me.resourceCap)}
+              </p>
               <button
                 style={S.btn}
-                disabled={busy}
+                disabled={busy || R.poolTotal(capDiscard) !== R.excessOverCap(me.pool, me.resourceCap)}
                 onClick={async () => {
                   const r = await send('discard_to_cap', { discard: capDiscard })
                   if (r?.ok) setCapDiscard(R.emptyPool())
                 }}
               >
-                Discard {R.poolTotal(capDiscard)}
+                Hand back {R.poolTotal(capDiscard)}
               </button>
               <button
                 style={{ ...S.btnGhost, marginLeft: 8 }}
@@ -407,6 +391,14 @@ export default function GameRoom() {
               >
                 auto-pick
               </button>
+              {R.poolTotal(capDiscard) > 0 && (
+                <button
+                  style={{ ...S.btnGhost, marginLeft: 8 }}
+                  onClick={() => setCapDiscard(R.emptyPool())}
+                >
+                  clear
+                </button>
+              )}
             </div>
           )}
 
@@ -606,6 +598,26 @@ export default function GameRoom() {
               isYou
               score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
               variant="full"
+              discardSelection={
+                game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
+              }
+              onDiscardToken={
+                game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn
+                  ? (resourceId) => {
+                      const need = R.excessOverCap(me.pool, me.resourceCap)
+                      const held = me.pool[resourceId] || 0
+                      const marked = capDiscard[resourceId] || 0
+                      // Click again to put a token back; otherwise mark one more.
+                      if (marked >= held || R.poolTotal(capDiscard) >= need) {
+                        if (marked > 0) {
+                          setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
+                        }
+                        return
+                      }
+                      setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
+                    }
+                  : null
+              }
               powerActionFor={(ideo, lvl) =>
                 ({
                   capitalist3: 'prospect',

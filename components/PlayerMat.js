@@ -18,6 +18,7 @@
 // `variant="compact"` is an opponent's, down the sides.
 
 import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import ResourceChain, { ResourceLegend } from './ResourceChain'
 import * as Ideology from '../lib/shasn/ideology'
 import * as R from '../lib/shasn/resources'
 
@@ -30,6 +31,8 @@ export default function PlayerMat({
   variant = 'full',
   onUsePower,
   powerActionFor,
+  discardSelection = null, // tokens marked to hand back during the cap discard
+  onDiscardToken = null,
 }) {
   const counts = Ideology.ideologueCounts(player.ideologyCards)
   const unlocked = Ideology.unlockedPowers(player.ideologyCards)
@@ -45,11 +48,7 @@ export default function PlayerMat({
         </div>
 
         <div style={S.compactRes}>
-          {RESOURCE_IDS.map((id) => (
-            <span key={id} style={{ ...S.resDot, background: RESOURCES[id].color }} title={RESOURCES[id].label}>
-              {player.pool[id] || 0}
-            </span>
-          ))}
+          <ResourceChain pool={player.pool} cap={player.resourceCap} size={13} compact />
         </div>
 
         <div style={S.compactIdeo}>
@@ -75,13 +74,15 @@ export default function PlayerMat({
 
   return (
     <div style={{ ...S.mat, background: color, outline: isActive ? '3px solid #2b2b2b' : 'none' }}>
-      {/* Scalloped Ideology Card slots + the passive rule */}
-      <div style={S.scallopBar}>
-        <div style={S.scallops}>
-          {Array.from({ length: 14 }).map((_, i) => (
-            <span key={i} style={S.scallop} />
-          ))}
-        </div>
+      {/* The resource chain — 12 linked slots along the top edge, as printed */}
+      <div style={S.chainBar}>
+        <ResourceChain
+          pool={player.pool}
+          cap={player.resourceCap}
+          selected={discardSelection}
+          onTokenClick={onDiscardToken}
+          size={30}
+        />
         <span style={S.passiveRule}>
           FOR EVERY 2 IDEOLOGY CARDS YOU HOLD OF AN IDEOLOGUE, GET 1 EXTRA RESOURCE OF THAT TYPE
         </span>
@@ -91,18 +92,9 @@ export default function PlayerMat({
         <strong style={S.matName}>
           {player.name}
           {isYou && <span style={S.you}>YOU</span>}
+          {overCap && <span style={S.overCap}>over cap — hand {total - player.resourceCap} back</span>}
         </strong>
-        <div style={S.matRes}>
-          {RESOURCE_IDS.map((id) => (
-            <span key={id} style={{ ...S.resChip, background: RESOURCES[id].color }}>
-              {RESOURCES[id].label}
-              <strong style={{ marginLeft: 6 }}>{player.pool[id] || 0}</strong>
-            </span>
-          ))}
-          <span style={{ ...S.capChip, color: overCap ? '#b3452f' : '#e9e3d4' }}>
-            {total} / {player.resourceCap}
-          </span>
-        </div>
+        <ResourceLegend pool={player.pool} />
       </div>
 
       {/* Four Ideologue panels */}
@@ -195,11 +187,7 @@ const S = {
   },
 
   // --- full mat ---
-  scallopBar: { background: '#17150f', padding: '0 0 7px', position: 'relative' },
-  scallops: { display: 'flex', justifyContent: 'space-between', padding: '0 10px', marginTop: -11 },
-  scallop: {
-    width: 22, height: 22, borderRadius: '50%', background: '#17150f', display: 'block',
-  },
+  chainBar: { background: '#241f17', padding: '9px 12px 7px' },
   passiveRule: {
     display: 'block', textAlign: 'center', fontSize: 8.5, letterSpacing: 0.7,
     color: '#d6d1c2', padding: '2px 10px 0',
@@ -213,12 +201,10 @@ const S = {
     fontSize: 9, background: '#ffffff', color: '#2b2b2b', borderRadius: 3,
     padding: '1px 5px', letterSpacing: 1,
   },
-  matRes: { display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' },
-  resChip: {
-    fontSize: 10, padding: '3px 8px', borderRadius: 10, color: '#fff',
-    textShadow: '0 1px 1px rgba(0,0,0,.35)', whiteSpace: 'nowrap',
+  overCap: {
+    fontSize: 9, background: '#b3452f', color: '#fff', borderRadius: 3,
+    padding: '2px 6px', letterSpacing: 0.4,
   },
-  capChip: { fontSize: 11, marginLeft: 4, fontVariantNumeric: 'tabular-nums' },
 
   panels: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, padding: '0 10px 12px' },
   panel: { background: '#ffffff1f', borderRadius: 8, padding: 8 },

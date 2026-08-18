@@ -23,6 +23,7 @@ import ShasnBoard, { colorForSeat } from '../components/ShasnBoard'
 import CardResolver from '../components/CardResolver'
 import IdeologyPrompt from '../components/IdeologyPrompt'
 import Scoreboard from '../components/Scoreboard'
+import ResourceChain from '../components/ResourceChain'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
   RESOURCES,
@@ -341,48 +342,43 @@ export default function Prototype() {
           {game.turnPhase === TURN_PHASES.RESOURCE_CAP && (
             <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
               <p style={S.prompt}>
-                Over the cap of {player.resourceCap}. Discard exactly{' '}
-                <strong>{R.excessOverCap(player.pool, player.resourceCap)}</strong> before doing
-                anything else (p.11).
+                Over the cap of {player.resourceCap}. Hand back exactly{' '}
+                <strong>{R.excessOverCap(player.pool, player.resourceCap)}</strong> — click tokens
+                on the chain to lift them off (p.11).
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                {RESOURCE_IDS.map((id) => (
-                  <div key={id} style={S.discardControl}>
-                    <span style={{ ...S.chip, background: RESOURCES[id].color }}>
-                      {RESOURCES[id].label}
-                    </span>
-                    <button
-                      style={S.stepBtn}
-                      onClick={() =>
-                        setCapDiscard({ ...capDiscard, [id]: Math.max(0, capDiscard[id] - 1) })
-                      }
-                    >
-                      −
-                    </button>
-                    <span style={{ minWidth: 18, textAlign: 'center' }}>{capDiscard[id]}</span>
-                    <button
-                      style={S.stepBtn}
-                      onClick={() =>
-                        setCapDiscard({
-                          ...capDiscard,
-                          [id]: Math.min(player.pool[id], capDiscard[id] + 1),
-                        })
-                      }
-                    >
-                      +
-                    </button>
-                  </div>
-                ))}
+              <ResourceChain
+                pool={player.pool}
+                cap={player.resourceCap}
+                selected={capDiscard}
+                size={30}
+                onTokenClick={(resourceId) => {
+                  const need = R.excessOverCap(player.pool, player.resourceCap)
+                  const held = player.pool[resourceId] || 0
+                  const marked = capDiscard[resourceId] || 0
+                  if (marked >= held || R.poolTotal(capDiscard) >= need) {
+                    if (marked > 0) setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
+                    return
+                  }
+                  setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
+                }}
+              />
+              <div style={{ marginTop: 10 }}>
+                <button
+                  style={S.btn}
+                  disabled={
+                    R.poolTotal(capDiscard) !== R.excessOverCap(player.pool, player.resourceCap)
+                  }
+                  onClick={submitCapDiscard}
+                >
+                  Hand back {R.poolTotal(capDiscard)}
+                </button>
+                <button
+                  style={{ ...S.btnGhost, marginLeft: 8 }}
+                  onClick={() => setCapDiscard(R.autoDiscardToCap(player.pool, player.resourceCap))}
+                >
+                  auto-pick
+                </button>
               </div>
-              <button style={S.btn} onClick={submitCapDiscard}>
-                Discard {R.poolTotal(capDiscard)}
-              </button>
-              <button
-                style={{ ...S.btnGhost, marginLeft: 8 }}
-                onClick={() => setCapDiscard(R.autoDiscardToCap(player.pool, player.resourceCap))}
-              >
-                auto-pick
-              </button>
             </div>
           )}
 
