@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { getSupabase } from '../../lib/supabaseClient'
 import { getOrCreateSessionToken, getStoredPlayer, storePlayer, clearStoredPlayer } from '../../lib/session'
 import LobbyPlayerList, { canStartGame } from '../../components/LobbyPlayerList'
+import SetupPanel from '../../components/SetupPanel'
+import * as Setup from '../../lib/shasn/setup'
 import { MIN_PLAYERS } from '../../lib/lobbyCodes'
 
 export default function LobbyRoom() {
@@ -107,6 +109,26 @@ export default function LobbyRoom() {
     router.push(`/game/${json.code}`)
   }
 
+  async function handleSetup(action, payload) {
+    if (!player) return
+    setActionLoading(true)
+    setError(null)
+    const res = await fetch('/api/lobby-setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lobbyId: player.lobbyId,
+        sessionToken: player.sessionToken,
+        action,
+        ...payload,
+      }),
+    })
+    const json = await res.json()
+    setActionLoading(false)
+    if (!res.ok) { setError(json.error || 'Could not save setup'); return }
+    await fetchLobbyState()
+  }
+
   async function handleLeave() {
     if (!player) return
     setActionLoading(true)
@@ -129,7 +151,10 @@ export default function LobbyRoom() {
   }
 
   const isHost = player && lobby && player.playerId === lobby.hostId
-  const readyToStart = canStartGame(players)
+  const setup = Setup.normaliseSetup(lobby?.setup)
+  // p.6 — the vote and the resource picks have to be settled before the host can
+  // start, on top of everyone being ready.
+  const readyToStart = canStartGame(players) && Setup.isReady(setup)
   const me = players.find((p) => p.id === player?.playerId)
 
   if (loading) {
@@ -188,14 +213,28 @@ export default function LobbyRoom() {
             />
           </div>
 
-          <div className="lobby-panel">
-            <h3>Before you start</h3>
-            <ul className="brief-list">
-              <li>Share the code with everyone at the table.</li>
-              <li>Each player clicks <strong>Ready</strong> when seated.</li>
-              <li>The host starts once {MIN_PLAYERS}+ players are ready.</li>
-            </ul>
-          </div>
+          {players.length >= MIN_PLAYERS && player ? (
+            <SetupPanel
+              setup={setup}
+              players={players}
+              meId={player.playerId}
+              isHost={isHost}
+              busy={actionLoading}
+              onAction={handleSetup}
+            />
+          ) : (
+            <div className="lobby-panel">
+              <h3>Before you start</h3>
+              <ul className="brief-list">
+                <li>Share the code with everyone at the table.</li>
+                <li>Each player clicks <strong>Ready</strong> when seated.</li>
+                <li>
+                  Once {MIN_PLAYERS}+ are here you&apos;ll vote for Player 1 and pick your
+                  opening resources.
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {error && <p className="error" style={{ marginBottom: 12 }}>{error}</p>}

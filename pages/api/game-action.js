@@ -17,7 +17,6 @@ const TURN_ACTIONS = new Set([
   'gerrymander',
   'place_evicted',
   'buy_conspiracy',
-  'play_conspiracy',
   'resolve_headline',
   'resolve_awaiting',
   'resolve_manually',
@@ -65,7 +64,11 @@ function dispatch(game, rng, action, actorId) {
     case 'buy_conspiracy':
       return Game.buyConspiracy(game, rng, p)
     case 'play_conspiracy':
-      return Game.playConspiracy(game, p)
+      // p.22 allows playing out of turn, in the window before an opponent
+      // answers their Ideology Card, so this is not turn-gated.
+      return Game.playConspiracy(game, { ...p, playerId: actorId })
+    case 'respond_interrupt':
+      return Game.respondInterrupt(game, { ...p, playerId: actorId })
     case 'resolve_headline':
       return Game.resolveNextHeadline(game, rng, p)
     case 'resolve_awaiting':

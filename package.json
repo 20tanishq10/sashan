@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node tests/board.test.mjs && node tests/economy.test.mjs && node tests/game.test.mjs && node tests/powers.test.mjs && node tests/trading.test.mjs && node tests/trades.test.mjs"
+    "test": "node tests/board.test.mjs && node tests/economy.test.mjs && node tests/game.test.mjs && node tests/powers.test.mjs && node tests/trading.test.mjs && node tests/trades.test.mjs && node tests/interrupt.test.mjs && node tests/setup.test.mjs"
   },
   "dependencies": {
     "next": "^14.0.0",

@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
 import { createGame } from '../../lib/shasn/game'
 import { MIN_PLAYERS, MAX_PLAYERS } from '../../lib/shasn/constants'
 import { mirrorColumns } from '../../lib/shasn/persistence'
+import * as Setup from '../../lib/shasn/setup'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -15,7 +16,7 @@ export default async function handler(req, res) {
 
   const { data: lobby, error: lobbyError } = await supabase
     .from('lobbies')
-    .select('id, code, status, host_id')
+    .select('id, code, status, host_id, setup')
     .eq('id', lobbyId)
     .single()
 
@@ -54,10 +55,35 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'All players must be ready' })
   }
 
-  // Seat order follows join order. p.6 staggers the starting resources by seat.
+  // p.6 — the table votes for Player 1 and each player picks their own opening
+  // resources; p.13 — advisory cards may be removed. All of that is settled in
+  // the lobby and read here once. A lobby that skipped setup falls back to join
+  // order and the engine's round-robin resource spread.
+  const setup = Setup.normaliseSetup(lobby.setup)
+  if (!Setup.isReady(setup)) {
+    const outstanding = Setup.waitingOn(setup, players)
+      .map((id) => players.find((p) => p.id === id)?.nickname)
+      .filter(Boolean)
+    return res.status(400).json({
+      error:
+        setup.step === Setup.SETUP_STEPS.VOTE
+          ? `Still voting for Player 1 — waiting on ${outstanding.join(', ') || 'the table'}`
+          : `Waiting on opening resources from ${outstanding.join(', ') || 'the table'}`,
+    })
+  }
+
+  const byId = new Map(players.map((p) => [p.id, p]))
+  const seated = (setup.order || players.map((p) => p.id))
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+  // Anyone who joined after the vote still gets a seat, at the back.
+  for (const p of players) if (!seated.includes(p)) seated.push(p)
+
   const created = createGame({
-    players: players.map((p) => ({ id: p.id, name: p.nickname })),
+    players: seated.map((p) => ({ id: p.id, name: p.nickname })),
     seed: Math.floor(Math.random() * 2 ** 31),
+    startingResources: setup.resources,
+    excludeAdvisory: setup.excludeAdvisory,
   })
   if (created.error) return res.status(400).json({ error: created.error })
 
@@ -75,7 +101,7 @@ export default async function handler(req, res) {
 
   // player_state rows are kept as thin pointers so existing joins and the
   // rejoin flow keep working. The engine's own player objects are authoritative.
-  const rows = players.map((p, i) => ({
+  const rows = seated.map((p, i) => ({
     game_state_id: gameState.id,
     player_id: p.id,
     seat_index: i,

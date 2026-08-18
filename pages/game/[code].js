@@ -14,6 +14,7 @@ import { getSupabase } from '../../lib/supabaseClient'
 import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
 import CardResolver from '../../components/CardResolver'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
+import InterruptPrompt from '../../components/InterruptPrompt'
 import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
 import FloatingMat from '../../components/FloatingMat'
@@ -301,7 +302,17 @@ export default function GameRoom() {
 
   return (
     <Shell>
-      {pendingIdeology && !finished && (
+      {game.interrupt && me && (
+        <InterruptPrompt
+          interrupt={game.interrupt}
+          game={game}
+          me={me}
+          busy={busy}
+          onRespond={(payload) => send('respond_interrupt', payload)}
+        />
+      )}
+
+      {pendingIdeology && !finished && !game.interrupt && (
         <IdeologyPrompt
           pending={pendingIdeology}
           reveal={reveal}
@@ -400,7 +411,32 @@ export default function GameRoom() {
           {me && <ResourceRow pool={me.pool} cap={me.resourceCap} />}
 
           {!isMyTurn && !isSpectator && (
-            <p style={S.hint}>Waiting for {active?.name}…</p>
+            <>
+              <p style={S.hint}>Waiting for {active?.name}…</p>
+              {/* p.22 — a Conspiracy may be played right before an opponent
+                  answers their Ideology Card, so the hand stays live here. */}
+              {game.turnPhase === TURN_PHASES.IDEOLOGY && me?.conspiracyCards?.length > 0 && (
+                <div style={S.subPanel}>
+                  <p style={S.hint}>
+                    You may play a Conspiracy Card before {active?.name} answers (p.22).
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    {me.conspiracyCards
+                      .filter((cid) => Cards.getConspiracyCard(cid)?.mode !== 'interrupt')
+                      .map((cid, i) => (
+                        <button
+                          key={`${cid}${i}`}
+                          style={S.btnGhost}
+                          disabled={busy}
+                          onClick={() => send('play_conspiracy', { cardId: cid })}
+                        >
+                          {Cards.getConspiracyCard(cid)?.name}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
 

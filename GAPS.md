@@ -65,11 +65,11 @@ Worst offenders by table impact: **Vikas Model** (4 copies), **Chai-Paani** (2),
 
 | Rule | Page | State |
 |---|---|---|
-| **Conspiracy interrupt window** — play a card "right before an opponent answers their Ideology Card", and simultaneous plays resolve in turn order | p.18, p.22 | Not built. **Block** and **Reverse** are unplayable by design, since both are interrupts |
-| **Player 1 decided by a vote** — all players vote, cannot vote for themselves, re-vote on a tie | p.6 | Seat order is lobby join order |
-| **Starting resources are the player's choice** — "Player 2 receives any 2 resources" | p.6 | Auto-assigned round-robin |
+| ~~**Conspiracy interrupt window**~~ | p.18, p.22 | ✅ **done** — a played card opens a window for anyone holding Block or Reverse; responses resolve in seat order, a Block cannot be reversed, and cards may be played out of turn while an opponent is on their Ideology Card |
+| ~~**Player 1 decided by a vote**~~ | p.6 | ✅ **done** — secret vote in the lobby, no voting for yourself, a tie clears the round and votes again |
+| ~~**Starting resources are the player's choice**~~ | p.6 | ✅ **done** — each seat picks its own mix, count fixed by seat |
 | ~~**An in-game event opens an auction**~~ | p.11 | ✅ *A Call From Karachi* now opens one at a reserve of 2 |
-| **Content advisory** — remove flagged Ideology Cards before play | p.13 | Engine supports `excludeAdvisory`; no lobby control |
+| ~~**Content advisory**~~ | p.13 | ✅ **done** — host toggle in the lobby, passed to `excludeAdvisory` |
 
 ---
 
@@ -132,9 +132,16 @@ Checked and passing, so they need no further work:
 2. ~~**Implement the missing effect types.**~~ ✅ 17 of 21 done; the last four need
    a sequenced multi-player flow
 3. ~~**Trading UI.**~~ ✅ done — full negotiation, not just a transfer button
-4. **Conspiracy interrupt window** ⬜ next, which unlocks Block and Reverse and finishes
-   the Conspiracy rules properly.
-5. **Real Ideology Card content** — the largest content job, and it needs your
-   physical deck.
-6. Setup details (vote for Player 1, choose starting resources, advisory toggle),
-   then 2-player mode.
+4. ~~**Conspiracy interrupt window.**~~ ✅ done — Block and Reverse are playable
+5. ~~**Setup details** (vote for Player 1, choose starting resources, advisory
+   toggle).~~ ✅ done — runs in the lobby; the host can waive it
+6. **Real Ideology Card content** ⬜ next — the largest job left, and it needs your
+   physical deck. 24 stubs are standing in for 108, so questions repeat inside a
+   single session and the hidden-answer mechanic loses its bite once people
+   recognise them.
+7. **Real Voter Card content** — 60 stubs on an invented cost curve.
+8. **The last four card effects** — `roundOfGerrymanders`, `sharePowers`,
+   `wildIdeologyCard`, `cashOutVoterCards`. Each needs a sequenced multi-player
+   flow like the interrupt window, so they are now much cheaper to build.
+9. **2-player mode** — the engine is tested, but the lobby caps at 3–5 and the
+   7-zone board geometry is invented. Needs a scan of the other board side.

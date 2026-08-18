@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
+import * as Setup from '../../lib/shasn/setup'
 
 export default async function handler(req, res) {
   const code = (req.query.code || req.body?.code || '').trim().toUpperCase()
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
 
   const { data: lobby, error: lobbyError } = await supabase
     .from('lobbies')
-    .select('id, code, status, host_id, max_players, created_at')
+    .select('id, code, status, host_id, max_players, created_at, setup')
     .eq('code', code)
     .single()
 
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
       status: lobby.status,
       hostId: lobby.host_id,
       maxPlayers: lobby.max_players,
+      setup: Setup.normaliseSetup(lobby.setup),
     },
     players: players || [],
   })
