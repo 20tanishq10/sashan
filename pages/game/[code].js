@@ -16,6 +16,7 @@ import CardResolver from '../../components/CardResolver'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
 import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
+import FloatingMat from '../../components/FloatingMat'
 import PowerPanel from '../../components/PowerPanel'
 import TradePanel from '../../components/TradePanel'
 import VoterCardRow from '../../components/VoterCardRow'
@@ -631,57 +632,61 @@ export default function GameRoom() {
           />
         </div>
 
-        {me && (
-          <div style={S.myMat}>
-            <PlayerMat
-              player={me}
-              color={colorOf(me.id)}
-              isActive={isMyTurn}
-              isYou
-              score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
-              variant="full"
-              justTucked={justTucked}
-              discardSelection={
-                game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
-              }
-              onDiscardToken={
-                game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn
-                  ? (resourceId) => {
-                      const need = R.excessOverCap(me.pool, me.resourceCap)
-                      const held = me.pool[resourceId] || 0
-                      const marked = capDiscard[resourceId] || 0
-                      // Click again to put a token back; otherwise mark one more.
-                      if (marked >= held || R.poolTotal(capDiscard) >= need) {
-                        if (marked > 0) {
-                          setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
-                        }
-                        return
-                      }
-                      setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
-                    }
-                  : null
-              }
-              powerActionFor={(ideo, lvl) =>
-                ({
-                  capitalist3: 'prospect',
-                  capitalist5: 'breaking_ground',
-                  supremo3: 'donations',
-                  supremo5: 'payback',
-                  idealist5: 'tough_love',
-                }[`${ideo}${lvl}`])
-              }
-              onUsePower={(ideo, lvl, action, def) => {
-                if (!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS) {
-                  return setError('You can only use powers during your actions.')
-                }
-                setSelection(null)
-                setGerry(null)
-                setPowerMode({ action, name: def.name, picked: [] })
-              }}
-            />
-          </div>
-        )}
       </div>
+
+      {me && (
+        <FloatingMat
+          storageKey={`shasn-mat-${code}`}
+          player={me}
+          color={colorOf(me.id)}
+          isMyTurn={isMyTurn}
+          score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
+        >
+          <PlayerMat
+            player={me}
+            color={colorOf(me.id)}
+            isActive={isMyTurn}
+            isYou
+            score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
+            variant="full"
+            justTucked={justTucked}
+            discardSelection={
+              game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
+            }
+            onDiscardToken={
+              game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn
+                ? (resourceId) => {
+                    const need = R.excessOverCap(me.pool, me.resourceCap)
+                    const held = me.pool[resourceId] || 0
+                    const marked = capDiscard[resourceId] || 0
+                    if (marked >= held || R.poolTotal(capDiscard) >= need) {
+                      if (marked > 0) setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
+                      return
+                    }
+                    setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
+                  }
+                : null
+            }
+            powerActionFor={(ideo, lvl) =>
+              ({
+                capitalist3: 'prospect',
+                capitalist5: 'breaking_ground',
+                supremo3: 'donations',
+                supremo5: 'payback',
+                idealist5: 'tough_love',
+              }[`${ideo}${lvl}`])
+            }
+            onUsePower={(ideo, lvl, action, def) => {
+              if (!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS) {
+                return setError('You can only use powers during your actions.')
+              }
+              setSelection(null)
+              setGerry(null)
+              setPowerMode({ action, name: def.name, picked: [] })
+            }}
+          />
+        </FloatingMat>
+      )}
 
       {me && !finished && (
         <div style={{ ...S.panel, borderColor: incomingTrades > 0 ? '#b3452f' : '#d8d2c4' }}>
@@ -702,23 +707,6 @@ export default function GameRoom() {
         </div>
       )}
 
-      <div style={S.columns}>
-        <div style={S.panel}>
-          <h3 style={S.h3}>Scores</h3>
-          <Scoreboard standings={standings} colorOf={colorOf} myPlayerId={myPlayerId} />
-        </div>
-        <div style={S.panel}>
-          <h3 style={S.h3}>Campaign log</h3>
-          <div style={S.log}>
-            {[...(game.log || [])].reverse().slice(0, 40).map((l, i) => (
-              <div key={i} style={S.logLine}>
-                <span style={S.logType}>{l.type}</span>
-                {l.message}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </Shell>
   )
 }
@@ -768,7 +756,7 @@ function Shell({ children }) {
 
 const S = {
   page: { background: '#efe9dc', minHeight: '100vh', padding: '20px 16px 40px', fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif', color: '#2b2b2b' },
-  container: { maxWidth: 1180, margin: '0 auto' },
+  container: { maxWidth: 1180, margin: '0 auto', paddingBottom: 120 },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' },
   seats: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
 
@@ -785,25 +773,13 @@ const S = {
     padding: 12,
     borderRadius: '4px 4px 12px 12px',
   },
-  sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
-  boardCell: { minWidth: 0 },
-  deckStrip: { display: 'flex', justifyContent: 'center' },
-  // Your own mat stays pinned to the bottom of the window while you scroll the
-  // board — centred and width-constrained rather than full-bleed, so it reads as
-  // your mat on the table rather than a browser chrome bar.
   tradeBadge: {
     marginLeft: 8, fontSize: 10, background: '#b3452f', color: '#fff',
     borderRadius: 9, padding: '2px 8px', letterSpacing: 0.4, textTransform: 'none',
   },
-  myMat: {
-    position: 'sticky',
-    bottom: 10,
-    zIndex: 20,
-    marginTop: 12,
-    maxWidth: 760,
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  },
+  sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
+  boardCell: { minWidth: 0 },
+  deckStrip: { display: 'flex', justifyContent: 'center' },
   seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
   rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
   h1: { fontSize: 24, margin: '0 0 2px', letterSpacing: 4, fontWeight: 700 },
@@ -815,7 +791,6 @@ const S = {
   small: { fontSize: 11, color: '#4a4a4a' },
   panel: { background: '#fff', border: '1px solid #d8d2c4', borderRadius: 10, padding: 16, marginBottom: 16 },
   subPanel: { border: '1px solid #e6e0d2', borderRadius: 8, padding: 12, marginTop: 10 },
-  columns: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 },
   input: { padding: '7px 10px', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 14, width: '100%', boxSizing: 'border-box' },
   btn: { padding: '9px 16px', background: '#2b2b2b', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' },
   btnGhost: { padding: '7px 12px', background: '#fff', border: '1px solid #d8d2c4', borderRadius: 6, fontSize: 13, cursor: 'pointer', textDecoration: 'none', color: '#2b2b2b', display: 'inline-block' },
