@@ -19,6 +19,7 @@ import PlayerMat from '../../components/PlayerMat'
 import FloatingMat from '../../components/FloatingMat'
 import PowerPanel from '../../components/PowerPanel'
 import TradePanel from '../../components/TradePanel'
+import AuctionPanel from '../../components/AuctionPanel'
 import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
 import * as Board from '../../lib/shasn/board'
@@ -212,6 +213,7 @@ export default function GameRoom() {
   const colorOf = (pid) => colorForSeat(game.players.findIndex((p) => p.id === pid))
   const pendingIdeology = game.pendingIdeology
   const selectedCard = selection ? Voter.getVoterCard(game.market.open[selection.openIndex]) : null
+  const openAuctions = (game.auctions || []).filter((a) => a.status === 'open').length
   const incomingTrades = (game.pendingTrades || []).filter(
     (t) => t.status === 'pending' && t.targetId === myPlayerId
   ).length
@@ -559,6 +561,49 @@ export default function GameRoom() {
         </div>
       )}
 
+      <div style={S.withRail} className="shasn-with-rail">
+        {/* ── Left rail: negotiation, away from the board ───────────────── */}
+        {me && !finished && (
+          <aside style={S.rail} className="shasn-rail">
+            <section style={{ ...S.railBox, borderColor: openAuctions > 0 ? '#c9a227' : '#d8d2c4' }}>
+              <h3 style={S.railHead}>
+                Auction
+                {openAuctions > 0 && <span style={S.railBadge}>{openAuctions} live</span>}
+                {(me.auctionDebt || 0) > 0 && (
+                  <span style={{ ...S.railBadge, background: '#b3452f' }}>
+                    owe {me.auctionDebt}
+                  </span>
+                )}
+              </h3>
+              <AuctionPanel
+                game={game}
+                me={me}
+                busy={busy}
+                onBid={(p) => send('bid', p)}
+                onClose={(p) => send('close_auction', p)}
+                onRepay={(p) => send('repay_debt', p)}
+              />
+            </section>
+
+            <section style={{ ...S.railBox, borderColor: incomingTrades > 0 ? '#b3452f' : '#d8d2c4' }}>
+              <h3 style={S.railHead}>
+                Trading
+                {incomingTrades > 0 && (
+                  <span style={S.railBadge}>{incomingTrades} for you</span>
+                )}
+              </h3>
+              <TradePanel
+                game={game}
+                me={me}
+                isMyTurn={isMyTurn}
+                busy={busy}
+                onPropose={(payload) => send('propose_trade', payload)}
+                onRespond={(payload) => send('respond_trade', payload)}
+              />
+            </section>
+          </aside>
+        )}
+
       {/* ── The table: voter cards on top, board centre, mats around it ── */}
       <div style={S.table}>
         <div style={S.voterStrip}>
@@ -631,7 +676,7 @@ export default function GameRoom() {
             onBuyConspiracy={() => send('buy_conspiracy')}
           />
         </div>
-
+      </div>
       </div>
 
       {me && (
@@ -686,25 +731,6 @@ export default function GameRoom() {
             }}
           />
         </FloatingMat>
-      )}
-
-      {me && !finished && (
-        <div style={{ ...S.panel, borderColor: incomingTrades > 0 ? '#b3452f' : '#d8d2c4' }}>
-          <h3 style={S.h3}>
-            Trading
-            {incomingTrades > 0 && (
-              <span style={S.tradeBadge}>{incomingTrades} waiting on you</span>
-            )}
-          </h3>
-          <TradePanel
-            game={game}
-            me={me}
-            isMyTurn={isMyTurn}
-            busy={busy}
-            onPropose={(payload) => send('propose_trade', payload)}
-            onRespond={(payload) => send('respond_trade', payload)}
-          />
-        </div>
       )}
 
     </Shell>
@@ -762,7 +788,23 @@ const S = {
 
   // The table. Voter cards on top, board centre, opponents down each side,
   // your own mat along the bottom — the seating of a physical game.
-  table: { margin: '10px 0 18px' },
+  withRail: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(230px, 280px) minmax(0, 1fr)',
+    gap: 14,
+    alignItems: 'start',
+  },
+  rail: { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12 },
+  railBox: { background: '#fff', border: '1.5px solid #d8d2c4', borderRadius: 10, padding: 12 },
+  railHead: {
+    fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b6559',
+    margin: '0 0 9px', display: 'flex', alignItems: 'center', gap: 7,
+  },
+  railBadge: {
+    fontSize: 9.5, background: '#b3452f', color: '#fff', borderRadius: 9,
+    padding: '2px 7px', letterSpacing: 0.3, textTransform: 'none',
+  },
+  table: { margin: '0 0 18px' },
   voterStrip: { display: 'flex', justifyContent: 'center' },
   tableRow: {
     display: 'grid',

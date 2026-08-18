@@ -91,6 +91,10 @@ function dispatch(game, rng, action, actorId) {
       return Game.respondTrade(game, { ...p, playerId: actorId })
     case 'bid':
       return Game.bid(game, { ...p, playerId: actorId })
+    case 'close_auction':
+      // Any player may close the bidding — the engine picks the winner, so this
+      // cannot be abused, and it stops a seller stalling an auction forever.
+      return Game.closeAuction(game, p)
     case 'repay_debt':
       return Game.repayAuctionDebt(game, { ...p, playerId: actorId })
     default:

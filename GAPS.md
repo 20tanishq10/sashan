@@ -68,7 +68,7 @@ Worst offenders by table impact: **Vikas Model** (4 copies), **Chai-Paani** (2),
 | **Conspiracy interrupt window** — play a card "right before an opponent answers their Ideology Card", and simultaneous plays resolve in turn order | p.18, p.22 | Not built. **Block** and **Reverse** are unplayable by design, since both are interrupts |
 | **Player 1 decided by a vote** — all players vote, cannot vote for themselves, re-vote on a tie | p.6 | Seat order is lobby join order |
 | **Starting resources are the player's choice** — "Player 2 receives any 2 resources" | p.6 | Auto-assigned round-robin |
-| **An in-game event opens an auction** | p.11 | Auction engine is complete but nothing triggers one. *A Call From Karachi* should |
+| ~~**An in-game event opens an auction**~~ | p.11 | ✅ *A Call From Karachi* now opens one at a reserve of 2 |
 | **Content advisory** — remove flagged Ideology Cards before play | p.13 | Engine supports `excludeAdvisory`; no lobby control |
 
 ---
@@ -80,11 +80,11 @@ The engine is done and tested; there is no way to use it from the browser.
 | Feature | Engine | UI |
 |---|---|---|
 | **Trading** — any ratio, resources + Conspiracy Cards | ✅ tested | ✅ **done** — propose/accept/decline/counter |
-| **Auctions** — bidding above your holdings, debt ledger that freezes purchases | ✅ tested | ⬜ none |
+| **Auctions** — bidding above your holdings, debt ledger that freezes purchases | ✅ tested | ✅ **done** — left rail |
 | **2-player mode** — 7 zones, opening bid, Zone Requirements | ✅ tested | ⬜ lobby caps at 3–5, and the 7-zone board geometry is invented |
 
-Unreachable API actions: `bid`, `repay_debt` (auctions).
-(`prospect`, `donations` and both trade actions are now wired.)
+Every API action is now reachable except `resolve_manually`, which is
+superseded by `resolve_awaiting`.
 
 ---
 
@@ -137,4 +137,4 @@ Checked and passing, so they need no further work:
 5. **Real Ideology Card content** — the largest content job, and it needs your
    physical deck.
 6. Setup details (vote for Player 1, choose starting resources, advisory toggle),
-   auction triggers, then 2-player mode.
+   then 2-player mode.

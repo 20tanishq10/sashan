@@ -233,6 +233,39 @@ check('a seller receives the proceeds of a won auction', () => {
   eq(worldTotal(closed.game), before, 'conserved:')
 })
 
+check('A Call From Karachi opens an auction (p.11)', () => {
+  // p.11: "Certain events in the game will initiate an auction." Nothing in the
+  // game ever did until this Headline was wired up.
+  let { game, rng } = ready({})
+  game = {
+    ...game,
+    pendingHeadlines: [{ zoneId: 'central', areaIndex: 0, playerId: 'p1' }],
+    headlineDeck: { drawPile: ['a_call_from_karachi'], discard: [] },
+  }
+
+  const r = G.resolveNextHeadline(game, rng)
+  ok(!r.error, r.error)
+  eq(r.game.auctions.length, 1, 'an auction opened:')
+
+  const a = r.game.auctions[0]
+  eq(a.status, 'open')
+  eq(a.sellerId, 'p1', 'the player who triggered it is selling:')
+  eq(a.minBid, 2, 'starting at 2, as the card says:')
+  ok(r.game.log.some((l) => l.type === 'auction'), 'logged')
+})
+
+check('an auction can be closed by anyone, and the engine picks the winner', () => {
+  const { game } = ready({ pool: pool({ funds: 6 }) })
+  let g = G.openAuction(game, { id: 'a1', itemType: 'conspiracy', minBid: 1 }).game
+  g = G.bid(g, { auctionId: 'a1', playerId: 'p2', amount: 3 }).game
+  g = G.bid(g, { auctionId: 'a1', playerId: 'p3', amount: 5 }).game
+
+  const closed = G.closeAuction(g, { auctionId: 'a1' })
+  ok(!closed.error, closed.error)
+  eq(closed.game.auctions[0].winnerId, 'p3', 'highest bid wins:')
+  eq(closed.game.auctions[0].winningBid, 5)
+})
+
 check('you cannot bid on your own auction', () => {
   const { game } = ready({})
   const g = G.openAuction(game, { id: 'a1', sellerId: 'p1', itemType: 'conspiracy', minBid: 1 }).game

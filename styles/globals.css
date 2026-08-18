@@ -1286,3 +1286,15 @@ a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   .shasn-card-tuck { animation: none !important }
 }
+
+/* The left rail drops under the board on narrow screens rather than squeezing
+   the map into a column. */
+@media (max-width: 1000px) {
+  .shasn-with-rail {
+    grid-template-columns: 1fr !important;
+  }
+  .shasn-rail {
+    position: static !important;
+    order: 2;
+  }
+}
