@@ -168,7 +168,10 @@ check('Capitalist L5 Breaking Ground evicts any voter, majority included (p.23)'
 
 check('Breaking Ground is 3 per turn', () => {
   let { game } = ready({ ideologyCards: cardsOf(5, 'capitalist') })
-  const free = B.emptyAreaIndices(game.board, 'north').slice(0, 4)
+  // Avoid Volatile Areas — voters there are immune to eviction (p.17).
+  const free = B.emptyAreaIndices(game.board, 'north')
+    .filter((i) => !zones.isVolatile('north', i))
+    .slice(0, 4)
   game = { ...game, board: B.placeVoters(game.board, 'north', 'p2', free).board }
 
   let g = game

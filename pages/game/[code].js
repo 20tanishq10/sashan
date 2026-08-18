@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib/session'
 import { getSupabase } from '../../lib/supabaseClient'
 import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
+import CardResolver from '../../components/CardResolver'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
 import * as Ideology from '../../lib/shasn/ideology'
@@ -271,12 +272,32 @@ export default function GameRoom() {
     <Shell>
       <div style={S.topBar}>
         <div>
-          <h1 style={S.h1}>SHASN · {code}</h1>
+          <h1 style={S.h1}>SHASN</h1>
           <span style={S.muted}>
-            Turn {game.turnNumber} ·{' '}
-            {finished ? 'finished' : `${active?.name}'s turn`}
+            Room {code} · Turn {game.turnNumber}
             {isSpectator && ' · spectating'}
           </span>
+        </div>
+        <div style={S.seats}>
+          {game.players.map((p, i) => {
+            const isUp = i === game.activeSeat
+            const s = standings.find((x) => x.playerId === p.id)
+            return (
+              <div
+                key={p.id}
+                style={{
+                  ...S.seat,
+                  borderColor: colorForSeat(i),
+                  background: isUp ? colorForSeat(i) : '#fff',
+                  color: isUp ? '#fff' : '#2b2b2b',
+                }}
+                title={isUp ? 'Playing now' : ''}
+              >
+                <strong>{p.name}{p.id === myPlayerId ? ' (you)' : ''}</strong>
+                <span style={{ opacity: 0.85 }}>{s?.score ?? 0}</span>
+              </div>
+            )
+          })}
         </div>
         <Link href="/" style={S.btnGhost}>Leave</Link>
       </div>
@@ -549,29 +570,25 @@ export default function GameRoom() {
           )}
 
           {game.awaitingResolution && (
-            <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
-              <ManualCard resolution={game.awaitingResolution} />
-              {isMyTurn && (
-                <>
-                  <input
-                    style={S.input}
-                    placeholder="What did the table agree?"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                  <button
-                    style={{ ...S.btn, marginTop: 8 }}
-                    disabled={busy}
-                    onClick={async () => {
-                      const r = await send('resolve_manually', { note })
-                      if (r?.ok) setNote('')
-                    }}
-                  >
-                    Mark resolved
-                  </button>
-                </>
-              )}
-            </div>
+            isMyTurn ? (
+              <CardResolver
+                kind={game.awaitingResolution.kind}
+                card={
+                  game.awaitingResolution.kind === 'headline'
+                    ? Cards.getHeadlineCard(game.awaitingResolution.cardId)
+                    : Cards.getConspiracyCard(game.awaitingResolution.cardId)
+                }
+                prompt={game.awaitingResolution.prompt}
+                busy={busy}
+                onResolve={(choice) => send('resolve_awaiting', { choice })}
+                onManual={(n) => send('resolve_awaiting', { note: n })}
+              />
+            ) : (
+              <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
+                <ManualCard resolution={game.awaitingResolution} />
+                <p style={S.hint}>Waiting for {active?.name} to resolve it.</p>
+              </div>
+            )
           )}
 
           {error && <p style={S.error}>{error}</p>}
@@ -705,11 +722,13 @@ function Shell({ children }) {
 }
 
 const S = {
-  page: { background: '#f0ece1', minHeight: '100vh', padding: '24px 16px', fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif', color: '#2b2b2b' },
+  page: { background: '#efe9dc', minHeight: '100vh', padding: '20px 16px 40px', fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif', color: '#2b2b2b' },
   container: { maxWidth: 1180, margin: '0 auto' },
-  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' },
+  seats: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
+  seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
   rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  h1: { fontSize: 22, margin: '0 0 4px' },
+  h1: { fontSize: 24, margin: '0 0 2px', letterSpacing: 4, fontWeight: 700 },
   h2: { fontSize: 19, margin: '0 0 4px' },
   h3: { fontSize: 14, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.6, color: '#6b6559' },
   h4: { fontSize: 12, margin: '16px 0 8px', textTransform: 'uppercase', letterSpacing: 0.6, color: '#6b6559' },

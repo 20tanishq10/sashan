@@ -8,9 +8,7 @@
 // market, voter placement with area selection, majority forming/breaking,
 // Gerrymandering, evicted-voter replacement, scoring, game end.
 //
-// Not yet implemented (phases 4-7): Ideologue L3/L5 active powers, Headline
-// effects, Conspiracy Cards, trading, auctions. Unlocked powers are displayed
-// so you can see progression working.
+// Not yet wired here: trading and auctions (the engine supports both).
 
 import { useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
@@ -21,6 +19,8 @@ import * as R from '../lib/shasn/resources'
 import * as Ideology from '../lib/shasn/ideology'
 import * as Voter from '../lib/shasn/voterCards'
 import * as Cards from '../lib/shasn/cards'
+import ShasnBoard, { colorForSeat } from '../components/ShasnBoard'
+import CardResolver from '../components/CardResolver'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
   RESOURCES,
@@ -29,15 +29,6 @@ import {
   TURN_PHASES,
   GAME_PHASES,
 } from '../lib/shasn/constants'
-
-const PLAYER_COLORS = ['#e05d3d', '#3d7de0', '#4fa363', '#c9a227', '#8e56c4']
-
-// The 3x3 reading order of the printed board.
-const GRID = [
-  ['north_west', 'north', 'north_east'],
-  ['west', 'central', 'east'],
-  ['south_west', 'south', 'south_east'],
-]
 
 export default function Prototype() {
   const [setup, setSetup] = useState({ names: ['Player 1', 'Player 2', 'Player 3'], seed: 1234 })
@@ -51,10 +42,7 @@ export default function Prototype() {
   const rngRef = useRef(null)
 
   const player = game ? Game.activePlayer(game) : null
-  const colorOf = (playerId) => {
-    const i = game.players.findIndex((p) => p.id === playerId)
-    return i === -1 ? '#999' : PLAYER_COLORS[i % PLAYER_COLORS.length]
-  }
+  const colorOf = (playerId) => colorForSeat(game.players.findIndex((p) => p.id === playerId))
 
   function apply(result) {
     if (!result) return
@@ -93,7 +81,7 @@ export default function Prototype() {
           <h3 style={S.h3}>Players (3–5)</h3>
           {setup.names.map((n, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-              <span style={{ ...S.dot, background: PLAYER_COLORS[i] }} />
+              <span style={{ ...S.dot, background: colorForSeat(i) }} />
               <input
                 style={S.input}
                 value={n}
@@ -634,50 +622,19 @@ export default function Prototype() {
             </div>
           )}
 
-          {/* --- A card the table has to settle --- */}
+          {/* --- A card that needs resolving --- */}
           {game.awaitingResolution && (
-            <div style={{ ...S.subPanel, borderColor: '#c9a227' }}>
-              <p style={S.prompt}>
-                <strong>
-                  {game.awaitingResolution.kind === 'headline'
-                    ? Cards.getHeadlineCard(game.awaitingResolution.cardId)?.name
-                    : Cards.getConspiracyCard(game.awaitingResolution.cardId)?.name}
-                </strong>
-              </p>
-              <pre style={S.cardBody}>
-                {game.awaitingResolution.kind === 'headline'
-                  ? Cards.getHeadlineCard(game.awaitingResolution.cardId)?.text
-                  : Cards.getConspiracyCard(game.awaitingResolution.cardId)?.text}
-              </pre>
-              {(game.awaitingResolution.kind === 'headline'
-                ? Cards.getHeadlineCard(game.awaitingResolution.cardId)?.clarification
-                : Cards.getConspiracyCard(game.awaitingResolution.cardId)?.clarification) && (
-                <p style={S.hint}>
-                  {game.awaitingResolution.kind === 'headline'
-                    ? Cards.getHeadlineCard(game.awaitingResolution.cardId).clarification
-                    : Cards.getConspiracyCard(game.awaitingResolution.cardId).clarification}
-                </p>
-              )}
-              <p style={S.hint}>
-                {game.awaitingResolution.prompt ||
-                  'This card is a negotiation or a vote. Settle it at the table, then record the outcome.'}
-              </p>
-              <input
-                style={S.input}
-                placeholder="What did you agree? (recorded in the log)"
-                value={resolutionNote}
-                onChange={(e) => setResolutionNote(e.target.value)}
-              />
-              <button
-                style={{ ...S.btn, marginTop: 8 }}
-                onClick={() => {
-                  apply(Game.resolveManually(game, { note: resolutionNote }))
-                  setResolutionNote('')
-                }}
-              >
-                Mark resolved
-              </button>
-            </div>
+            <CardResolver
+              kind={game.awaitingResolution.kind}
+              card={
+                game.awaitingResolution.kind === 'headline'
+                  ? Cards.getHeadlineCard(game.awaitingResolution.cardId)
+                  : Cards.getConspiracyCard(game.awaitingResolution.cardId)
+              }
+              prompt={game.awaitingResolution.prompt}
+              onResolve={(choice) => apply(Game.resolveAwaiting(game, { choice }))}
+              onManual={(n) => apply(Game.resolveAwaiting(game, { note: n }))}
+            />
           )}
 
           {error && <p style={S.error}>{error}</p>}
@@ -698,31 +655,21 @@ export default function Prototype() {
       )}
 
       {/* --- Board --- */}
-      <div style={S.boardWrap}>
-        {GRID.map((row, ri) => (
-          <div key={ri} style={S.boardRow}>
-            {row.map((zoneId) => (
-              <Zone
-                key={zoneId}
-                zoneId={zoneId}
-                board={game.board}
-                colorOf={colorOf}
-                rights={rights}
-                players={game.players}
-                highlight={
-                  selection
-                    ? selection.zoneId
-                      ? selection.zoneId === zoneId
-                      : true
-                    : gerry
-                    ? true
-                    : false
-                }
-                onAreaClick={onAreaClick}
-              />
-            ))}
-          </div>
-        ))}
+      <div style={{ margin: '16px 0' }}>
+        <ShasnBoard
+          board={game.board}
+          players={game.players}
+          colorOf={colorOf}
+          legalZones={selection?.zoneId ? new Set([selection.zoneId]) : null}
+          selectedAreas={
+            selection
+              ? selection.areas.map((a) => ({ zoneId: selection.zoneId, areaIndex: a }))
+              : gerry?.from
+              ? [gerry.from]
+              : (powerMode?.picked || [])
+          }
+          onAreaClick={finished ? null : onAreaClick}
+        />
       </div>
 
       {/* --- Player status --- */}
@@ -826,227 +773,6 @@ export default function Prototype() {
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
-
-function Zone({ zoneId, board, colorOf, rights, players, highlight, onAreaClick }) {
-  const z = ZONES[zoneId]
-  const holder = Board.majorityHolder(board, zoneId)
-  const settled = Board.isZoneSettled(board, zoneId)
-  const counts = Board.voterCounts(board, zoneId)
-  const rightsHolder = rights[zoneId]
-
-  return (
-    <div
-      style={{
-        ...S.zone,
-        borderColor: holder ? colorOf(holder) : settled ? '#bbb' : '#d8d2c4',
-        borderWidth: holder ? 2 : 1,
-        background: highlight ? '#fffdf6' : '#fff',
-      }}
-    >
-      <div style={S.zoneHead}>
-        <strong>{z.label}</strong>
-        <span style={S.zoneReq}>
-          {z.majority}/{z.areas}
-        </span>
-      </div>
-
-      <div style={S.areas}>
-        {board.zones[zoneId].owners.map((owner, i) => {
-          const volatile = isVolatile(zoneId, i)
-          const isMajorityVoter = owner && holder === owner
-          return (
-            <button
-              key={i}
-              onClick={() => onAreaClick(zoneId, i)}
-              title={
-                volatile
-                  ? 'Volatile Area — placing here triggers a Headline'
-                  : owner
-                  ? players.find((p) => p.id === owner)?.name
-                  : 'Empty'
-              }
-              style={{
-                ...S.area,
-                background: owner ? colorOf(owner) : '#f4f1ea',
-                borderStyle: volatile ? 'dashed' : 'solid',
-                borderColor: volatile ? '#b3452f' : '#ddd8cc',
-                borderWidth: volatile ? 2 : 1,
-                boxShadow: isMajorityVoter ? 'inset 0 0 0 2px rgba(255,255,255,0.85)' : 'none',
-              }}
-            />
-          )
-        })}
-      </div>
-
-      <div style={S.zoneFoot}>
-        {Object.entries(counts).length === 0 ? (
-          <span style={S.hint}>empty</span>
-        ) : (
-          Object.entries(counts).map(([pid, n]) => (
-            <span key={pid} style={{ ...S.countChip, background: colorOf(pid) }}>
-              {n}
-            </span>
-          ))
-        )}
-        {rightsHolder && (
-          <span style={{ ...S.gerryTag, borderColor: colorOf(rightsHolder) }}>gerry</span>
-        )}
-        {holder && <span style={S.majorityTag}>MAJORITY</span>}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Input for the activated Ideologue powers. Prospecting and Donations need
- * resource pickers; the rest are driven by clicking voters on the board.
- */
-function PowerPanel({ power, game, player, onCancel, onRun }) {
-  const [give, setGive] = useState(null)
-  const [take, setTake] = useState(R.emptyPool())
-  const [target, setTarget] = useState(null)
-  const [resource, setResource] = useState(null)
-
-  const takeTotal = R.poolTotal(take)
-
-  if (power.action === 'prospect') {
-    return (
-      <div style={S.powerPanel}>
-        <p style={S.prompt}>
-          <strong>Prospecting</strong> — give 1 resource to the Public Reserve, take up to 2 of your
-          choice.
-        </p>
-        <p style={S.hint}>Give:</p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {RESOURCE_IDS.map((id) => (
-            <button
-              key={id}
-              disabled={(player.pool[id] || 0) < 1}
-              style={{
-                ...S.chipBtn,
-                background: RESOURCES[id].color,
-                opacity: (player.pool[id] || 0) < 1 ? 0.3 : give === id ? 1 : 0.6,
-                outline: give === id ? '2px solid #111' : 'none',
-              }}
-              onClick={() => setGive(id)}
-            >
-              {RESOURCES[id].label} ({player.pool[id] || 0})
-            </button>
-          ))}
-        </div>
-        <p style={S.hint}>Take ({takeTotal}/2):</p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-          {RESOURCE_IDS.map((id) => (
-            <div key={id} style={S.discardControl}>
-              <span style={{ ...S.chip, background: RESOURCES[id].color }}>
-                {RESOURCES[id].label}
-              </span>
-              <button
-                style={S.stepBtn}
-                onClick={() => setTake({ ...take, [id]: Math.max(0, take[id] - 1) })}
-              >
-                −
-              </button>
-              <span style={{ minWidth: 16, textAlign: 'center' }}>{take[id]}</span>
-              <button
-                style={S.stepBtn}
-                disabled={takeTotal >= 2}
-                onClick={() => setTake({ ...take, [id]: take[id] + 1 })}
-              >
-                +
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          style={S.btn}
-          disabled={!give || takeTotal < 1}
-          onClick={() =>
-            onRun(Game.prospect(game, { give: { ...R.emptyPool(), [give]: 1 }, take }))
-          }
-        >
-          Prospect
-        </button>
-        <button style={{ ...S.btnGhost, marginLeft: 8 }} onClick={onCancel}>
-          cancel
-        </button>
-      </div>
-    )
-  }
-
-  if (power.action === 'donations') {
-    const opponents = game.players.filter((p) => p.id !== player.id)
-    return (
-      <div style={S.powerPanel}>
-        <p style={S.prompt}>
-          <strong>Donations</strong> — snatch 1 resource from another player.
-        </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {opponents.map((o) => (
-            <button
-              key={o.id}
-              style={{ ...S.btnGhost, borderColor: target === o.id ? '#111' : '#d8d2c4' }}
-              onClick={() => setTarget(o.id)}
-            >
-              {o.name} ({R.poolTotal(o.pool)})
-            </button>
-          ))}
-        </div>
-        {target && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-            {RESOURCE_IDS.map((id) => {
-              const held = game.players.find((p) => p.id === target).pool[id] || 0
-              return (
-                <button
-                  key={id}
-                  disabled={held < 1}
-                  style={{
-                    ...S.chipBtn,
-                    background: RESOURCES[id].color,
-                    opacity: held < 1 ? 0.3 : resource === id ? 1 : 0.6,
-                    outline: resource === id ? '2px solid #111' : 'none',
-                  }}
-                  onClick={() => setResource(id)}
-                >
-                  {RESOURCES[id].label} ({held})
-                </button>
-              )
-            })}
-          </div>
-        )}
-        <button
-          style={S.btn}
-          disabled={!target || !resource}
-          onClick={() => onRun(Game.donations(game, { targetPlayerId: target, resource }))}
-        >
-          Snatch
-        </button>
-        <button style={{ ...S.btnGhost, marginLeft: 8 }} onClick={onCancel}>
-          cancel
-        </button>
-      </div>
-    )
-  }
-
-  const instructions = {
-    breakingGround: 'Click any voter on the board to evict it back to its owner. Majority voters included; Volatile Areas are immune.',
-    payback: "Click an opponent's voter to discard it permanently. Costs 1 resource.",
-    toughLove: `Click 2 voters belonging to the same opponent in the same zone. Costs 2 Trust + any 2. (${
-      (power.picked || []).length
-    }/2 selected)`,
-  }
-
-  return (
-    <div style={S.powerPanel}>
-      <p style={S.prompt}>
-        <strong>{power.name}</strong> — {instructions[power.action]}
-      </p>
-      <button style={S.btnGhost} onClick={onCancel}>
-        cancel
-      </button>
-    </div>
-  )
-}
 
 function ResourceRow({ pool, cap }) {
   return (

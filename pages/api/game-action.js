@@ -15,6 +15,7 @@ const TURN_ACTIONS = new Set([
   'buy_conspiracy',
   'play_conspiracy',
   'resolve_headline',
+  'resolve_awaiting',
   'resolve_manually',
   'end_turn',
   'prospect',
@@ -54,6 +55,8 @@ function dispatch(game, rng, action, actorId) {
       return Game.playConspiracy(game, p)
     case 'resolve_headline':
       return Game.resolveNextHeadline(game, rng, p)
+    case 'resolve_awaiting':
+      return Game.resolveAwaiting(game, p)
     case 'resolve_manually':
       return Game.resolveManually(game, p)
     case 'end_turn':

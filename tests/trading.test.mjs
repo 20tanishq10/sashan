@@ -10,6 +10,7 @@ import {
   twoPlayer as TP,
   game as G,
   zoneReqData,
+  boardGeometry as boardGeo,
   zones,
   consts,
   createRunner,
@@ -50,6 +51,32 @@ const worldTotal = (g) =>
 
 check('geometry still satisfies every rulebook invariant', () => {
   eq(zones.validateGeometry(), [])
+})
+
+check('the rendered board has exactly one pip per voter area', () => {
+  for (const z of zones.ZONE_IDS) {
+    const g = boardGeo.ZONE_GEOMETRY[z]
+    ok(g, `${z} has geometry`)
+    eq(g.pips.length, zones.ZONES[z].areas, `${z} pip count:`)
+  }
+})
+
+check('drawn Volatile positions agree with the rules geometry', () => {
+  for (const z of zones.ZONE_IDS) {
+    eq(boardGeo.VOLATILE_INDICES[z], zones.ZONES[z].volatile, `${z}:`)
+    for (const v of zones.ZONES[z].volatile) {
+      ok(v >= 0 && v < boardGeo.ZONE_GEOMETRY[z].pips.length, `${z}: index ${v} in range`)
+    }
+  }
+})
+
+check('every pip sits inside the board viewBox', () => {
+  const { x, y, w, h } = boardGeo.VIEW_BOX
+  for (const z of zones.ZONE_IDS) {
+    for (const [px, py] of boardGeo.ZONE_GEOMETRY[z].pips) {
+      ok(px >= x && px <= x + w && py >= y && py <= y + h, `${z} pip (${px},${py}) out of view`)
+    }
+  }
 })
 
 check('Volatile Areas measured on the board total 11, one per zone minimum', () => {
