@@ -14,6 +14,7 @@ import { getSupabase } from '../../lib/supabaseClient'
 import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
 import CardResolver from '../../components/CardResolver'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
+import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
 import VoterCardRow from '../../components/VoterCardRow'
 import * as Board from '../../lib/shasn/board'
@@ -31,6 +32,7 @@ export default function GameRoom() {
   const [player, setPlayer] = useState(null)
   const [game, setGame] = useState(null)
   const [standings, setStandings] = useState([])
+  const [breakdown, setBreakdown] = useState(null)
   const [myPlayerId, setMyPlayerId] = useState(null)
   const [isSpectator, setIsSpectator] = useState(true)
   const [stalled, setStalled] = useState(false)
@@ -66,6 +68,7 @@ export default function GameRoom() {
       }
       setGame(json.game)
       setStandings(json.standings || [])
+      setBreakdown(json.scoreBreakdown || null)
       setMyPlayerId(json.myPlayerId)
       setIsSpectator(json.isSpectator ?? true)
       setStalled(json.stalled || false)
@@ -156,6 +159,7 @@ export default function GameRoom() {
       } else {
         setGame(json.game)
         setStandings(json.standings || [])
+        if (json.scoreBreakdown) setBreakdown(json.scoreBreakdown)
       }
       return json
     } catch (e) {
@@ -336,8 +340,13 @@ export default function GameRoom() {
       {finished ? (
         <div style={{ ...S.panel, borderColor: '#4fa363' }}>
           <h2 style={S.h2}>Election over</h2>
-          <p style={S.muted}>Most majority voters wins (p.19).</p>
-          <Standings standings={standings} colorOf={colorOf} />
+          <Scoreboard
+            standings={standings}
+            breakdown={breakdown}
+            colorOf={colorOf}
+            myPlayerId={myPlayerId}
+            finished
+          />
         </div>
       ) : (
         <div style={{ ...S.panel, borderColor: isMyTurn ? colorOf(myPlayerId) : '#d8d2c4' }}>
@@ -621,8 +630,8 @@ export default function GameRoom() {
 
       <div style={S.columns}>
         <div style={S.panel}>
-          <h3 style={S.h3}>Standings</h3>
-          <Standings standings={standings} colorOf={colorOf} players={game.players} />
+          <h3 style={S.h3}>Scores</h3>
+          <Scoreboard standings={standings} colorOf={colorOf} myPlayerId={myPlayerId} />
         </div>
         <div style={S.panel}>
           <h3 style={S.h3}>Campaign log</h3>
@@ -657,46 +666,6 @@ function ManualCard({ resolution }) {
         {resolution.prompt || 'Settle this at the table, then record the outcome.'}
       </p>
     </>
-  )
-}
-
-function Standings({ standings, colorOf, players }) {
-  return (
-    <table style={S.table}>
-      <thead>
-        <tr>
-          <th style={S.th}>Candidate</th>
-          <th style={S.th}>Score</th>
-          {players && <th style={S.th}>Ideology</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {standings.map((s, i) => {
-          const p = players?.find((x) => x.id === s.playerId)
-          const counts = p ? Ideology.ideologueCounts(p.ideologyCards) : {}
-          return (
-            <tr key={s.playerId}>
-              <td style={S.td}>
-                <span style={{ ...S.dot, background: colorOf(s.playerId) }} />
-                {s.nickname} {i === 0 && s.score > 0 && '👑'}
-              </td>
-              <td style={S.td}><strong>{s.score}</strong></td>
-              {players && (
-                <td style={S.td}>
-                  {Object.entries(counts)
-                    .filter(([, n]) => n > 0)
-                    .map(([id, n]) => (
-                      <span key={id} style={{ ...S.chip, background: IDEOLOGUES[id].color }}>
-                        {IDEOLOGUES[id].label.replace('The ', '')} {n}
-                      </span>
-                    ))}
-                </td>
-              )}
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
   )
 }
 

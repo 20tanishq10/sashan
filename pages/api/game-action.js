@@ -166,6 +166,7 @@ export default async function handler(req, res) {
     ok: true,
     game: viewFor(next, player.id),
     standings: Game.getStandings(next),
+    scoreBreakdown: Game.getScoreBreakdown(next),
     manual: result.manual || false,
     card: result.card || null,
     // Only present on answer_ideology — the card unmasked now the answer is in.

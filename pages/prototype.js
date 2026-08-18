@@ -22,6 +22,7 @@ import * as Cards from '../lib/shasn/cards'
 import ShasnBoard, { colorForSeat } from '../components/ShasnBoard'
 import CardResolver from '../components/CardResolver'
 import IdeologyPrompt from '../components/IdeologyPrompt'
+import Scoreboard from '../components/Scoreboard'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
   RESOURCES,
@@ -294,30 +295,12 @@ export default function Prototype() {
       {finished ? (
         <div style={{ ...S.panel, borderColor: '#4fa363' }}>
           <h2 style={S.h2}>Election over</h2>
-          <p style={S.muted}>The player with the most majority voters wins (p.19).</p>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>Candidate</th>
-                <th style={S.th}>Majority voters</th>
-                <th style={S.th}>Zones held</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((s, i) => (
-                <tr key={s.playerId}>
-                  <td style={S.td}>
-                    <span style={{ ...S.dot, background: colorOf(s.playerId) }} />
-                    {s.nickname} {i === 0 && '👑'}
-                  </td>
-                  <td style={S.td}>
-                    <strong>{s.score}</strong>
-                  </td>
-                  <td style={S.td}>{s.zonesHeld.join(', ') || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Scoreboard
+            standings={standings}
+            breakdown={Game.getScoreBreakdown(game)}
+            colorOf={colorOf}
+            finished
+          />
         </div>
       ) : (
         <div style={{ ...S.panel, borderColor: colorOf(player.id) }}>
@@ -668,44 +651,8 @@ export default function Prototype() {
       {/* --- Player status --- */}
       <div style={S.columns}>
         <div style={S.panel}>
-          <h3 style={S.h3}>Standings</h3>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>Candidate</th>
-                <th style={S.th}>Score</th>
-                <th style={S.th}>Resources</th>
-                <th style={S.th}>Ideology</th>
-              </tr>
-            </thead>
-            <tbody>
-              {game.players.map((p) => {
-                const s = standings.find((x) => x.playerId === p.id)
-                const c = Ideology.ideologueCounts(p.ideologyCards)
-                return (
-                  <tr key={p.id} style={p.id === player.id ? { background: '#fbf8f0' } : undefined}>
-                    <td style={S.td}>
-                      <span style={{ ...S.dot, background: colorOf(p.id) }} />
-                      {p.name}
-                    </td>
-                    <td style={S.td}>
-                      <strong>{s.score}</strong>
-                    </td>
-                    <td style={S.td}>{R.poolTotal(p.pool)}/12</td>
-                    <td style={S.td}>
-                      {Object.entries(c)
-                        .filter(([, n]) => n > 0)
-                        .map(([id, n]) => (
-                          <span key={id} style={{ ...S.chip, background: IDEOLOGUES[id].color }}>
-                            {IDEOLOGUES[id].label.replace('The ', '')} {n}
-                          </span>
-                        ))}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <h3 style={S.h3}>Scores</h3>
+          <Scoreboard standings={standings} colorOf={colorOf} myPlayerId={player.id} />
 
           <h3 style={{ ...S.h3, marginTop: 18 }}>{player.name}'s unlocked powers</h3>
           {powers.length === 0 ? (

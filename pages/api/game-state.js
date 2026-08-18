@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '../../lib/supabaseAdmin'
 import { hydrate, viewFor } from '../../lib/shasn/persistence'
-import { getStandings, isStalled } from '../../lib/shasn/game'
+import { getStandings, getScoreBreakdown, isStalled } from '../../lib/shasn/game'
 
 export default async function handler(req, res) {
   const code = (req.query.code || '').trim().toUpperCase()
@@ -65,6 +65,7 @@ export default async function handler(req, res) {
     myPlayerId,
     isSpectator,
     standings: getStandings(game),
+    scoreBreakdown: getScoreBreakdown(game),
     stalled: isStalled(game),
   })
 }

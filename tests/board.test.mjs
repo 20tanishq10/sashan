@@ -291,6 +291,95 @@ check('filling the board ends the game even with majorities unformed', () => {
   ok(B.isGameOver(b), 'game should be over')
 })
 
+// --- Scoring legibility and tie-breaks ------------------------------------
+
+check('contested zones show how far short you are', () => {
+  let b = fill(fresh(), 'central', P1, 3) // 3 of the 5 needed
+  b = fill(b, 'central', P2, 1)
+
+  const mine = B.contestedZones(b, P1)
+  eq(mine.length, 1, 'one zone in contention:')
+  eq(mine[0].held, 3)
+  eq(mine[0].needed, 2, 'two more to take it:')
+  ok(mine[0].leading, 'P1 is ahead there')
+  ok(mine[0].reachable, 'still winnable')
+
+  const theirs = B.contestedZones(b, P2)
+  ok(!theirs[0].leading, 'P2 is behind')
+})
+
+check('a zone you already hold is not "contested"', () => {
+  const b = fill(fresh(), 'central', P1, 5)
+  eq(B.contestedZones(b, P1), [], 'held zones drop out:')
+})
+
+check('an unwinnable zone is flagged unreachable', () => {
+  // central: 5 of 9. Fill all 9 split 4/4/1 so nobody can reach 5.
+  let b = fill(fresh(), 'central', P1, 4, { includeVolatile: true })
+  b = fill(b, 'central', P2, 4, { includeVolatile: true })
+  b = fill(b, 'central', P3, 1, { includeVolatile: true })
+  eq(B.contestedZones(b, P1), [], 'settled zones are not contests:')
+})
+
+check('projected score counts zones still winnable', () => {
+  let b = fill(fresh(), 'north_west', P1, 6) // banked: 6
+  b = fill(b, 'central', P1, 2)              // in contention: 5 more possible
+  eq(B.scores(b)[P1], 6, 'banked:')
+  eq(B.projectedScore(b, P1), 11, 'banked plus reachable:')
+})
+
+check('total voters counts every voter, scoring or not', () => {
+  let b = fill(fresh(), 'north_west', P1, 6)
+  b = fill(b, 'south', P1, 4)
+  eq(B.scores(b)[P1], 6, 'only the majority scores:')
+  eq(B.totalVoters(b, P1), 10, 'but all voters are counted:')
+})
+
+check('ties break on zones held, then on voters placed', () => {
+  // Both on 6 points, but P1 took one 6/11 zone and P2 took one too —
+  // separate them by voters on the board.
+  let b = fill(fresh(), 'north_west', P1, 6)
+  b = fill(b, 'north_east', P2, 6)
+  b = fill(b, 'south', P2, 3) // P2 has more voters overall
+
+  const table = B.standings(b, [
+    { id: P1, nickname: 'Ada' },
+    { id: P2, nickname: 'Bo' },
+    { id: P3, nickname: 'Cy' },
+  ])
+  eq(table[0].nickname, 'Bo', 'more voters wins the tie-break:')
+  eq(table[0].score, table[1].score, 'scores were level:')
+  ok(!table[0].tied, 'and the tie was resolved')
+})
+
+check('a true deadlock is reported as a draw, not a fabricated winner', () => {
+  let b = fill(fresh(), 'north_west', P1, 6)
+  b = fill(b, 'north_east', P2, 6)
+
+  const table = B.standings(b, [
+    { id: P1, nickname: 'Ada' },
+    { id: P2, nickname: 'Bo' },
+  ])
+  eq(table[0].rank, 1)
+  eq(table[1].rank, 1, 'both rank first:')
+  ok(table[0].tied && table[1].tied, 'flagged as tied')
+})
+
+check('the score breakdown accounts for every zone', () => {
+  const b = fill(fresh(), 'central', P1, 5)
+  const rows = B.scoreBreakdown(b, [{ id: P1, nickname: 'Ada' }])
+  eq(rows.length, 9, 'one row per zone:')
+
+  const central = rows.find((r) => r.zoneId === 'central')
+  eq(central.holderName, 'Ada')
+  eq(central.points, 5, 'worth its majority requirement:')
+
+  const north = rows.find((r) => r.zoneId === 'north')
+  eq(north.holder, null)
+  eq(north.points, 0, 'unheld zones award nothing:')
+  eq(rows.reduce((n, r) => n + r.points, 0), 5, 'total awarded:')
+})
+
 check('standings sort by score and list zones held', () => {
   let b = fill(fresh(), 'north', P2, 11)
   b = fill(b, 'central', P1, 5)
