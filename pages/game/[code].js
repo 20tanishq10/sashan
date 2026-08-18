@@ -13,6 +13,8 @@ import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib
 import { getSupabase } from '../../lib/supabaseClient'
 import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
 import CardResolver from '../../components/CardResolver'
+import PlayerMat from '../../components/PlayerMat'
+import VoterCardRow from '../../components/VoterCardRow'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
 import * as Ideology from '../../lib/shasn/ideology'
@@ -268,6 +270,19 @@ export default function GameRoom() {
   const myRightsZones = myPlayerId ? ZONE_IDS.filter((z) => rights[z] === myPlayerId) : []
   const powers = me ? Ideology.activePowerList(me.ideologyCards) : []
 
+  // Seat opponents around the table: two down each side, in turn order starting
+  // from the player after you, so the seating matches the order of play.
+  const opponents = (() => {
+    const n = game.players.length
+    const start = me ? game.players.findIndex((p) => p.id === me.id) : 0
+    const out = []
+    for (let i = 1; i < n; i++) out.push(game.players[(start + i) % n])
+    return out
+  })()
+  const half = Math.ceil(opponents.length / 2)
+  const leftOpponents = opponents.slice(0, half)
+  const rightOpponents = opponents.slice(half)
+
   return (
     <Shell>
       <div style={S.topBar}>
@@ -406,38 +421,6 @@ export default function GameRoom() {
             <div style={S.subPanel}>
               <p style={S.hint}>No action points — act as often as you can afford (p.22).</p>
 
-              <h4 style={S.h4}>Voter Cards</h4>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {Voter.affordableCards(game.market, me.pool).map((o) => (
-                  <div
-                    key={o.openIndex}
-                    style={{
-                      ...S.voterCard,
-                      opacity: o.affordable ? 1 : 0.45,
-                      borderWidth: selection?.openIndex === o.openIndex ? 2 : 1,
-                      borderColor: selection?.openIndex === o.openIndex ? '#111' : '#d8d2c4',
-                    }}
-                    onClick={() =>
-                      o.affordable
-                        ? setSelection({ openIndex: o.openIndex, zoneId: null, areas: [] })
-                        : setError('You cannot afford that card.')
-                    }
-                  >
-                    <div style={S.voterCount}>{o.card.voters}</div>
-                    <div style={S.pips}>
-                      {RESOURCE_IDS.flatMap((id) =>
-                        Array.from({ length: o.cost[id] || 0 }, (_, k) => (
-                          <span key={`${id}${k}`} style={{ ...S.pip, background: RESOURCES[id].color }} />
-                        ))
-                      )}
-                      {Array.from({ length: o.cost.any || 0 }, (_, k) => (
-                        <span key={`a${k}`} style={{ ...S.pip, background: '#fff', border: '1px solid #999' }} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               {selection && (
                 <p style={S.callout}>
                   Click {selectedCard.voters - selection.areas.length} empty area(s)
@@ -507,47 +490,6 @@ export default function GameRoom() {
                 </div>
               )}
 
-              <h4 style={S.h4}>Ideologue powers</h4>
-              {powers.length === 0 ? (
-                <p style={S.hint}>None yet — 3 cards of one Ideologue unlocks Level 3 (p.14).</p>
-              ) : (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {powers.map((p) => {
-                    const action = {
-                      capitalist3: 'prospect',
-                      capitalist5: 'breaking_ground',
-                      supremo3: 'donations',
-                      supremo5: 'payback',
-                      idealist5: 'tough_love',
-                    }[`${p.ideologue}${p.level}`]
-                    return (
-                      <button
-                        key={p.key}
-                        style={{ ...S.powerBtn, borderColor: IDEOLOGUES[p.ideologue].color }}
-                        title={p.text}
-                        onClick={() =>
-                          action
-                            ? setPowerMode({ action, name: p.name, picked: [] })
-                            : setError(`${p.name} applies automatically.`)
-                        }
-                      >
-                        <strong>{p.name}</strong>
-                        <span style={S.small}>L{p.level}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              {powerMode && (
-                <p style={S.callout}>
-                  <strong>{powerMode.name}</strong> — click{' '}
-                  {powerMode.action === 'tough_love'
-                    ? `2 voters of one opponent in one zone (${(powerMode.picked || []).length}/2)`
-                    : 'a voter on the board'}
-                  .{' '}
-                  <button style={S.link} onClick={() => setPowerMode(null)}>cancel</button>
-                </p>
-              )}
 
               <div style={{ marginTop: 16 }}>
                 <button style={S.btn} disabled={busy} onClick={() => send('end_turn')}>
@@ -601,20 +543,96 @@ export default function GameRoom() {
         </div>
       )}
 
-      <div style={{ margin: '16px 0' }}>
-        <ShasnBoard
-          board={game.board}
-          players={game.players}
-          colorOf={colorOf}
-          selectedAreas={
-            selection
-              ? selection.areas.map((a) => ({ zoneId: selection.zoneId, areaIndex: a }))
-              : gerry?.from
-              ? [gerry.from]
-              : (powerMode?.picked || [])
-          }
-          onAreaClick={isMyTurn && !finished ? onAreaClick : null}
-        />
+      {/* ── The table: voter cards on top, board centre, mats around it ── */}
+      <div style={S.table}>
+        <div style={S.voterStrip}>
+          <VoterCardRow
+            market={game.market}
+            pool={me?.pool}
+            onSelect={(i) => {
+              setGerry(null)
+              setPowerMode(null)
+              setSelection({ openIndex: i, zoneId: null, areas: [] })
+            }}
+            selectedIndex={selection?.openIndex ?? null}
+            disabled={!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS}
+          />
+        </div>
+
+        <div style={S.tableRow} className="shasn-table-row">
+          <div style={S.sideMats} className="shasn-side-mats">
+            {leftOpponents.map((p) => (
+              <PlayerMat
+                key={p.id}
+                player={p}
+                color={colorOf(p.id)}
+                isActive={p.id === active?.id}
+                score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
+                variant="compact"
+              />
+            ))}
+          </div>
+
+          <div style={S.boardCell}>
+            <ShasnBoard
+              board={game.board}
+              players={game.players}
+              colorOf={colorOf}
+              legalZones={selection?.zoneId ? new Set([selection.zoneId]) : null}
+              selectedAreas={
+                selection
+                  ? selection.areas.map((a) => ({ zoneId: selection.zoneId, areaIndex: a }))
+                  : gerry?.from
+                  ? [gerry.from]
+                  : (powerMode?.picked || [])
+              }
+              onAreaClick={isMyTurn && !finished ? onAreaClick : null}
+            />
+          </div>
+
+          <div style={S.sideMats} className="shasn-side-mats">
+            {rightOpponents.map((p) => (
+              <PlayerMat
+                key={p.id}
+                player={p}
+                color={colorOf(p.id)}
+                isActive={p.id === active?.id}
+                score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
+                variant="compact"
+              />
+            ))}
+          </div>
+        </div>
+
+        {me && (
+          <div style={S.myMat}>
+            <PlayerMat
+              player={me}
+              color={colorOf(me.id)}
+              isActive={isMyTurn}
+              isYou
+              score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
+              variant="full"
+              powerActionFor={(ideo, lvl) =>
+                ({
+                  capitalist3: 'prospect',
+                  capitalist5: 'breaking_ground',
+                  supremo3: 'donations',
+                  supremo5: 'payback',
+                  idealist5: 'tough_love',
+                }[`${ideo}${lvl}`])
+              }
+              onUsePower={(ideo, lvl, action, def) => {
+                if (!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS) {
+                  return setError('You can only use powers during your actions.')
+                }
+                setSelection(null)
+                setGerry(null)
+                setPowerMode({ action, name: def.name, picked: [] })
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div style={S.columns}>
@@ -726,6 +744,23 @@ const S = {
   container: { maxWidth: 1180, margin: '0 auto' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' },
   seats: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
+
+  // The table. Voter cards on top, board centre, opponents down each side,
+  // your own mat along the bottom — the seating of a physical game.
+  table: { margin: '10px 0 18px' },
+  voterStrip: { display: 'flex', justifyContent: 'center' },
+  tableRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 1fr) minmax(150px, 200px)',
+    gap: 12,
+    alignItems: 'start',
+    background: '#3a2f26',
+    padding: 12,
+    borderRadius: '4px 4px 12px 12px',
+  },
+  sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
+  boardCell: { minWidth: 0 },
+  myMat: { marginTop: 12 },
   seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
   rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
   h1: { fontSize: 24, margin: '0 0 2px', letterSpacing: 4, fontWeight: 700 },

@@ -1151,3 +1151,18 @@ a:hover { text-decoration: underline; }
   .card-grid { grid-template-columns: 1fr; }
   .rally-grid { grid-template-columns: 1fr; }
 }
+
+/* Table layout collapses to a single column on narrow screens: the board first,
+   then your mat, then opponents. Side-by-side mats are unreadable on a phone. */
+@media (max-width: 900px) {
+  .shasn-table-row {
+    grid-template-columns: 1fr !important;
+  }
+  .shasn-side-mats {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+  }
+  .shasn-side-mats > * {
+    flex: 1 1 150px;
+  }
+}
