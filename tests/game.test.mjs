@@ -607,6 +607,25 @@ check('the reveal announces newly unlocked powers', () => {
   eq(r.reveal.unlocked, [{ ideologue: 'capitalist', level: 3 }])
 })
 
+check('deck heights are public but their contents are not', () => {
+  let { game, rng } = newGame()
+  // Put something in a discard so both piles are non-zero.
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+  game = G.answerIdeology(game, card.answers[0].ideologue).game
+
+  const view = P.viewFor(game, 'p1')
+  for (const key of ['conspiracyDeck', 'headlineDeck', 'ideologyDeck']) {
+    const d = view[key]
+    ok(typeof d.drawCount === 'number', `${key}: draw height visible`)
+    ok(typeof d.discardCount === 'number', `${key}: discard height visible`)
+    eq(d.drawPile, undefined, `${key}: card ids withheld`)
+    eq(d.discard, undefined, `${key}: discard contents withheld`)
+    eq(d.size, d.drawCount + d.discardCount, `${key}: size adds up`)
+  }
+  eq(view.conspiracyDeck.drawCount, 20, 'a fresh Conspiracy deck is 20 cards:')
+  eq(view.ideologyDeck.discardCount, 1, 'the answered card went to the discard:')
+})
+
 check('a player view keeps the board and scores fully public', () => {
   const { game } = playOut(808, 3, 30)
   const view = P.viewFor(game, 'p1')

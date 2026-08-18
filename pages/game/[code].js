@@ -17,6 +17,7 @@ import IdeologyPrompt from '../../components/IdeologyPrompt'
 import Scoreboard from '../../components/Scoreboard'
 import PlayerMat from '../../components/PlayerMat'
 import VoterCardRow from '../../components/VoterCardRow'
+import DeckStrip from '../../components/DeckStrip'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
 import * as Ideology from '../../lib/shasn/ideology'
@@ -447,13 +448,7 @@ export default function GameRoom() {
                 </p>
               )}
 
-              <h4 style={S.h4}>Conspiracy Cards</h4>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button style={S.btnGhost} disabled={busy} onClick={() => send('buy_conspiracy')}>
-                  Buy top card (any 4)
-                </button>
-                <span style={S.hint}>{game.conspiracyDeck?.size ?? 0} in the deck</span>
-              </div>
+              <h4 style={S.h4}>Conspiracy Cards in hand</h4>
               {me.conspiracyCards.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                   {me.conspiracyCards.map((cid, i) => {
@@ -587,6 +582,18 @@ export default function GameRoom() {
               />
             ))}
           </div>
+        </div>
+
+        <div style={S.deckStrip}>
+          <DeckStrip
+            conspiracyDeck={game.conspiracyDeck}
+            headlineDeck={game.headlineDeck}
+            pendingHeadlines={game.pendingHeadlines?.length || 0}
+            canBuy={isMyTurn && game.turnPhase === TURN_PHASES.ACTIONS && !busy}
+            surcharge={me?.conspiracySurcharge || 0}
+            hand={me?.conspiracyCards?.length || 0}
+            onBuyConspiracy={() => send('buy_conspiracy')}
+          />
         </div>
 
         {me && (
@@ -725,6 +732,7 @@ const S = {
   },
   sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
   boardCell: { minWidth: 0 },
+  deckStrip: { display: 'flex', justifyContent: 'center' },
   myMat: { marginTop: 12 },
   seat: { display: 'flex', gap: 7, alignItems: 'baseline', border: '2px solid', borderRadius: 20, padding: '4px 12px', fontSize: 12, whiteSpace: 'nowrap' },
   rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },

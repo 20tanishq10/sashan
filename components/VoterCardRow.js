@@ -12,6 +12,7 @@
 import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 import * as Voter from '../lib/shasn/voterCards'
 import * as R from '../lib/shasn/resources'
+import CardStack from './CardStack'
 
 export default function VoterCardRow({
   market,
@@ -27,11 +28,14 @@ export default function VoterCardRow({
 
   return (
     <div style={S.row}>
-      <Slot label="Voter Cards" sub={`${drawSize} left`}>
-        <div style={S.deckBack}>
-          <span style={S.deckText}>VOTERS</span>
-        </div>
-      </Slot>
+      <CardStack
+        label="Voter Cards"
+        caption="Draw pile"
+        count={drawSize}
+        vertical={false}
+        width={74}
+        height={96}
+      />
 
       {market.open.map((cardId, i) => {
         const card = Voter.getVoterCard(cardId)
@@ -84,9 +88,15 @@ export default function VoterCardRow({
         )
       })}
 
-      <Slot label="Discard" sub={`${discardSize}`}>
-        <div style={S.discard} />
-      </Slot>
+      <CardStack
+        label="Discard"
+        caption="Discard voters"
+        count={discardSize}
+        empty={discardSize === 0}
+        vertical={false}
+        width={74}
+        height={96}
+      />
     </div>
   )
 }
@@ -145,17 +155,7 @@ const S = {
   costTotal: {
     position: 'absolute', top: 4, right: 6, fontSize: 9, color: '#8a8478',
   },
-  deckBack: {
-    width: 74, height: 96, borderRadius: 7,
-    background: 'repeating-linear-gradient(135deg,#4d5f50,#4d5f50 6px,#455845 6px,#455845 12px)',
-    border: '1px solid #2f3a30', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  deckText: {
-    fontSize: 9, letterSpacing: 1.5, color: '#dfe6dc',
-    writingMode: 'vertical-rl', textOrientation: 'mixed',
-  },
-  discard: {
-    width: 74, height: 96, borderRadius: 7,
-    border: '2px dashed #6d6152', background: '#00000022',
-  },
+
+
+
 }

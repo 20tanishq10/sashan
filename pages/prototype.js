@@ -24,6 +24,7 @@ import CardResolver from '../components/CardResolver'
 import IdeologyPrompt from '../components/IdeologyPrompt'
 import Scoreboard from '../components/Scoreboard'
 import ResourceChain from '../components/ResourceChain'
+import DeckStrip from '../components/DeckStrip'
 import { ZONES, ZONE_IDS, isVolatile } from '../lib/shasn/zones'
 import {
   RESOURCES,
@@ -641,6 +642,14 @@ export default function Prototype() {
               : (powerMode?.picked || [])
           }
           onAreaClick={finished ? null : onAreaClick}
+        />
+        <DeckStrip
+          conspiracyDeck={game.conspiracyDeck}
+          headlineDeck={game.headlineDeck}
+          pendingHeadlines={game.pendingHeadlines?.length || 0}
+          canBuy={!finished && game.turnPhase === TURN_PHASES.ACTIONS}
+          hand={player.conspiracyCards?.length || 0}
+          onBuyConspiracy={() => apply(Game.buyConspiracy(game, rngRef.current))}
         />
       </div>
 
