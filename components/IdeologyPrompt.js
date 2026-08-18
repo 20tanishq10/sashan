@@ -18,7 +18,8 @@
 // exactly as the player reading it aloud can, and simply watch you decide.
 
 import { useEffect, useState } from 'react'
-import { IDEOLOGUES, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import IdeologueMark from './IdeologueMark'
 
 const REVEAL_MS = 2600
 const FILE_MS = 900
@@ -57,13 +58,19 @@ export default function IdeologyPrompt({
   // ── Reveal ───────────────────────────────────────────────────────────────
   if (reveal && stage !== 'ask') {
     const ideo = IDEOLOGUES[reveal.chosen.ideologue]
+    // The four Ideologue panels run left to right across the mat, so aim the
+    // card at the column its stack lives in: -1 is far left, +1 far right.
+    const column = IDEOLOGUE_IDS.indexOf(reveal.chosen.ideologue)
+    const fileX = (column - (IDEOLOGUE_IDS.length - 1) / 2) / ((IDEOLOGUE_IDS.length - 1) / 2)
+
     return (
       <div className="shasn-scrim">
         <div
           className={stage === 'file' ? 'shasn-card-file' : 'shasn-card-reveal'}
-          style={{ ...S.revealCard, borderColor: ideo.color }}
+          style={{ ...S.revealCard, borderColor: ideo.color, '--shasn-file-x': fileX }}
         >
           <div style={{ ...S.revealBand, background: ideo.color }}>
+            <IdeologueMark ideologue={reveal.chosen.ideologue} size={20} color="#fff" stroke={2} />
             {ideo.label.toUpperCase()}
           </div>
 
@@ -243,7 +250,8 @@ const S = {
   },
   revealBand: {
     padding: '12px 16px', color: '#fff', fontSize: 15, fontWeight: 700,
-    letterSpacing: 2, textAlign: 'center', textShadow: '0 1px 2px rgba(0,0,0,.3)',
+    letterSpacing: 2, textShadow: '0 1px 2px rgba(0,0,0,.3)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   revealPrompt: { fontSize: 12, color: '#8a8478', margin: '14px 18px 6px', lineHeight: 1.4 },
   revealAnswer: { fontSize: 17, margin: '0 18px 14px', lineHeight: 1.4, color: '#221d16' },

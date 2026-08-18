@@ -44,6 +44,7 @@ export default function Prototype() {
   const [powerMode, setPowerMode] = useState(null) // activated Ideologue power
   const [resolutionNote, setResolutionNote] = useState('')
   const [reveal, setReveal] = useState(null)
+  const [justTucked, setJustTucked] = useState(null)
   const rngRef = useRef(null)
 
   const player = game ? Game.activePlayer(game) : null
@@ -335,7 +336,11 @@ export default function Prototype() {
                 setReveal(r.reveal)
               }}
               onRedraw={() => apply(Game.redrawIdeology(game, rngRef.current))}
-              onRevealDone={() => setReveal(null)}
+              onRevealDone={() => {
+                setJustTucked(reveal?.chosen?.ideologue || null)
+                setReveal(null)
+                setTimeout(() => setJustTucked(null), 700)
+              }}
             />
           )}
 

@@ -19,6 +19,8 @@
 
 import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 import ResourceChain, { ResourceLegend } from './ResourceChain'
+import IdeologyCardStack from './IdeologyCardStack'
+import IdeologueMark from './IdeologueMark'
 import * as Ideology from '../lib/shasn/ideology'
 import * as R from '../lib/shasn/resources'
 
@@ -33,6 +35,7 @@ export default function PlayerMat({
   powerActionFor,
   discardSelection = null, // tokens marked to hand back during the cap discard
   onDiscardToken = null,
+  justTucked = null,       // ideologue whose stack just gained a card, for the animation
 }) {
   const counts = Ideology.ideologueCounts(player.ideologyCards)
   const unlocked = Ideology.unlockedPowers(player.ideologyCards)
@@ -54,7 +57,7 @@ export default function PlayerMat({
         <div style={S.compactIdeo}>
           {IDEOLOGUE_IDS.map((id) => (
             <div key={id} style={S.compactIdeoRow}>
-              <span style={{ ...S.ideoTick, background: IDEOLOGUES[id].color }} />
+              <IdeologueMark ideologue={id} size={13} color={IDEOLOGUES[id].color} stroke={2.2} />
               <span style={S.compactCount}>{counts[id]}</span>
               <span style={S.lvlWrap}>
                 <Lvl n={3} on={unlocked[id].level3} />
@@ -106,22 +109,24 @@ export default function PlayerMat({
           return (
             <div key={id} style={S.panel}>
               <div style={{ ...S.namePlate, borderColor: ideo.color }}>
+                <IdeologueMark ideologue={id} size={13} color={ideo.color} stroke={2} />
                 <span style={{ color: ideo.color, letterSpacing: 1 }}>
-                  {ideo.label.toUpperCase()}
+                  {ideo.label.replace('The ', '').toUpperCase()}
                 </span>
               </div>
 
               <div style={S.heldRow}>
-                <span style={S.heldCount}>{held}</span>
-                <span style={S.heldLabel}>
-                  card{held === 1 ? '' : 's'}
-                  {passive > 0 && (
-                    <em style={{ ...S.passiveTag, color: ideo.color }}>
-                      +{passive} {RESOURCES[ideo.resource].label}/turn
-                    </em>
-                  )}
-                </span>
+                <IdeologyCardStack
+                  ideologue={id}
+                  count={held}
+                  justAdded={justTucked === id}
+                />
               </div>
+              {passive > 0 && (
+                <div style={{ ...S.passiveTag, color: ideo.color }}>
+                  +{passive} {RESOURCES[ideo.resource].label}/turn
+                </div>
+              )}
 
               {[3, 5].map((lvl) => {
                 const def = ideo[`level${lvl}`]
@@ -210,12 +215,11 @@ const S = {
   panel: { background: '#ffffff1f', borderRadius: 8, padding: 8 },
   namePlate: {
     background: '#141310', borderRadius: 5, borderBottom: '3px solid',
-    padding: '5px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 700,
+    padding: '5px 6px', fontSize: 9, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
   },
-  heldRow: { display: 'flex', alignItems: 'baseline', gap: 6, padding: '7px 2px 6px' },
-  heldCount: { fontSize: 21, fontWeight: 700, lineHeight: 1 },
-  heldLabel: { fontSize: 9, opacity: 0.9, display: 'flex', flexDirection: 'column' },
-  passiveTag: { fontStyle: 'normal', fontSize: 9, fontWeight: 700 },
+  heldRow: { display: 'flex', justifyContent: 'center', padding: '10px 2px 4px' },
+  passiveTag: { fontSize: 9, fontWeight: 700, textAlign: 'center', paddingBottom: 4 },
 
   powerRow: {
     display: 'flex', gap: 6, alignItems: 'center', padding: '4px 4px',

@@ -49,6 +49,7 @@ export default function GameRoom() {
   const [capDiscard, setCapDiscard] = useState(R.emptyPool())
   const [note, setNote] = useState('')
   const [reveal, setReveal] = useState(null) // ideology card unmasked after answering
+  const [justTucked, setJustTucked] = useState(null) // stack that just gained a card
 
   // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -302,7 +303,11 @@ export default function GameRoom() {
             if (r?.reveal) setReveal(r.reveal)
           }}
           onRedraw={() => send('redraw_ideology')}
-          onRevealDone={() => setReveal(null)}
+          onRevealDone={() => {
+            setJustTucked(reveal?.chosen?.ideologue || null)
+            setReveal(null)
+            setTimeout(() => setJustTucked(null), 700)
+          }}
         />
       )}
 
@@ -605,6 +610,7 @@ export default function GameRoom() {
               isYou
               score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
               variant="full"
+              justTucked={justTucked}
               discardSelection={
                 game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
               }

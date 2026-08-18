@@ -1250,3 +1250,39 @@ a:hover { text-decoration: underline; }
   }
   .shasn-card-file { opacity: 0 }
 }
+
+/* ── An answered Ideology Card being tucked under the mat ─────────────────
+   p.12: the card goes under your Player Mat, answer face up. The reveal card
+   flies down toward its Ideologue's column, and the stack there gains a back. */
+
+.shasn-card-tuck {
+  animation: shasn-tuck 520ms cubic-bezier(.2,.9,.3,1.15);
+}
+@keyframes shasn-tuck {
+  0%   { transform: translateY(-46px) scale(1.12); opacity: 0 }
+  55%  { opacity: 1 }
+  100% { transform: translateY(0) scale(1); opacity: 1 }
+}
+
+/* The reveal card files toward the column of the Ideologue it belongs to.
+   --shasn-file-x is set inline: -1 = far left column, +1 = far right. */
+.shasn-card-file {
+  animation: shasn-file 900ms cubic-bezier(.5,0,.75,0) forwards;
+}
+@keyframes shasn-file {
+  from {
+    transform: translate(0, 0) scale(1) rotate(0);
+    opacity: 1;
+  }
+  to {
+    transform:
+      translate(calc(var(--shasn-file-x, 0) * 30vw), 74vh)
+      scale(.22)
+      rotate(calc(var(--shasn-file-x, 0) * 8deg));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shasn-card-tuck { animation: none !important }
+}
