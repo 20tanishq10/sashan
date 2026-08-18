@@ -22,3 +22,7 @@ Thumbs.db
 # ide
 .idea/
 .vscode/
+
+# Scratch bundles built by the rendering tests
+node_modules/.shasn-render/
+node_modules/.shasn-room/

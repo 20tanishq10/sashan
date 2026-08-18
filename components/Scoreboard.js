@@ -22,15 +22,21 @@ export default function Scoreboard({
   myPlayerId = null,
   finished = false,
 }) {
+  // Which rows changed place since the last render — the table is a leaderboard
+  // and overtaking somebody is the whole point.
+  //
+  // Above the guard below, and it has to stay there. Hooks must run in the same
+  // order on every render, and standings arrive empty on the first one; a hook
+  // called after the early return would run later but not initially, which React
+  // treats as fatal and which takes the whole page down rather than just this
+  // table. See tests/hooks.test.mjs.
+  const moved = useMovedRows(standings)
+
   if (!standings.length) return null
 
   const leader = standings[0]
   const winners = standings.filter((r) => r.rank === 1)
   const awarded = breakdown ? breakdown.reduce((n, z) => n + z.points, 0) : null
-
-  // Which rows changed place since the last render — the table is a leaderboard
-  // and overtaking somebody is the whole point.
-  const moved = useMovedRows(standings)
 
   return (
     <div>

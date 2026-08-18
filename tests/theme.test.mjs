@@ -65,7 +65,7 @@ check('the stylesheet only uses tokens it declares', () => {
   eq([...new Set(missing)], [], 'undeclared tokens in globals.css:')
 })
 
-check('the board’s literal palette matches the tokens', async () => {
+check('the board’s literal palette matches the tokens', () => {
   const theme = readFileSync('lib/ui/theme.js', 'utf8')
   const raw = theme.match(/export const RAW = \{([\s\S]*?)\n\}/)[1]
 

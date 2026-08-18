@@ -69,7 +69,13 @@ export function createRunner() {
 
   function check(name, fn) {
     try {
-      fn()
+      const r = fn()
+      // An async check would resolve after report() has already run, so its
+      // failure would surface as an unhandled rejection long after the suite
+      // said everything passed. Refuse them outright rather than lie.
+      if (r && typeof r.then === 'function') {
+        throw new Error('check() must be synchronous — resolve promises before calling it')
+      }
       passed++
     } catch (err) {
       failures.push(`${name}\n    ${err.message}`)

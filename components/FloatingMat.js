@@ -116,6 +116,15 @@ export default function FloatingMat({ storageKey = 'shasn-mat', player, color, i
     }
   }
 
+  // The mat lifts once, as the turn arrives — not for as long as it lasts.
+  //
+  // This MUST stay above the `loaded` guard below. Hooks have to run in the same
+  // order on every render, and the first render always bails out early while the
+  // saved position is still being read; a hook called after that point runs on
+  // the second render but not the first, which React treats as fatal and which
+  // took the entire room down the moment a game started.
+  const justBecameMyTurn = useJustTurnedTrue(isMyTurn)
+
   if (!loaded) return null
 
   const anchored = state.x != null && state.y != null
@@ -126,9 +135,6 @@ export default function FloatingMat({ storageKey = 'shasn-mat', player, color, i
       ? { left: state.x, top: state.y }
       : { left: '50%', bottom: 12, transform: 'translateX(-50%)' }),
   }
-
-  // The mat lifts once, as the turn arrives — not for as long as it lasts.
-  const justBecameMyTurn = useJustTurnedTrue(isMyTurn)
 
   const counts = Ideology.ideologueCounts(player.ideologyCards)
   const powers = Ideology.activePowerList(player.ideologyCards).length

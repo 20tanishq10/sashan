@@ -89,8 +89,16 @@ export default function IdeologyPrompt({
   if (!pending && !reveal) return null
 
   // ── Reveal ───────────────────────────────────────────────────────────────
-  if (reveal && stage !== 'ask') {
-    const ideo = IDEOLOGUES[reveal.chosen.ideologue]
+  //
+  // Gated on `reveal` alone, deliberately. `stage` starts at 'ask' and only
+  // moves to 'reveal' in an effect, which runs AFTER this render — so gating on
+  // `stage !== 'ask'` meant that on the very render where a reveal arrived we
+  // fell through to the answering branch and dereferenced a card that was
+  // already gone. That took the whole room down with a client-side exception.
+  // `stage` now only chooses the animation, never whether we render at all.
+  if (reveal) {
+    const ideo = IDEOLOGUES[reveal.chosen?.ideologue]
+    if (!ideo) return null
     // The four Ideologue panels run left to right across the mat, so aim the
     // card at the column its stack lives in: -1 is far left, +1 far right.
     const column = IDEOLOGUE_IDS.indexOf(reveal.chosen.ideologue)
@@ -152,6 +160,10 @@ export default function IdeologyPrompt({
   }
 
   // ── Watching someone else decide ─────────────────────────────────────────
+  // Past this point every branch reads `pending`. If it is gone there is nothing
+  // to draw — return rather than throw and take the room down.
+  if (!pending) return null
+
   if (spectatorName) {
     return (
       <div style={S.watchPanel}>
