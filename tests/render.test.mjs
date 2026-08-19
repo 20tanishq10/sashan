@@ -130,6 +130,72 @@ function render(label, el) {
 
 // ---------------------------------------------------------------------------
 
+check('every deck glyph draws', () => {
+  // Conspiracy was told apart by a red edge and Headline by an amber one — the
+  // Street Clout and Public Trust hues. Each deck now has a mark as well, so
+  // identity survives with colour switched off.
+  const DeckGlyph = M.DeckGlyph
+  for (const deck of ['ideology', 'conspiracy', 'headline', 'voter']) {
+    const html = render(`DeckGlyph ${deck}`, React.createElement(DeckGlyph, { deck }))
+    ok(/<(path|circle)/.test(html), `${deck} drew a shape`)
+  }
+
+  // The glyphs must actually differ, or they identify nothing.
+  const shapes = ['ideology', 'conspiracy', 'headline', 'voter'].map((deck) =>
+    renderToStaticMarkup(React.createElement(DeckGlyph, { deck }))
+  )
+  eq(new Set(shapes).size, 4, 'four distinct glyphs:')
+})
+
+check('all four card faces share one anatomy', () => {
+  // The whole point of the shared shell: a Voter Card at 82px and a Conspiracy
+  // resolver at full width are the same component with different slots filled.
+  const Card = M.Card
+  const faces = {
+    ideology: { deck: 'ideology', title: 'Should the state fund private hospitals?' },
+    conspiracy: { deck: 'conspiracy', title: 'Chai-Paani', badge: 3 },
+    headline: { deck: 'headline', title: 'Farmers March' },
+    voter: { deck: 'voter', title: '2', subtitle: 'voters', badge: 3, compact: true },
+  }
+  for (const [name, props] of Object.entries(faces)) {
+    const html = render(
+      `Card ${name}`,
+      React.createElement(Card, props, React.createElement('p', null, 'body'))
+    )
+    ok(html.includes(String(props.title)), `${name} shows its title`)
+    ok(/<svg/.test(html), `${name} carries its deck glyph`)
+    if (props.badge != null) ok(html.includes(String(props.badge)), `${name} shows its badge`)
+  }
+})
+
+check('a card carries each of its four states', () => {
+  const Card = M.Card
+  const base = { deck: 'voter', title: '1' }
+  const plain = renderToStaticMarkup(React.createElement(Card, base))
+  const selected = renderToStaticMarkup(React.createElement(Card, { ...base, selected: true }))
+  const disabled = renderToStaticMarkup(React.createElement(Card, { ...base, disabled: true }))
+  const spent = renderToStaticMarkup(React.createElement(Card, { ...base, spent: true }))
+
+  ok(selected !== plain, 'selected looks different from plain')
+  ok(disabled !== plain, 'disabled looks different from plain')
+  ok(spent !== plain, 'spent looks different from plain')
+  ok(selected.includes('--accent'), 'selection uses the one accent')
+  ok(disabled.includes('opacity:0.45'), 'disabled dims')
+  ok(spent.includes('grayscale'), 'spent desaturates')
+})
+
+check('a clickable card is reachable from the keyboard', () => {
+  const Card = M.Card
+  const html = renderToStaticMarkup(
+    React.createElement(Card, { deck: 'voter', title: '1', onClick: () => {} })
+  )
+  ok(html.includes('role="button"'), 'announced as a button')
+  ok(html.includes('tabindex="0"'), 'and reachable by tab')
+
+  const inert = renderToStaticMarkup(React.createElement(Card, { deck: 'voter', title: '1' }))
+  ok(!inert.includes('tabindex'), 'a card you cannot click is not a tab stop')
+})
+
 check('every party emblem draws', () => {
   const PartyEmblem = M.PartyEmblem
   for (const id of M.Parties.PARTY_IDS) {

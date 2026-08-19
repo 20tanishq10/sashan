@@ -24,6 +24,7 @@ import AuctionPanel from '../../components/AuctionPanel'
 import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
 import PartyEmblem from '../../components/PartyEmblem'
+import Card, { CardText } from '../../components/Card'
 import { partyForSeat } from '../../lib/shasn/parties'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
@@ -438,19 +439,35 @@ export default function GameRoom() {
                   <p style={S.hint}>
                     You may play a Conspiracy Card before {active?.name} answers (p.22).
                   </p>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                  {/* Naming the cards was not enough here: this is a snap
+                      decision on someone else's turn, and you cannot judge it
+                      without seeing what the card actually does. */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     {me.conspiracyCards
                       .filter((cid) => Cards.getConspiracyCard(cid)?.mode !== 'interrupt')
-                      .map((cid, i) => (
-                        <button
-                          key={`${cid}${i}`}
-                          style={S.btnGhost}
-                          disabled={busy}
-                          onClick={() => send('play_conspiracy', { cardId: cid })}
-                        >
-                          {Cards.getConspiracyCard(cid)?.name}
-                        </button>
-                      ))}
+                      .map((cid, i) => {
+                        const c = Cards.getConspiracyCard(cid)
+                        return (
+                          <Card
+                            key={`${cid}${i}`}
+                            deck="conspiracy"
+                            compact
+                            width={168}
+                            title={c.name}
+                            footer={
+                              <button
+                                style={S.miniBtn}
+                                disabled={busy}
+                                onClick={() => send('play_conspiracy', { cardId: cid })}
+                              >
+                                Play now
+                              </button>
+                            }
+                          >
+                            <CardText>{c.text}</CardText>
+                          </Card>
+                        )
+                      })}
                   </div>
                 </div>
               )}
@@ -546,17 +563,24 @@ export default function GameRoom() {
                   {me.conspiracyCards.map((cid, i) => {
                     const c = Cards.getConspiracyCard(cid)
                     return (
-                      <div key={`${cid}${i}`} style={S.conspiracyCard}>
-                        <strong style={{ fontSize: 12 }}>{c.name}</strong>
-                        <span style={S.cardText}>{c.text}</span>
-                        <button
-                          style={S.miniBtn}
-                          disabled={busy}
-                          onClick={() => send('play_conspiracy', { cardId: cid })}
-                        >
-                          play
-                        </button>
-                      </div>
+                      <Card
+                        key={`${cid}${i}`}
+                        deck="conspiracy"
+                        compact
+                        width={168}
+                        title={c.name}
+                        footer={
+                          <button
+                            style={S.miniBtn}
+                            disabled={busy}
+                            onClick={() => send('play_conspiracy', { cardId: cid })}
+                          >
+                            Play
+                          </button>
+                        }
+                      >
+                        <CardText>{c.text}</CardText>
+                      </Card>
                     )
                   })}
                 </div>
@@ -950,7 +974,6 @@ const S = {
     whiteSpace: 'nowrap',
     boxShadow: 'var(--sh-1)',
   },
-  seatDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
   seatName: { fontWeight: 550, display: 'flex', alignItems: 'baseline', gap: 5 },
   you: {
     fontSize: 9,
@@ -1158,25 +1181,6 @@ const S = {
     fontVariantNumeric: 'tabular-nums',
   },
   // A Conspiracy card sitting in your hand, off-turn
-  conspiracyCard: {
-    width: 158,
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-md)',
-    padding: 10,
-    background: 'var(--surface)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 5,
-    boxShadow: 'var(--sh-1)',
-  },
-  cardText: {
-    fontSize: 10.5,
-    color: 'var(--ink-2)',
-    lineHeight: 1.5,
-    whiteSpace: 'pre-wrap',
-    maxHeight: 74,
-    overflowY: 'auto',
-  },
   cardBody: {
     fontSize: 12.5,
     lineHeight: 1.55,

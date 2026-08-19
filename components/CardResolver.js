@@ -9,6 +9,8 @@
 // manual box. Automating those would destroy them.
 
 import { useState } from 'react'
+import Card, { CardText } from './Card'
+import IdeologueMark from './IdeologueMark'
 import * as R from '../lib/shasn/resources'
 import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 
@@ -26,30 +28,18 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
     chosen?.effect?.type === 'gainAny' ? chosen.effect.amount : null
   const takeTotal = R.poolTotal(take)
 
-  return (
-    <div style={S.wrap} className="shasn-deal">
-      <span
-        style={{
-          ...S.tone,
-          background: kind === 'headline' ? 'var(--amber)' : 'var(--danger)',
-        }}
-      />
-      <div style={S.head}>
-        <span
-          style={{
-            ...S.kind,
-            background: kind === 'headline' ? 'var(--amber-bg)' : 'var(--danger-bg)',
-            color: kind === 'headline' ? 'var(--amber)' : 'var(--danger)',
-            borderColor: kind === 'headline' ? 'var(--amber-brd)' : 'var(--danger-brd)',
-          }}
-        >
-          {kind === 'headline' ? 'Headline' : 'Conspiracy'}
-        </span>
-        <strong style={S.name}>{card.name}</strong>
-      </div>
+  const deck = kind === 'headline' ? 'headline' : 'conspiracy'
 
-      <pre style={S.text}>{card.text}</pre>
-      {card.clarification && <p style={S.clar}>{card.clarification}</p>}
+  return (
+    <Card
+      className="shasn-deal"
+      deck={deck}
+      title={card.name}
+      badge={card.cost != null ? card.cost : null}
+      footer={card.clarification || null}
+      style={{ marginTop: 12 }}
+    >
+      <CardText>{card.text}</CardText>
 
       {options ? (
         <>
@@ -84,7 +74,13 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
               <div style={S.steppers}>
                 {RESOURCE_IDS.map((id) => (
                   <div key={id} style={S.stepper}>
-                    <span style={{ ...S.chip, background: RESOURCES[id].color }}>
+                    <span style={{ ...S.chip, background: RESOURCES[id].color, color: RESOURCES[id].ink }}>
+                      <IdeologueMark
+                        ideologue={RESOURCES[id].ideologue}
+                        size={11}
+                        color={RESOURCES[id].ink || '#ffffff'}
+                        stroke={4}
+                      />
                       {RESOURCES[id].label}
                     </span>
                     <button
@@ -139,7 +135,7 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
           </button>
         </>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -159,26 +155,7 @@ function labelFor(option) {
 }
 
 const S = {
-  wrap: {
-    position: 'relative', overflow: 'hidden',
-    border: '1px solid var(--border)', background: 'var(--surface)',
-    borderRadius: 'var(--r-lg)', padding: '16px 14px 14px', marginTop: 12,
-    boxShadow: 'var(--sh-2)',
-  },
   // The hairline that says which deck this came off.
-  tone: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  head: { display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 9, flexWrap: 'wrap' },
-  kind: {
-    fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600,
-    border: '1px solid', padding: '1px 8px', borderRadius: 999,
-  },
-  name: { fontSize: 17, fontWeight: 600 },
-  text: {
-    fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', fontFamily: 'inherit',
-    background: 'var(--surface-2)', border: '1px solid var(--border)',
-    padding: 12, borderRadius: 'var(--r-md)', margin: '0 0 8px',
-  },
-  clar: { fontSize: 11.5, color: 'var(--ink-3)', margin: '0 0 10px', lineHeight: 1.5 },
   prompt: { fontSize: 13, margin: '13px 0 8px', fontWeight: 600 },
   options: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   option: {
@@ -192,8 +169,9 @@ const S = {
   steppers: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 },
   stepper: { display: 'flex', alignItems: 'center', gap: 5 },
   chip: {
-    display: 'inline-block', padding: '2px 9px', borderRadius: 999, fontSize: 11,
-    color: 'var(--on-dark)', whiteSpace: 'nowrap', fontWeight: 550,
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '2px 9px 2px 6px', borderRadius: 999, fontSize: 11,
+    whiteSpace: 'nowrap', fontWeight: 550,
   },
   step: {
     width: 22, height: 22, border: '1px solid var(--border-2)', background: 'var(--surface)',

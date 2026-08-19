@@ -13,6 +13,8 @@ import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 import * as Voter from '../lib/shasn/voterCards'
 import * as R from '../lib/shasn/resources'
 import CardStack from './CardStack'
+import Card from './Card'
+import IdeologueMark from './IdeologueMark'
 
 export default function VoterCardRow({
   market,
@@ -47,23 +49,25 @@ export default function VoterCardRow({
 
         return (
           <Slot key={`${cardId}-${i}`} label="Voters">
-            <div
-              onClick={clickable ? () => onSelect(i) : undefined}
-              style={{
-                ...S.card,
-                cursor: clickable ? 'pointer' : 'default',
-                opacity: disabled ? 0.55 : affordable ? 1 : 0.5,
-                borderColor: selected ? 'var(--ink)' : 'var(--border)',
-                borderWidth: selected ? 3 : 1,
-                transform: selected ? 'translateY(-4px)' : 'none',
-              }}
-              title={
+            <Card
+              deck="voter"
+              compact
+              width={82}
+              badge={R.costTotal(cost)}
+              selected={selected}
+              disabled={disabled || !affordable}
+              onClick={clickable ? () => onSelect(i) : null}
+              title_={
                 affordable
                   ? `${card.voters} voter${card.voters > 1 ? 's' : ''} — click, then pick areas in one zone`
                   : 'You cannot afford this card'
               }
+              title={<span style={S.voters}>{card.voters}</span>}
+              subtitle={card.voters === 1 ? 'voter' : 'voters'}
             >
-              <div style={S.voters}>{card.voters}</div>
+              {/* Cost pips carry their Ideologue mark, exactly as the resource
+                  tokens on your mat do, so what a card costs and what you hold
+                  are written in the same alphabet. A hollow pip is a wildcard. */}
               <div style={S.pips}>
                 {RESOURCE_IDS.flatMap((id) =>
                   Array.from({ length: cost[id] || 0 }, (_, k) => (
@@ -71,19 +75,34 @@ export default function VoterCardRow({
                       key={`${id}${k}`}
                       style={{ ...S.pip, background: RESOURCES[id].color }}
                       title={RESOURCES[id].label}
-                    />
+                    >
+                      <IdeologueMark
+                        ideologue={RESOURCES[id].ideologue}
+                        size={9}
+                        color={RESOURCES[id].ink || '#ffffff'}
+                        stroke={4.5}
+                      />
+                    </span>
                   ))
                 )}
                 {Array.from({ length: cost.any || 0 }, (_, k) => (
                   <span
                     key={`any${k}`}
-                    style={{ ...S.pip, background: 'var(--surface)', border: '1.5px solid var(--ink-3)' }}
+                    style={{
+                      ...S.pip,
+                      background: 'var(--surface)',
+                      border: '1.5px dashed var(--ink-3)',
+                      color: 'var(--ink-3)',
+                      fontSize: 9,
+                      fontWeight: 700,
+                    }}
                     title="Any resource of your choice"
-                  />
+                  >
+                    ?
+                  </span>
                 ))}
               </div>
-              <div style={S.costTotal}>{R.costTotal(cost)}</div>
-            </div>
+            </Card>
           </Slot>
         )
       })}
@@ -129,33 +148,16 @@ const S = {
     fontSize: 8.5,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: 'var(--border-2)',
+    color: 'var(--ink-3)',
     display: 'flex',
     gap: 5,
     alignItems: 'baseline',
   },
   slotSub: { fontStyle: 'normal', opacity: 0.75 },
-  card: {
-    width: 74,
-    height: 96,
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 7,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    transition: 'transform .12s ease',
-    position: 'relative',
+  voters: { fontSize: 30, fontWeight: 650, lineHeight: 1.05, color: 'var(--ink)' },
+  pips: { display: 'flex', gap: 3, flexWrap: 'wrap', maxWidth: 66 },
+  pip: {
+    width: 14, height: 14, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  voters: { fontSize: 34, fontWeight: 700, lineHeight: 1, color: 'var(--ink)' },
-  pips: { display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 62 },
-  pip: { width: 11, height: 11, borderRadius: '50%', display: 'inline-block' },
-  costTotal: {
-    position: 'absolute', top: 4, right: 6, fontSize: 9, color: 'var(--ink-3)',
-  },
-
-
-
 }

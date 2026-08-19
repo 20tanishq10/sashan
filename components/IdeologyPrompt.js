@@ -26,6 +26,7 @@ import {
   IDEOLOGY_ANSWER_MS,
 } from '../lib/shasn/constants'
 import IdeologueMark from './IdeologueMark'
+import Card from './Card'
 
 const REVEAL_MS = 2600
 const FILE_MS = 900
@@ -106,36 +107,47 @@ export default function IdeologyPrompt({
 
     return (
       <div className="shasn-scrim">
-        <div
+        <Card
           className={stage === 'file' ? 'shasn-card-file' : 'shasn-card-reveal'}
-          style={{ ...S.revealCard, borderColor: ideo.color, '--shasn-file-x': fileX }}
+          deck="ideology"
+          // Once answered the card belongs to an Ideologue, so it takes that
+          // colour — the only point at which an Ideology Card is ever coloured.
+          tone={ideo.color}
+          eyebrow={
+            <>
+              <IdeologueMark ideologue={reveal.chosen.ideologue} size={13} color={ideo.color} stroke={3} />
+              {ideo.label}
+            </>
+          }
+          badge={reveal.timedOut ? 'clock decided' : null}
+          title={reveal.prompt}
+          subtitle={`“${reveal.chosen.text}”`}
+          style={{ ...S.revealCard, '--shasn-file-x': fileX }}
+          footer={
+            <>
+              {Object.values(reveal.passiveGain || {}).some((n) => n > 0) &&
+                'Includes passive income from Ideology Cards you already hold. '}
+              {reveal.heldAfter?.[reveal.chosen.ideologue]}× {ideo.label} on your mat
+            </>
+          }
         >
-          <div style={{ ...S.revealBand, background: ideo.color }}>
-            <IdeologueMark ideologue={reveal.chosen.ideologue} size={20} color="var(--surface)" stroke={2} />
-            {ideo.label.toUpperCase()}
-          </div>
-
-          {reveal.timedOut && <p style={S.timedOut}>The clock decided this one.</p>}
-          <p style={S.revealPrompt}>{reveal.prompt}</p>
-          <p style={S.revealAnswer}>“{reveal.chosen.text}”</p>
-
           <div style={S.gains}>
             {RESOURCE_IDS.filter((id) => (reveal.granted?.[id] || 0) > 0).map((id) => (
               <span
                 key={id}
                 className="shasn-gain"
-                style={{ ...S.gainChip, background: RESOURCES[id].color }}
+                style={{ ...S.gainChip, background: RESOURCES[id].color, color: RESOURCES[id].ink }}
               >
+                <IdeologueMark
+                  ideologue={RESOURCES[id].ideologue}
+                  size={12}
+                  color={RESOURCES[id].ink || '#ffffff'}
+                  stroke={4}
+                />
                 +{reveal.granted[id]} {RESOURCES[id].label}
               </span>
             ))}
           </div>
-
-          {Object.values(reveal.passiveGain || {}).some((n) => n > 0) && (
-            <p style={S.passiveNote}>
-              includes passive income from Ideology Cards you already hold
-            </p>
-          )}
 
           {reveal.unlocked?.length > 0 && (
             <div style={S.unlockRow}>
@@ -150,11 +162,7 @@ export default function IdeologyPrompt({
               ))}
             </div>
           )}
-
-          <div style={S.filed}>
-            {reveal.heldAfter?.[reveal.chosen.ideologue]}× {ideo.label} on your mat
-          </div>
-        </div>
+        </Card>
       </div>
     )
   }
@@ -166,15 +174,19 @@ export default function IdeologyPrompt({
 
   if (spectatorName) {
     return (
-      <div style={S.watchPanel}>
-        <div style={S.watchHead}>
-          <span style={S.eyebrow}>{spectatorName} is answering</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <Card
+        deck="ideology"
+        eyebrow={`${spectatorName} is answering`}
+        badge={
+          <span style={S.badgeRow}>
             {remaining !== null && <Clock remaining={remaining} small />}
             <span style={S.readAloud}>read this out</span>
           </span>
-        </div>
-        <p style={S.watchPrompt}>{pending.prompt}</p>
+        }
+        title={pending.prompt}
+        footer="They cannot see the Ideologues or the payouts."
+        style={{ marginTop: 10 }}
+      >
         <div style={S.watchAnswers}>
           {pending.answers.map((a, i) => {
             const ideo = a.ideologue ? IDEOLOGUES[a.ideologue] : null
@@ -195,25 +207,39 @@ export default function IdeologyPrompt({
             )
           })}
         </div>
-        <p style={S.hiddenNote}>They cannot see the Ideologues or the payouts.</p>
-      </div>
+      </Card>
     )
   }
 
   // ── Answering ────────────────────────────────────────────────────────────
   return (
     <div className="shasn-scrim">
-      <div className="shasn-drop" style={S.askCard}>
-        <div style={S.askHead}>
-          <span style={S.eyebrow}>Ideology Card</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <Card
+        className="shasn-drop"
+        deck="ideology"
+        style={S.askCard}
+        badge={
+          <span style={S.badgeRow}>
             {pending.advisory && <span style={S.advisory}>sensitive theme</span>}
             {remaining !== null && <Clock remaining={remaining} />}
           </span>
-        </div>
-
-        <p style={S.askPrompt}>{pending.prompt}</p>
-
+        }
+        title={pending.prompt}
+        footer={
+          <div style={S.askFoot}>
+            <span>
+              {remaining !== null && remaining < 4000
+                ? 'Out of time and the card answers itself — at random.'
+                : 'The card stays face down until you commit — you are choosing a position, not a payout.'}
+            </span>
+            {canRedraw && (
+              <button style={S.redraw} disabled={busy || picked !== null} onClick={onRedraw}>
+                Redraw for any 4 resources
+              </button>
+            )}
+          </div>
+        }
+      >
         <div style={S.options}>
           {pending.answers.map((a, i) => (
             <button
@@ -234,20 +260,7 @@ export default function IdeologyPrompt({
             </button>
           ))}
         </div>
-
-        <div style={S.askFoot}>
-          <span style={S.hiddenNote}>
-            {remaining !== null && remaining < 4000
-              ? 'Out of time and the card answers itself — at random.'
-              : 'The card stays face down until you commit — you are choosing a position, not a payout.'}
-          </span>
-          {canRedraw && (
-            <button style={S.redraw} disabled={busy || picked !== null} onClick={onRedraw}>
-              Redraw for any 4 resources
-            </button>
-          )}
-        </div>
-      </div>
+      </Card>
     </div>
   )
 }
@@ -302,14 +315,8 @@ function Clock({ remaining, small = false }) {
 }
 
 const S = {
-  timedOut: {
-    margin: '12px 18px 0',
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: 'var(--danger)',
-    fontWeight: 700,
-  },
+  // The clock and the advisory share the badge corner of the card shell.
+  badgeRow: { display: 'flex', alignItems: 'center', gap: 8 },
   askCard: {
     background: 'var(--surface)',
     borderRadius: 14,
@@ -318,10 +325,7 @@ const S = {
     width: '100%',
     boxShadow: '0 20px 50px rgba(20,14,8,.45)',
   },
-  askHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  eyebrow: { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink-3)' },
   advisory: { fontSize: 9, background: 'var(--amber-bg)', color: 'var(--amber)', padding: '2px 7px', borderRadius: 4 },
-  askPrompt: { fontSize: 20, lineHeight: 1.4, margin: '0 0 18px', color: 'var(--ink)' },
   options: { display: 'flex', flexDirection: 'column', gap: 10 },
   option: {
     display: 'flex',
@@ -343,7 +347,6 @@ const S = {
   },
   optText: { lineHeight: 1.45 },
   askFoot: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' },
-  hiddenNote: { fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic', flex: 1, minWidth: 200 },
   redraw: {
     background: 'none', border: '1px solid var(--border-2)', borderRadius: 6,
     padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: 'var(--ink-2)',
@@ -359,39 +362,21 @@ const S = {
     overflow: 'hidden',
     boxShadow: '0 20px 60px rgba(20,14,8,.5)',
   },
-  revealBand: {
-    padding: '12px 16px', color: 'var(--surface)', fontSize: 15, fontWeight: 700,
-    letterSpacing: 2, textShadow: '0 1px 2px rgba(0,0,0,.3)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-  },
-  revealPrompt: { fontSize: 12, color: 'var(--ink-3)', margin: '14px 18px 6px', lineHeight: 1.4 },
-  revealAnswer: { fontSize: 17, margin: '0 18px 14px', lineHeight: 1.4, color: 'var(--ink)' },
   gains: { display: 'flex', gap: 7, flexWrap: 'wrap', padding: '0 18px 4px' },
   gainChip: {
     fontSize: 12, padding: '5px 11px', borderRadius: 12, color: 'var(--surface)', fontWeight: 700,
     textShadow: '0 1px 1px rgba(0,0,0,.3)',
   },
-  passiveNote: { fontSize: 10, color: 'var(--ink-3)', margin: '8px 18px 0', fontStyle: 'italic' },
   unlockRow: { display: 'flex', gap: 6, flexWrap: 'wrap', padding: '12px 18px 0' },
   unlockChip: {
     fontSize: 11, border: '2px solid', borderRadius: 6, padding: '3px 9px',
     background: 'var(--surface)', fontWeight: 700,
   },
-  filed: {
-    marginTop: 14, padding: '9px 18px', background: 'var(--surface-2)',
-    fontSize: 11, color: 'var(--ink-2)', letterSpacing: 0.4,
-  },
 
-  watchPanel: {
-    background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-    padding: '14px 16px', marginTop: 12,
-  },
-  watchHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   readAloud: {
     fontSize: 9, letterSpacing: 1.4, textTransform: 'uppercase',
     background: 'var(--good)', color: 'var(--surface)', padding: '3px 8px', borderRadius: 4,
   },
-  watchPrompt: { fontSize: 16, lineHeight: 1.4, margin: '0 0 12px' },
   watchAnswers: { display: 'flex', flexDirection: 'column', gap: 8 },
   watchAnswer: {
     display: 'flex', gap: 10, alignItems: 'flex-start',
