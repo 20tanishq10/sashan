@@ -10,19 +10,29 @@
 // Ideologue, and it should not need learning twice.
 
 import { unlockTrack } from '../lib/shasn/matStatus'
+import { useChange } from '../lib/ui/useChanges'
 
 export default function UnlockTrack({ held, color, height = 7, showNote = true }) {
   const track = unlockTrack(held)
+
+  // Crossing 3 or 5 is the moment a power opens, and it used to happen by a row
+  // quietly ceasing to be dim. The track says so.
+  const crossed = useChange(held, crossing, 900, null)
 
   return (
     <div>
       <div style={S.row}>
         {track.segments.map((seg, i) => (
-          <span key={i} style={S.cell}>
+          <span
+            key={i}
+            style={S.cell}
+            className={crossed && seg.filled ? 'shasn-track-hit' : undefined}
+          >
             <span
               style={{
                 ...S.seg,
                 height,
+                color, // so the track-hit glow picks up the Ideologue's colour
                 background: seg.filled ? color : 'var(--surface)',
                 borderColor: seg.filled ? 'transparent' : 'var(--border-2)',
               }}
@@ -50,8 +60,15 @@ export default function UnlockTrack({ held, color, height = 7, showNote = true }
   )
 }
 
+/** The threshold just passed, if any — 3, 5, or nothing. */
+function crossing(before, after) {
+  if (before < 3 && after >= 3) return after >= 5 ? 5 : 3
+  if (before < 5 && after >= 5) return 5
+  return null
+}
+
 const S = {
-  row: { display: 'flex', gap: 2, alignItems: 'center' },
+  row: { display: 'flex', gap: 2, alignItems: 'center', color: 'inherit' },
   cell: { position: 'relative', flex: 1, display: 'flex' },
   seg: {
     flex: 1,

@@ -81,10 +81,23 @@
           "Inter", "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  /* ── Motion. One easing for entrances, one for exits. ────── */
-  --ease:     cubic-bezier(.2,.8,.3,1);
-  --ease-out: cubic-bezier(.4,0,.2,1);
-  --ease-pop: cubic-bezier(.2,1.5,.4,1);
+  /* ── Motion ──────────────────────────────────────────────────
+     Expressive: things have weight. A token that arrives should
+     look like it was put down, not like it faded in.
+
+     Durations are named by what they are for rather than by
+     length, so a beat can be retimed everywhere at once. */
+  --ease:      cubic-bezier(.2,.8,.3,1);    /* general entrance   */
+  --ease-out:  cubic-bezier(.4,0,.2,1);     /* general exit       */
+  --ease-pop:  cubic-bezier(.2,1.5,.4,1);   /* lands with a bump  */
+  --ease-drop: cubic-bezier(.34,1.56,.5,1); /* heavier overshoot  */
+  --ease-fly:  cubic-bezier(.55,0,.9,.45);  /* accelerates away   */
+
+  --t-tick:   140ms;  /* a state flip: hover, select      */
+  --t-beat:   320ms;  /* one thing happening              */
+  --t-move:   480ms;  /* something travelling a distance  */
+  --t-story:  760ms;  /* a sequence resolving             */
+  --t-stagger: 55ms;  /* between items in a run           */
 }
 
 /* ── Reset ──────────────────────────────────────────────────── */
@@ -662,6 +675,94 @@ a:hover { text-decoration: underline; }
   to   { transform: translateY(0) scale(1);       opacity: 1 }
 }
 
+/* ── The economy ─────────────────────────────────────────────
+   Resources change every single turn and the chain never moved.
+   This is the half of the game that was silent. */
+
+/* A token being put down in its slot. Overshoots, because it has weight. */
+.shasn-token-in {
+  animation: shasn-token-in var(--t-move) var(--ease-drop) backwards;
+}
+@keyframes shasn-token-in {
+  0%   { transform: translateY(-26px) scale(.5) rotate(-12deg); opacity: 0 }
+  55%  { transform: translateY(3px)   scale(1.18) rotate(3deg); opacity: 1 }
+  75%  { transform: translateY(-2px)  scale(.96) }
+  100% { transform: translateY(0)     scale(1) rotate(0) }
+}
+
+/* …and being lifted off, back toward the Public Reserve. */
+.shasn-token-out {
+  animation: shasn-token-out var(--t-move) var(--ease-fly) forwards;
+  pointer-events: none;
+}
+@keyframes shasn-token-out {
+  0%   { transform: translateY(0) scale(1);            opacity: 1 }
+  30%  { transform: translateY(4px) scale(1.12) }
+  100% { transform: translateY(-40px) scale(.4) rotate(14deg); opacity: 0 }
+}
+
+/* The slot itself acknowledging that something landed in it. */
+.shasn-slot-take { animation: shasn-slot-take var(--t-beat) var(--ease-out); }
+@keyframes shasn-slot-take {
+  0%   { box-shadow: 0 0 0 0 var(--accent) }
+  40%  { box-shadow: 0 0 0 4px var(--accent-bg) }
+  100% { box-shadow: 0 0 0 0 transparent }
+}
+
+/* A card leaving the market, bought. */
+.shasn-card-leave {
+  animation: shasn-card-leave var(--t-move) var(--ease-fly) forwards;
+  pointer-events: none;
+}
+@keyframes shasn-card-leave {
+  0%   { transform: translateY(0) scale(1) rotate(0);        opacity: 1 }
+  25%  { transform: translateY(6px) scale(1.06) }
+  100% { transform: translateY(-64px) scale(.7) rotate(9deg); opacity: 0 }
+}
+
+/* …and its replacement turning face up in the empty slot. */
+.shasn-card-flip {
+  animation: shasn-card-flip var(--t-story) var(--ease-drop) backwards;
+  transform-origin: center bottom;
+}
+@keyframes shasn-card-flip {
+  0%   { transform: rotateX(88deg) translateY(14px); opacity: 0 }
+  50%  { transform: rotateX(-9deg) translateY(-4px); opacity: 1 }
+  75%  { transform: rotateX(4deg) }
+  100% { transform: rotateX(0) translateY(0) }
+}
+
+/* A power waking up the moment its threshold is crossed. */
+.shasn-power-open { animation: shasn-power-open var(--t-story) var(--ease-pop) backwards; }
+@keyframes shasn-power-open {
+  0%   { transform: scale(.9);  opacity: .3; filter: grayscale(1) }
+  45%  { transform: scale(1.08); opacity: 1; filter: grayscale(0) }
+  70%  { transform: scale(.98) }
+  100% { transform: scale(1) }
+}
+
+/* The unlock track filling to the line it just reached. */
+.shasn-track-hit { animation: shasn-track-hit var(--t-story) var(--ease-out); }
+@keyframes shasn-track-hit {
+  0%, 100% { filter: none }
+  35%      { filter: brightness(1.5) drop-shadow(0 0 5px currentColor) }
+}
+
+/* A status chip landing on the mat. */
+.shasn-status-land { animation: shasn-status-land var(--t-beat) var(--ease-drop) backwards; }
+@keyframes shasn-status-land {
+  0%   { transform: translateY(-8px) scale(.8); opacity: 0 }
+  60%  { transform: translateY(1px) scale(1.06); opacity: 1 }
+  100% { transform: translateY(0) scale(1) }
+}
+
+/* Runs of things arrive one after another rather than all at once. */
+.shasn-stagger-1 { animation-delay: calc(var(--t-stagger) * 1) }
+.shasn-stagger-2 { animation-delay: calc(var(--t-stagger) * 2) }
+.shasn-stagger-3 { animation-delay: calc(var(--t-stagger) * 3) }
+.shasn-stagger-4 { animation-delay: calc(var(--t-stagger) * 4) }
+.shasn-stagger-5 { animation-delay: calc(var(--t-stagger) * 5) }
+
 /* ── Cards and decks ─────────────────────────────────────────── */
 
 /* A card lifting off the top of a stack. */
@@ -673,11 +774,11 @@ a:hover { text-decoration: underline; }
 }
 
 /* The stack settling by one after a draw. */
-.shasn-stack-draw { animation: shasn-stack-draw 380ms var(--ease); }
+.shasn-stack-draw { animation: shasn-stack-draw var(--t-beat) var(--ease-drop); }
 @keyframes shasn-stack-draw {
-  0%   { transform: translateY(-3px) }
-  60%  { transform: translateY(1px) }
-  100% { transform: translateY(0) }
+  0%   { transform: translateY(-6px) scale(1.03) }
+  55%  { transform: translateY(2px) scale(.99) }
+  100% { transform: translateY(0) scale(1) }
 }
 
 /* A spent card filing away to the discard. */

@@ -28,10 +28,16 @@ function copyTree(from, to) {
   }
 }
 
+// The scratch tree mirrors lib/ rather than flattening it, so that a module in
+// lib/ui importing '../shasn/constants' resolves here exactly as it does in the
+// real app. Flattening worked right up until the UI modules started needing the
+// engine, and then failed with a path that pointed at nothing.
 const out = mkdtempSync(join(tmpdir(), 'shasn-test-'))
-copyTree(src, out)
+copyTree(src, join(out, 'shasn'))
+copyTree(join(here, '..', 'lib', 'ui'), join(out, 'ui'))
 
-const load = (name) => import(pathToFileURL(join(out, `${name}.mjs`)).href)
+const load = (name) => import(pathToFileURL(join(out, 'shasn', `${name}.mjs`)).href)
+const ui = (name) => import(pathToFileURL(join(out, 'ui', `${name}.mjs`)).href)
 
 export const zones = await load('zones')
 export const consts = await load('constants')
@@ -52,15 +58,10 @@ export const boardGeometry = await load('boardGeometry')
 export const setup = await load('setup')
 export const game = await load('game')
 
-// The UI vocabulary modules. Pure objects and reducers, no JSX, so they load the
-// same way the engine does.
-// The UI vocabulary — pure objects and reducers, no JSX. Copied alongside the
-// engine so Node reads them as ESM without complaining about the package type.
-copyTree(join(here, '..', 'lib', 'ui'), join(out, 'ui'))
-const ui = (name) => import(pathToFileURL(join(out, 'ui', `${name}.mjs`)).href)
-
+// The UI vocabulary — pure objects and reducers, no JSX.
 export const states = await ui('states')
 export const announcer = await ui('notices')
+export const changes = await ui('changes')
 export const persistence = await load('persistence')
 export const conspiracyData = await load('data/conspiracyCards')
 export const headlineData = await load('data/headlineCards')

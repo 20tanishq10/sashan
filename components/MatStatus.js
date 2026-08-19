@@ -11,6 +11,10 @@
 // in your favour.
 
 import { matStatus } from '../lib/shasn/matStatus'
+import { useChange } from '../lib/ui/useChanges'
+import { newIds } from '../lib/ui/changes'
+
+const NOTHING = []
 
 const TONES = {
   danger: { bg: 'var(--danger-bg)', fg: 'var(--danger)', br: 'var(--danger-brd)' },
@@ -21,6 +25,12 @@ const TONES = {
 
 export default function MatStatus({ player, board = null, compact = false, max = null }) {
   const all = matStatus(player, { board })
+
+  // A Conspiracy landing on you is a thing that HAPPENS, not a thing that is
+  // quietly already true next frame. Above the early return, like every hook —
+  // see tests/hooks.test.mjs.
+  const arrived = useChange(all.map((s) => s.id).join('|'), diffIds, 900, NOTHING) || NOTHING
+
   if (!all.length) return null
 
   const shown = max ? all.slice(0, max) : all
@@ -34,6 +44,7 @@ export default function MatStatus({ player, board = null, compact = false, max =
           <span
             key={s.id}
             title={s.detail}
+            className={arrived.includes(s.id) ? 'shasn-status-land' : undefined}
             style={{
               ...S.chip,
               fontSize: compact ? 9 : 10.5,
@@ -57,6 +68,11 @@ export default function MatStatus({ player, board = null, compact = false, max =
       )}
     </div>
   )
+}
+
+/** Which status ids are new, from the joined-id strings the hook compares. */
+function diffIds(before, after) {
+  return newIds(before ? before.split('|') : [], after ? after.split('|') : [])
 }
 
 const S = {

@@ -15,6 +15,10 @@ import * as R from '../lib/shasn/resources'
 import CardStack from './CardStack'
 import Card from './Card'
 import IdeologueMark from './IdeologueMark'
+import { useChange, useDeparting } from '../lib/ui/useChanges'
+import { replacedSlots } from '../lib/ui/changes'
+
+const NOTHING = new Set()
 
 export default function VoterCardRow({
   market,
@@ -24,6 +28,13 @@ export default function VoterCardRow({
   selectedIndex = null,
   disabled = false,
 }) {
+  // Buying a card empties its slot and the deck immediately flips a replacement
+  // (p.9), which used to happen between two frames with nothing to see. The
+  // outgoing card leaves from where it was, so the old row is kept alive for the
+  // length of the animation.
+  const replaced = useChange(market.open, replacedSlots, 900, NOTHING) || NOTHING
+  const wasOpen = useDeparting(market.open, 520)
+
   const offers = pool ? Voter.affordableCards(market, pool, discounts) : []
   const drawSize = market.drawPileSize ?? market.drawPile?.length ?? 0
   const discardSize = market.discard?.length ?? 0
@@ -49,10 +60,16 @@ export default function VoterCardRow({
 
         return (
           <Slot key={`${cardId}-${i}`} label="Voters">
+            {/* The card that just left, on its way out of the slot it held. */}
+            {wasOpen && wasOpen[i] && wasOpen[i] !== cardId && (
+              <OutgoingCard cardId={wasOpen[i]} />
+            )}
+
             <Card
               deck="voter"
               compact
               width={82}
+              className={replaced.has(i) ? 'shasn-card-flip' : undefined}
               badge={R.costTotal(cost)}
               selected={selected}
               disabled={disabled || !affordable}
@@ -120,6 +137,20 @@ export default function VoterCardRow({
   )
 }
 
+/**
+ * The bought card, drawn over its old slot for as long as it takes to leave.
+ * Only the back is needed — by this point the card is gone and what matters is
+ * that something left, not what it said.
+ */
+function OutgoingCard({ cardId }) {
+  const card = Voter.getVoterCard(cardId)
+  return (
+    <div className="shasn-card-leave" style={S.outgoing} aria-hidden>
+      <span style={S.outgoingNum}>{card?.voters ?? ''}</span>
+    </div>
+  )
+}
+
 function Slot({ label, sub, children }) {
   return (
     <div style={S.slot}>
@@ -143,7 +174,31 @@ const S = {
     padding: '12px 14px 9px',
     borderRadius: '12px 12px 4px 4px',
   },
-  slot: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 },
+  slot: {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 5,
+  },
+  outgoing: {
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    marginLeft: -41,
+    width: 82,
+    height: 96,
+    zIndex: 3,
+    background: 'var(--surface)',
+    border: '1px solid var(--border-2)',
+    borderRadius: 'var(--r-lg)',
+    boxShadow: 'var(--sh-2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  outgoingNum: { fontSize: 28, fontWeight: 650, color: 'var(--ink-3)' },
   slotLabel: {
     fontSize: 8.5,
     letterSpacing: 1.1,

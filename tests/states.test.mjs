@@ -168,4 +168,34 @@ check('no component invents its own “unavailable” opacity', () => {
   eq(offenders, [], 'raw fades outside the vocabulary:')
 })
 
+check('no component references a style key it does not define', () => {
+  // Every component keeps its styles in a local `S` object. Deleting a key while
+  // leaving a reference behind renders `style={undefined}` — no crash, no build
+  // error, just a silently unstyled element. This has caught it twice; it lived
+  // in a scratch script until the scratch directory got wiped.
+  const problems = []
+
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name)
+      if (e.isDirectory()) { walk(p); continue }
+      if (!e.name.endsWith('.js') || p.includes('prototype')) continue
+
+      const src = readFileSync(p, 'utf8')
+      const block = src.match(/\nconst S = \{([\s\S]*?)\n\}\n/)
+      if (!block) continue
+
+      const defined = new Set([...block[1].matchAll(/^  ([A-Za-z_$][\w$]*):/gm)].map((m) => m[1]))
+      const used = new Set([...src.matchAll(/\bS\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]))
+      for (const key of used) {
+        if (!defined.has(key)) problems.push(`${p} uses S.${key}, which is not defined`)
+      }
+    }
+  }
+  walk('components')
+  walk('pages')
+
+  eq(problems, [], 'missing style keys:')
+})
+
 report('States and feedback')

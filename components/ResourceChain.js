@@ -15,7 +15,11 @@
 
 import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 import IdeologueMark from './IdeologueMark'
+import { useChange, useDeparting } from '../lib/ui/useChanges'
+import { arrivedSlots, departedSlots, layoutTokens } from '../lib/ui/changes'
 import * as R from '../lib/shasn/resources'
+
+const NOTHING = new Set()
 
 export default function ResourceChain({
   pool,
@@ -41,6 +45,15 @@ export default function ResourceChain({
   // the chain reaches the full width of the mat instead of clumping at the left
   // with a long empty rail beside it. `size` is now a ceiling, not a fixed size.
   const gap = Math.round(size * 0.16)
+
+  // Resources change every single turn, and until now the chain simply held a
+  // different set of tokens next frame. Arrivals drop in; departures fly back
+  // toward the Public Reserve from the slot they were actually sitting in,
+  // which is why the previous pool is kept for the length of the animation.
+  const arrived = useChange(pool, arrivedSlots, 700, NOTHING) || NOTHING
+  const wasPool = useDeparting(pool, 560)
+  const departed = wasPool ? departedSlots(wasPool, pool) : NOTHING
+  const ghosts = wasPool ? layoutTokens(wasPool) : []
 
   return (
     <div style={S.wrap}>
@@ -80,6 +93,11 @@ export default function ResourceChain({
                   ? label
                   : 'Empty slot'
               }
+              className={
+                arrived.has(i)
+                  ? `shasn-token-in${arrivalOrder(arrived, i) ? ` shasn-stagger-${arrivalOrder(arrived, i)}` : ''}`
+                  : undefined
+              }
               style={{
                 ...S.slot,
                 maxWidth: size,
@@ -117,6 +135,39 @@ export default function ResourceChain({
           )
         })}
         </div>
+
+        {/* Tokens on their way back to the Reserve, drawn over the row at the
+            positions they held before it reflowed. */}
+        {departed.size > 0 && (
+          <div style={{ ...S.slots, gap, ...S.ghostRow }} aria-hidden>
+            {ghosts.map((id, i) => (
+              <span
+                key={i}
+                className={departed.has(i) ? 'shasn-token-out' : undefined}
+                style={{
+                  ...S.slot,
+                  maxWidth: size,
+                  visibility: departed.has(i) ? 'visible' : 'hidden',
+                  background: RESOURCES[id].color,
+                  borderColor: 'rgba(0,0,0,.14)',
+                  borderWidth: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {size >= 16 && (
+                  <IdeologueMark
+                    ideologue={RESOURCES[id].ideologue}
+                    size={Math.round(size * 0.56)}
+                    color={RESOURCES[id].ink || '#ffffff'}
+                    stroke={size >= 26 ? 3 : 3.6}
+                  />
+                )}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {!compact && (
@@ -127,6 +178,17 @@ export default function ResourceChain({
       )}
     </div>
   )
+}
+
+/**
+ * Where slot `i` sits in the run of arrivals, capped at the number of stagger
+ * steps there are classes for. Gaining four resources at once should look like
+ * four things being put down, not one thick thud.
+ */
+function arrivalOrder(arrived, i) {
+  let n = 0
+  for (const slot of arrived) if (slot < i) n += 1
+  return Math.min(n, 5)
 }
 
 /** Small legend so the token colours are readable at a glance. */
@@ -173,6 +235,15 @@ const S = {
     flexWrap: 'nowrap',
     width: '100%',
     justifyContent: 'space-between',
+  },
+  ghostRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 2,
+    pointerEvents: 'none',
   },
   slot: {
     // Equal shares of the width, square, capped at `size`.
