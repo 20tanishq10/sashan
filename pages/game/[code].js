@@ -23,6 +23,8 @@ import TradePanel from '../../components/TradePanel'
 import AuctionPanel from '../../components/AuctionPanel'
 import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
+import PartyEmblem from '../../components/PartyEmblem'
+import { partyForSeat } from '../../lib/shasn/parties'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
 import * as Ideology from '../../lib/shasn/ideology'
@@ -211,7 +213,11 @@ export default function GameRoom() {
   const me = game.players.find((p) => p.id === myPlayerId)
   const isMyTurn = !isSpectator && active?.id === myPlayerId
   const finished = game.phase === 'finished'
-  const colorOf = (pid) => colorForSeat(game.players.findIndex((p) => p.id === pid))
+  const seatOf = (pid) => game.players.findIndex((p) => p.id === pid)
+  const colorOf = (pid) => colorForSeat(seatOf(pid))
+  // Every seat has a party emblem as well as a colour, so identity survives both
+  // the four resource hues and colourblindness. See lib/shasn/parties.js.
+  const partyOf = (pid) => partyForSeat(seatOf(pid)).id
   const pendingIdeology = game.pendingIdeology
   const selectedCard = selection ? Voter.getVoterCard(game.market.open[selection.openIndex]) : null
   const openAuctions = (game.auctions || []).filter((a) => a.status === 'open').length
@@ -377,7 +383,12 @@ export default function GameRoom() {
                 style={S.seat}
                 title={isUp ? 'Playing now' : ''}
               >
-                <span style={{ ...S.seatDot, background: colorForSeat(i) }} />
+                <PartyEmblem
+                  party={partyForSeat(i).id}
+                  size={13}
+                  color={colorForSeat(i)}
+                  title={partyForSeat(i).label}
+                />
                 <strong style={S.seatName}>
                   {p.name}
                   {p.id === myPlayerId && <span style={S.you}>you</span>}
@@ -670,6 +681,7 @@ export default function GameRoom() {
                 key={p.id}
                 player={p}
                 color={colorOf(p.id)}
+                party={partyOf(p.id)}
                 isActive={p.id === active?.id}
                 score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
                 variant="compact"
@@ -682,6 +694,8 @@ export default function GameRoom() {
               board={game.board}
               players={game.players}
               colorOf={colorOf}
+              partyOf={partyOf}
+              partyOf={partyOf}
               legalZones={selection?.zoneId ? new Set([selection.zoneId]) : null}
               selectedAreas={
                 selection
@@ -700,6 +714,7 @@ export default function GameRoom() {
                 key={p.id}
                 player={p}
                 color={colorOf(p.id)}
+                party={partyOf(p.id)}
                 isActive={p.id === active?.id}
                 score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
                 variant="compact"
@@ -733,6 +748,7 @@ export default function GameRoom() {
           <PlayerMat
             player={me}
             color={colorOf(me.id)}
+            party={partyOf(me.id)}
             isActive={isMyTurn}
             isYou
             score={standings.find((s) => s.playerId === me.id)?.score ?? 0}

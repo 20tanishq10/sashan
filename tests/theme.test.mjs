@@ -141,6 +141,47 @@ check('the four resource colours are distinct and legible', () => {
   eq([...block.matchAll(/ink: '(#[0-9a-f]{6})'/g)].length, 4, 'each declares its ink:')
 })
 
+check('no player colour collides with a resource colour', () => {
+  // These two families are BOTH drawn as flat coloured discs — a voter on the
+  // board and a token on your mat. When I first retuned the palette they shared
+  // hues outright (player 1 and Street Clout were byte-identical), which made a
+  // red disc genuinely ambiguous. They have to stay apart.
+  const constants = readFileSync('lib/shasn/constants.js', 'utf8')
+  const block = constants.match(/export const RESOURCES = \{([\s\S]*?)\n\}/)[1]
+  const resources = [...block.matchAll(/color: '(#[0-9a-f]{6})'/g)].map(([, c]) => c)
+  const players = [0, 1, 2, 3, 4].map((i) => TOKENS[`--p${i}`].toLowerCase())
+
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  // Rough perceptual distance, weighted the way the eye actually works.
+  const distance = (a, b) => {
+    const [r1, g1, b1] = rgb(a)
+    const [r2, g2, b2] = rgb(b)
+    return Math.sqrt(2 * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + 3 * (b1 - b2) ** 2)
+  }
+
+  const tooClose = []
+  for (const p of players) {
+    for (const r of resources) {
+      const d = distance(p, r)
+      if (d < 120) tooClose.push(`${p} (player) vs ${r} (resource) — distance ${Math.round(d)}`)
+    }
+  }
+  eq(tooClose, [], 'colliding colours:')
+})
+
+check('the five parties each have an emblem and a distinct colour', () => {
+  const src = readFileSync('lib/shasn/parties.js', 'utf8')
+  const ids = [...src.matchAll(/id: '(\w+)'/g)].map(([, id]) => id)
+  eq(ids.length, 5, 'one party per printed mat:')
+  eq(new Set(ids).size, 5, 'all distinct:')
+
+  // Every one must actually be drawable, or a seat renders blank.
+  const emblem = readFileSync('components/PartyEmblem.js', 'utf8')
+  for (const id of ids) {
+    ok(emblem.includes(`case '${id}'`) || id === 'banyan', `${id} has a shape`)
+  }
+})
+
 check('each Ideologue is coloured as the resource it pays', () => {
   const constants = readFileSync('lib/shasn/constants.js', 'utf8')
   const resources = Object.fromEntries(

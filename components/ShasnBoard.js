@@ -6,10 +6,16 @@
 //
 // Visual language:
 //   - empty area      white disc, thin grey rim
-//   - held area       filled with the owner's colour
-//   - majority voter  filled, with a white inner ring (the "flipped" token, p.7)
-//   - Volatile Area   dashed red rim; placing here triggers a Headline (p.17)
-//   - zone plaque     name over the printed majority/total fraction
+//   - held area       filled with the owner's colour, no mark — a voter only ever
+//                     needs to say WHOSE, never what
+//   - majority voter  turned over (p.7): pale face, thick rim in the owner's
+//                     colour, party emblem showing. The only token on the map
+//                     worth a point, so the only one that carries a symbol
+//   - Volatile Area   dashed red ring, kept for the whole game rather than only
+//                     while empty — its voters are immune to gerrymandering
+//                     (p.15-16), so their positions matter long afterwards
+//   - zone plaque     name over the printed majority/total fraction, with a swap
+//                     glyph when someone holds Gerrymandering Rights
 //
 // The map is deliberately quiet — pale territories, hairline borders — so that
 // the only saturated things on it are voters and the zones people hold. When a
@@ -20,6 +26,8 @@ import { useEffect, useRef } from 'react'
 import { ZONES, ZONE_IDS } from '../lib/shasn/zones'
 import { ZONE_GEOMETRY, VIEW_BOX, PIP_RADIUS } from '../lib/shasn/boardGeometry'
 import { RAW } from '../lib/ui/theme'
+import { partyForSeat } from '../lib/shasn/parties'
+import PartyEmblem from './PartyEmblem'
 import * as Board from '../lib/shasn/board'
 
 export const PLAYER_COLORS = RAW.p.slice(0, 5)
@@ -32,6 +40,7 @@ export default function ShasnBoard({
   board,
   players,
   colorOf,
+  partyOf = null, // (playerId) => party id; falls back to seat order
   onAreaClick,
   selectedAreas = [],
   legalZones = null, // Set of zone ids currently targetable, or null for all
@@ -44,6 +53,9 @@ export default function ShasnBoard({
 
   const isSelected = (zoneId, i) =>
     selectedAreas.some((a) => a.zoneId === zoneId && a.areaIndex === i)
+
+  const emblemFor = (playerId) =>
+    partyOf?.(playerId) || partyForSeat(players.findIndex((p) => p.id === playerId)).id
 
   return (
     <div style={{ width: '100%', maxWidth, margin: '0 auto' }}>
@@ -143,35 +155,67 @@ export default function ShasnBoard({
                         : null),
                     }}
                   >
+                    {/* p.7 — a voter that forms a majority is physically TURNED
+                        OVER on the board. So it inverts: pale face, thick rim in
+                        the owner's colour, and the party emblem showing. That is
+                        the one token on the map worth a point, and it should be
+                        the one you can pick out from across the table. */}
                     <circle
                       cx={cx}
                       cy={cy}
                       r={PIP_RADIUS}
-                      fill={owner ? colorOf(owner) : RAW.pip}
+                      fill={majorityVoter ? RAW.surface : owner ? colorOf(owner) : RAW.pip}
                       stroke={
                         sel
                           ? RAW.ink
-                          : volatile
-                          ? RAW.danger
+                          : majorityVoter
+                          ? colorOf(owner)
                           : owner
                           ? 'rgba(0,0,0,0.22)'
                           : RAW.pipLine
                       }
-                      strokeWidth={sel ? 6 : volatile ? 3.5 : owner ? 1.5 : 1.5}
-                      strokeDasharray={volatile && !owner ? '6 4' : undefined}
+                      strokeWidth={sel ? 6 : majorityVoter ? 6 : 1.5}
                       filter={owner ? 'url(#pipShadow)' : undefined}
-                      style={{ transition: 'fill 260ms var(--ease)' }}
+                      style={{ transition: 'fill 260ms var(--ease), stroke 260ms var(--ease)' }}
                     />
+
                     {majorityVoter && (
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={PIP_RADIUS * 0.5}
-                        fill="none"
-                        stroke={RAW.surface}
-                        strokeWidth={3.5}
-                        opacity={0.95}
-                      />
+                      <g
+                        transform={`translate(${cx - PIP_RADIUS * 0.44} ${cy - PIP_RADIUS * 0.44})`}
+                        pointerEvents="none"
+                      >
+                        <PartyEmblem party={emblemFor(owner)} size={PIP_RADIUS * 0.88} color={colorOf(owner)} />
+                      </g>
+                    )}
+
+                    {/* A Volatile Area stays marked for the whole game, not just
+                        while it is empty. Its voters are immune to gerrymandering
+                        (p.15-16), so where they sit matters long after the
+                        Headline it triggered has been resolved. */}
+                    {volatile && (
+                      <>
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={PIP_RADIUS + 4}
+                          fill="none"
+                          stroke={RAW.danger}
+                          strokeWidth={2.5}
+                          strokeDasharray="6 4"
+                          opacity={owner ? 0.85 : 1}
+                          pointerEvents="none"
+                        />
+                        {!owner && (
+                          <path
+                            d={burst(cx, cy, PIP_RADIUS * 0.5)}
+                            stroke={RAW.danger}
+                            strokeWidth={2.2}
+                            strokeLinecap="round"
+                            fill="none"
+                            pointerEvents="none"
+                          />
+                        )}
+                      </>
                     )}
                     <circle cx={cx} cy={cy} r={PIP_RADIUS} fill="transparent">
                       <title>
@@ -270,17 +314,22 @@ export default function ShasnBoard({
                   {leader[1]} / {z.majority} needed
                 </text>
               )}
+              {/* Gerrymandering Rights used to be a coloured dot, which read as
+                  a stray voter sitting on the plaque. It is an ability, so it
+                  gets a verb: two arrows swapping places. */}
               {hasRights && (
-                <circle
-                  cx={lx + 43}
-                  cy={ly - 22}
-                  r={7}
-                  fill={colorOf(hasRights)}
-                  stroke={RAW.surface}
-                  strokeWidth={2}
-                >
+                <g transform={`translate(${lx + 34} ${ly - 31})`}>
+                  <circle cx="9" cy="9" r="10" fill={RAW.surface} stroke={colorOf(hasRights)} strokeWidth="2" />
+                  <path
+                    d="M4 6.5h9l-2.5-2.5M14 11.5H5l2.5 2.5"
+                    fill="none"
+                    stroke={colorOf(hasRights)}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                   <title>Gerrymandering Rights</title>
-                </circle>
+                </g>
               )}
             </g>
           )
@@ -368,6 +417,18 @@ function diffBoard(before, after) {
   }
 
   return { pips, zones, moveDelta }
+}
+
+/** An eight-point burst, marking an area that will set off a Headline (p.17). */
+function burst(cx, cy, r) {
+  const arms = []
+  for (let k = 0; k < 4; k++) {
+    const a = (Math.PI / 4) * k
+    const dx = Math.cos(a) * r
+    const dy = Math.sin(a) * r
+    arms.push(`M${(cx - dx).toFixed(1)} ${(cy - dy).toFixed(1)}L${(cx + dx).toFixed(1)} ${(cy + dy).toFixed(1)}`)
+  }
+  return arms.join('')
 }
 
 function pipAt(zoneId, i) {

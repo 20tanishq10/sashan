@@ -14,6 +14,7 @@
 // back — clicking one is the digital version of lifting it off the mat.
 
 import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import IdeologueMark from './IdeologueMark'
 import * as R from '../lib/shasn/resources'
 
 export default function ResourceChain({
@@ -77,6 +78,9 @@ export default function ResourceChain({
                 ...S.slot,
                 width: size,
                 height: size,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 background: id ? RESOURCES[id].color : 'var(--surface)',
                 borderColor: overflow
                   ? 'var(--danger)'
@@ -91,7 +95,20 @@ export default function ResourceChain({
                 transform: isMarked ? 'translateY(-3px)' : 'none',
                 boxShadow: id && !isMarked ? 'inset 0 -2px 3px rgba(0,0,0,.16)' : 'none',
               }}
-            />
+            >
+              {/* The mark is what makes a token identifiable without colour —
+                  and it is what the printed cardboard chits carry (p.3). Below
+                  about 16px the line art turns to mush, so tiny chains stay
+                  plain rather than showing a smudge. */}
+              {id && size >= 16 && (
+                <IdeologueMark
+                  ideologue={RESOURCES[id].ideologue}
+                  size={Math.round(size * 0.56)}
+                  color={RESOURCES[id].ink || '#ffffff'}
+                  stroke={size >= 26 ? 3 : 3.6}
+                />
+              )}
+            </button>
           )
         })}
       </div>
@@ -112,7 +129,14 @@ export function ResourceLegend({ pool }) {
     <div style={S.legend}>
       {RESOURCE_IDS.map((id) => (
         <span key={id} style={S.legendItem}>
-          <span style={{ ...S.legendDot, background: RESOURCES[id].color }} />
+          <span style={{ ...S.legendDot, background: RESOURCES[id].color }}>
+            <IdeologueMark
+              ideologue={RESOURCES[id].ideologue}
+              size={8}
+              color={RESOURCES[id].ink || '#ffffff'}
+              stroke={4.5}
+            />
+          </span>
           {RESOURCES[id].label}
           <strong style={{ marginLeft: 4 }}>{pool[id] || 0}</strong>
         </span>
@@ -150,5 +174,8 @@ const S = {
   capText: { fontStyle: 'normal', fontWeight: 400, color: 'var(--ink-3)', fontSize: 11 },
   legend: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 9.5, color: 'var(--ink-2)' },
   legendItem: { display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' },
-  legendDot: { width: 9, height: 9, borderRadius: '50%', display: 'inline-block' },
+  legendDot: {
+    width: 13, height: 13, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
 }

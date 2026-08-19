@@ -23,6 +23,7 @@
 
 import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
 import ResourceChain, { ResourceLegend } from './ResourceChain'
+import PartyEmblem from './PartyEmblem'
 import IdeologyCardStack from './IdeologyCardStack'
 import IdeologueMark from './IdeologueMark'
 import * as Ideology from '../lib/shasn/ideology'
@@ -31,6 +32,7 @@ import * as R from '../lib/shasn/resources'
 export default function PlayerMat({
   player,
   color,
+  party = null, // party emblem id; the same one their voters carry
   isActive = false,
   isYou = false,
   score = 0,
@@ -56,6 +58,7 @@ export default function PlayerMat({
         <span style={{ ...S.band, background: color }} />
 
         <div style={S.compactHead}>
+          {party && <PartyEmblem party={party} size={14} color={color} />}
           <strong style={S.compactName}>{player.name}</strong>
           <span style={S.scorePill}>{score}</span>
         </div>
@@ -109,7 +112,11 @@ export default function PlayerMat({
 
       <div style={S.matHead}>
         <strong style={S.matName}>
-          <span style={{ ...S.nameDot, background: color }} />
+          {party ? (
+            <PartyEmblem party={party} size={17} color={color} />
+          ) : (
+            <span style={{ ...S.nameDot, background: color }} />
+          )}
           {player.name}
           {isYou && <span style={S.you}>you</span>}
           {overCap && (

@@ -44,6 +44,8 @@ writeFileSync(
     `export * as R from '${abs('lib/shasn/resources.js')}'`,
     `export * as Setup from '${abs('lib/shasn/setup.js')}'`,
     `export * as Persistence from '${abs('lib/shasn/persistence.js')}'`,
+    `export * as Parties from '${abs('lib/shasn/parties.js')}'`,
+    `export * as Zones from '${abs('lib/shasn/zones.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
   ].join('\n')
 )
@@ -127,6 +129,55 @@ function render(label, el) {
 }
 
 // ---------------------------------------------------------------------------
+
+check('every party emblem draws', () => {
+  const PartyEmblem = M.PartyEmblem
+  for (const id of M.Parties.PARTY_IDS) {
+    const html = render(`PartyEmblem ${id}`, React.createElement(PartyEmblem, { party: id, size: 20 }))
+    ok(html.includes('<svg'), `${id} drew an svg`)
+    ok(/<(path|ellipse|circle|rect)/.test(html), `${id} drew a shape rather than an empty frame`)
+  }
+})
+
+check('a majority voter is turned over and shows its emblem', () => {
+  // p.7 — the token is physically flipped. On screen that means a pale face with
+  // the owner's colour as a thick rim, and the party emblem showing. It is the
+  // only token on the map worth a point, so it is the only one that carries a mark.
+  const ShasnBoard = M.ShasnBoard
+  const board = JSON.parse(JSON.stringify(GAME.board))
+  const zoneId = Object.keys(board.zones)[0]
+  const owners = board.zones[zoneId].owners
+  for (let i = 0; i < owners.length; i++) owners[i] = 'p1' // a guaranteed majority
+
+  const html = render(
+    'ShasnBoard with a majority',
+    React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
+  )
+  ok(html.includes('MAJORITY'), 'the plaque says so')
+  ok(html.includes('#ffffff'), 'the flipped face is pale')
+})
+
+check('a Volatile Area stays marked once someone occupies it', () => {
+  // Its voters are immune to gerrymandering (p.15-16), so the marker has to
+  // outlive the Headline it triggered. It used to vanish the moment it was used.
+  const ShasnBoard = M.ShasnBoard
+  const { ZONES } = M.Zones
+  const zoneId = Object.keys(GAME.board.zones).find((z) => ZONES[z].volatile.length > 0)
+  const index = ZONES[zoneId].volatile[0]
+
+  const occupied = JSON.parse(JSON.stringify(GAME.board))
+  occupied.zones[zoneId].owners[index] = 'p2'
+
+  const el = (board) =>
+    React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
+
+  const dashes = (html) => (html.match(/stroke-dasharray="6 4"/g) || []).length
+  const empty = dashes(render('board, volatile empty', el(GAME.board)))
+  const held = dashes(render('board, volatile held', el(occupied)))
+
+  ok(empty > 0, 'volatile areas are marked when empty')
+  eq(held, empty, 'and still marked once occupied:')
+})
 
 check('the board renders with voters, majorities and plaques', () => {
   const ShasnBoard = M.ShasnBoard

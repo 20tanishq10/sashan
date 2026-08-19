@@ -41,13 +41,18 @@
   --good-bg:     #e9f6ef;
   --good-brd:    #b9dfca;
 
-  /* ── Player identity ─────────────────────────────────────── */
-  --p0: #d2503c;   /* vermilion */
-  --p1: #2f6feb;   /* blue */
-  --p2: #1f8a5c;   /* green */
-  --p3: #b8860f;   /* ochre */
-  --p4: #7b52c4;   /* violet */
-  --p5: #0d8f96;   /* teal */
+  /* ── Player identity ─────────────────────────────────────────
+     Chosen from hues the resources do NOT use. Voters and resource
+     tokens are both coloured discs, so an overlap made a red disc
+     ambiguous: Street Clout, or Player 1's voter? Every seat also
+     carries an emblem (lib/shasn/parties.js), so identity survives
+     colourblindness too. tests/theme.test.mjs enforces the gap. */
+  --p0: #7b52c4;   /* violet   */
+  --p1: #c2185b;   /* magenta  */
+  --p2: #0c6d8f;   /* teal     */
+  --p3: #5b6e1f;   /* olive    */
+  --p4: #37414f;   /* charcoal */
+  --p5: #8e3b8e;   /* plum — spare, unused at 5 players */
 
   /* ── Board ───────────────────────────────────────────────── */
   --board-bg:    #e4e7ec;   /* the table under the map */
