@@ -48,6 +48,8 @@ writeFileSync(
     `export * as Zones from '${abs('lib/shasn/zones.js')}'`,
     `export * as MajorityTrack from '${abs('lib/shasn/majorityTrack.js')}'`,
     `export * as Effects from '${abs('lib/shasn/effects.js')}'`,
+    `export * as Geometry from '${abs('lib/shasn/boardGeometry.js')}'`,
+    `export * as Board from '${abs('components/ShasnBoard.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
   ].join('\n')
 )
@@ -223,6 +225,50 @@ check('a majority voter is turned over and shows its emblem', () => {
   )
   ok(html.includes('holds the majority'), 'the plaque says so')
   ok(html.includes('#ffffff'), 'the flipped face is pale')
+})
+
+check('no zone plaque sits on top of a voter area', () => {
+  // Plaques used to be centred on the zone centroid, which in a 21-area zone is
+  // squarely on top of half a dozen voters — you could not see or click them.
+  // They are now placed at the clearest spot and shrink where the zone is tight.
+  const { plaquePlacement } = M.Board
+  const { ZONE_GEOMETRY, PIP_RADIUS } = M.Geometry
+  const { ZONE_IDS, ZONES } = M.Zones
+
+  const covered = []
+  for (const zoneId of ZONE_IDS) {
+    const { x, y, w, h } = plaquePlacement(zoneId, 96, 42)
+    for (const [px, py] of ZONE_GEOMETRY[zoneId].pips) {
+      const dx = Math.max(Math.abs(px - x) - w / 2, 0)
+      const dy = Math.max(Math.abs(py - y) - h / 2, 0)
+      if (Math.hypot(dx, dy) < PIP_RADIUS) {
+        covered.push(`${zoneId} (${ZONES[zoneId].areas} areas)`)
+      }
+    }
+  }
+  eq([...new Set(covered)], [], 'zones whose plaque covers a voter:')
+})
+
+check('the track stays legible in the biggest zones', () => {
+  // A 21-area zone drew 21 separate ticks in a 90px plaque, which is a barcode
+  // rather than a reading. The plaque now draws one block per holder.
+  const { majorityTrack } = M.MajorityTrack
+  const { ZONE_IDS, ZONES } = M.Zones
+
+  const biggest = ZONE_IDS.reduce((a, b) => (ZONES[a].areas >= ZONES[b].areas ? a : b))
+  eq(ZONES[biggest].areas, 21, 'the biggest zone:')
+
+  const board = JSON.parse(JSON.stringify(GAME.board))
+  const owners = board.zones[biggest].owners
+  owners.fill(null)
+  for (let i = 0; i < 5; i++) owners[i] = 'p1'
+  for (let i = 5; i < 8; i++) owners[i] = 'p2'
+
+  const t = majorityTrack(board, biggest)
+  eq(t.segments.length, 21, 'still one segment per area underneath:')
+  eq(t.runs.length, 3, 'but only three blocks to draw:')
+  eq(t.runs.map((r) => r.count), [5, 3, 13], 'p1, p2, then the empties:')
+  ok(t.runs.length <= 6, 'never more blocks than there are players plus one')
 })
 
 check('a Volatile Area stays marked once someone occupies it', () => {

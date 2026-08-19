@@ -14,11 +14,15 @@
 //   - Volatile Area   dashed red ring, kept for the whole game rather than only
 //                     while empty — its voters are immune to gerrymandering
 //                     (p.15-16), so their positions matter long afterwards
-//   - zone plaque     the zone's areas SORTED into a track with the majority
-//                     line marked, so "two more and it is mine" is one glance
-//                     rather than a count. A dashed plaque means the zone filled
-//                     without anyone reaching the requirement and its points are
-//                     gone (p.19) — which the board never used to admit.
+//   - zone plaque     the zone's holdings as proportional blocks with the
+//                     majority line marked, so "two more and it is mine" is one
+//                     glance rather than a count. A dashed plaque means the zone
+//                     filled without anyone reaching the requirement and its
+//                     points are gone (p.19) — which the board never used to
+//                     admit. Plaques are PLACED rather than centred: they sit at
+//                     the clearest spot inside their zone and shrink where the
+//                     zone is tight, because the centroid of a 21-area zone is
+//                     squarely on top of half a dozen voters.
 //
 // The map is deliberately quiet — pale territories, hairline borders — so that
 // the only saturated things on it are voters and the zones people hold. When a
@@ -247,17 +251,20 @@ export default function ShasnBoard({
         {ZONE_IDS.map((zoneId) => {
           const g = ZONE_GEOMETRY[zoneId]
           const z = ZONES[zoneId]
-          const [lx, ly] = g.label
           const track = majorityTrack(board, zoneId)
           const hasRights = rights[zoneId]
           const changed = changes.zones[zoneId]
 
-          // Fixed height whichever state the zone is in, so plaques do not jump
-          // around the map as majorities form and break.
-          const W = 104
-          const H = 58
+          // Fixed size whichever state the zone is in, so plaques do not jump
+          // around the map as majorities form and break — and placed at the
+          // clearest spot in the zone rather than on the centroid, which in a
+          // 21-area zone is sitting on top of half a dozen voters.
+          const spot = plaquePlacement(zoneId, 96, 42)
+          const { w: W, h: H } = spot
+          const lx = spot.x
+          const ly = spot.y
           const x0 = lx - W / 2
-          const y0 = ly - 24
+          const y0 = ly - H / 2
 
           return (
             <g
@@ -285,8 +292,8 @@ export default function ShasnBoard({
 
               <text
                 x={lx}
-                y={y0 + 14}
-                fontSize={9.5}
+                y={y0 + 12}
+                fontSize={9}
                 fill={RAW.ink3}
                 textAnchor="middle"
                 letterSpacing="1.3"
@@ -299,17 +306,17 @@ export default function ShasnBoard({
               <MajorityTrack
                 track={track}
                 colorOf={colorOf}
-                x={x0 + 9}
-                y={y0 + 21}
-                width={W - 18}
-                height={10}
+                x={x0 + 8}
+                y={y0 + 17}
+                width={W - 16}
+                height={7}
               />
 
               {track.dead ? (
                 <text
                   x={lx}
-                  y={y0 + 48}
-                  fontSize={8}
+                  y={y0 + 36}
+                  fontSize={7.5}
                   fill={RAW.danger}
                   textAnchor="middle"
                   letterSpacing="0.8"
@@ -321,8 +328,8 @@ export default function ShasnBoard({
               ) : (
                 <text
                   x={lx}
-                  y={y0 + 49}
-                  fontSize={15}
+                  y={y0 + 37}
+                  fontSize={13}
                   fill={RAW.ink}
                   textAnchor="middle"
                   fontWeight="650"
@@ -337,7 +344,7 @@ export default function ShasnBoard({
                   a stray voter sitting on the plaque. It is an ability, so it
                   gets a verb: two arrows swapping places. */}
               {hasRights && (
-                <g transform={`translate(${x0 + W - 18} ${y0 - 9})`}>
+                <g transform={`translate(${x0 + W - 15} ${y0 - 8})`}>
                   <circle cx="9" cy="9" r="10" fill={RAW.surface} stroke={colorOf(hasRights)} strokeWidth="2" />
                   <path
                     d="M4 6.5h9l-2.5-2.5M14 11.5H5l2.5 2.5"
@@ -450,43 +457,153 @@ function diffBoard(before, after) {
  * you can read "two more and it is mine" without counting anything.
  */
 function MajorityTrack({ track, colorOf, x, y, width, height }) {
-  const n = track.segments.length
-  if (!n) return null
+  const total = track.areas
+  if (!total) return null
 
-  const gap = 1.6
-  const seg = (width - gap * (n - 1)) / n
+  const gap = 1.2
+  const usable = width - gap * Math.max(0, track.runs.length - 1)
+  const px = (n) => (usable * n) / total
+
+  let cursor = x
+  const blocks = track.runs.map((run, i) => {
+    const w = px(run.count)
+    const block = { key: i, x: cursor, w, owner: run.owner, count: run.count }
+    cursor += w + gap
+    return block
+  })
+
+  // Where the majority line falls, as a fraction of the whole zone. Drawn over
+  // the top of the blocks rather than between them, because it is a level to
+  // reach rather than a boundary between two holdings.
+  const lineX = x + px(track.majority)
 
   return (
     <g>
-      {track.segments.map((s, i) => {
-        const sx = x + i * (seg + gap)
-        return (
-          <g key={i}>
-            <rect
-              x={sx}
-              y={y}
-              width={seg}
-              height={height}
-              rx={1.8}
-              fill={s.owner ? colorOf(s.owner) : RAW.surface}
-              stroke={s.owner ? 'none' : RAW.pipLine}
-              strokeWidth={s.owner ? 0 : 1}
-              style={{ transition: 'fill 260ms var(--ease)' }}
-            />
-            {/* The majority line, sitting in the gap after this segment. */}
-            {s.threshold && i < n - 1 && (
-              <path
-                d={`M${(sx + seg + gap / 2).toFixed(2)} ${y - 3}V${y + height + 3}`}
-                stroke={RAW.ink}
-                strokeWidth={1.8}
-                strokeLinecap="round"
-              />
-            )}
-          </g>
-        )
-      })}
+      {blocks.map((b) => (
+        <rect
+          key={b.key}
+          x={b.x}
+          y={y}
+          width={Math.max(b.w, 1.5)}
+          height={height}
+          rx={2}
+          fill={b.owner ? colorOf(b.owner) : RAW.surface}
+          stroke={b.owner ? 'none' : RAW.pipLine}
+          strokeWidth={b.owner ? 0 : 1}
+          style={{ transition: 'fill 260ms var(--ease)' }}
+        >
+          <title>
+            {b.owner ? `${b.count} voters` : `${b.count} areas still open`}
+          </title>
+        </rect>
+      ))}
+
+      <path
+        d={`M${lineX.toFixed(2)} ${y - 3.5}V${y + height + 3.5}`}
+        stroke={RAW.ink}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
     </g>
   )
+}
+
+/**
+ * Where to put a zone's plaque.
+ *
+ * It used to sit on the zone centroid, which in a 21-area zone is squarely on
+ * top of several voter areas. So: sample positions inside the zone, count how
+ * many voter circles each candidate plaque would cover, and take the clearest —
+ * breaking ties by staying near the centroid so plaques do not wander to odd
+ * corners.
+ *
+ * The board geometry never changes, so this runs once per zone and is cached.
+ */
+const anchorCache = new Map()
+
+/** Returns { x, y, w, h } — the plaque also shrinks where the zone is tight. */
+export function plaquePlacement(zoneId, baseW, baseH) {
+  const key = `${zoneId}:${baseW}x${baseH}`
+  if (anchorCache.has(key)) return anchorCache.get(key)
+
+  // Central is a small inner diamond; a full-width plaque can never sit inside
+  // it without hanging over the edge. So try a few sizes and let the zone pick.
+  let winner = null
+  for (const scale of [1, 0.88, 0.76]) {
+    const w = Math.round(baseW * scale)
+    const h = Math.round(baseH * (scale < 1 ? 0.94 : 1))
+    const spot = bestSpot(zoneId, w, h)
+    // A smaller plaque is a real cost, so it has to earn the swap.
+    const score = spot.score + (1 - scale) * 90
+    if (!winner || score < winner.score) {
+      winner = { x: spot.pos[0], y: spot.pos[1], w, h, score, detail: spot }
+    }
+  }
+
+  anchorCache.set(key, winner)
+  return winner
+}
+
+function bestSpot(zoneId, w, h) {
+  const g = ZONE_GEOMETRY[zoneId]
+  const home = g.label
+  const poly = g.path
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(',').map(Number))
+
+  const xs = poly.map((p) => p[0])
+  const ys = poly.map((p) => p[1])
+  const bounds = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+
+  const clearance = PIP_RADIUS + 3
+  let best = null
+
+  const STEPS = 30
+  for (let i = 0; i <= STEPS; i++) {
+    for (let j = 0; j <= STEPS; j++) {
+      const cx = bounds[0] + ((bounds[2] - bounds[0]) * i) / STEPS
+      const cy = bounds[1] + ((bounds[3] - bounds[1]) * j) / STEPS
+      if (!inside(poly, cx, cy)) continue
+
+      // How many voter areas would this plaque sit on?
+      let covered = 0
+      for (const [px, py] of g.pips) {
+        const dx = Math.max(Math.abs(px - cx) - w / 2, 0)
+        const dy = Math.max(Math.abs(py - cy) - h / 2, 0)
+        if (Math.hypot(dx, dy) < clearance) covered += 1
+      }
+
+      // A plaque hanging off the edge of its own zone is nearly as bad as one
+      // sitting on voters — it stops reading as belonging to that territory.
+      let outside = 0
+      for (const ox of [-w / 2, w / 2]) {
+        for (const oy of [-h / 2, h / 2]) {
+          if (!inside(poly, cx + ox, cy + oy)) outside += 1
+        }
+      }
+
+      const drift = Math.hypot(cx - home[0], cy - home[1])
+      // Covering a voter is the worst; then hanging out of the zone; then, all
+      // else equal, stay near where the label naturally sits.
+      const score = covered * 1000 + outside * 200 + drift * 0.6
+
+      if (!best || score < best.score) best = { pos: [cx, cy], score, covered, outside, drift }
+    }
+  }
+
+  return best || { pos: home, score: Infinity, covered: 0, outside: 0, drift: 0 }
+}
+
+/** Ray casting: is (x, y) inside this polygon? */
+function inside(poly, x, y) {
+  let hit = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit
+  }
+  return hit
 }
 
 /** The tooltip: the whole state of a zone in one sentence. */

@@ -22,7 +22,7 @@ export default function ResourceChain({
   cap = 12,
   selected = null,        // pool of tokens marked for discard
   onTokenClick = null,    // (resourceId) => void
-  size = 30,
+  size = 30,        // the LARGEST a slot may be; they shrink to fit the width
   compact = false,
 }) {
   // One entry per token held, grouped by resource so like sits with like.
@@ -37,12 +37,18 @@ export default function ResourceChain({
   const remaining = { ...marked }
   const interactive = Boolean(onTokenClick)
 
-  return (
-    <div style={{ ...S.wrap, height: size + 8 }}>
-      {/* the linking bar behind the slots */}
-      <div style={{ ...S.rail, height: size * 0.52, top: (size + 8 - size * 0.52) / 2 }} />
+  // The slots share the width equally rather than sitting at a fixed size, so
+  // the chain reaches the full width of the mat instead of clumping at the left
+  // with a long empty rail beside it. `size` is now a ceiling, not a fixed size.
+  const gap = Math.round(size * 0.16)
 
-      <div style={{ ...S.slots, gap: Math.round(size * 0.16) }}>
+  return (
+    <div style={S.wrap}>
+      <div style={{ ...S.track, height: size + 8 }}>
+        {/* the linking bar behind the slots */}
+        <div style={{ ...S.rail, height: size * 0.52 }} />
+
+        <div style={{ ...S.slots, gap }}>
         {Array.from({ length: slots }).map((_, i) => {
           const id = tokens[i]
           const overflow = i >= cap
@@ -76,8 +82,7 @@ export default function ResourceChain({
               }
               style={{
                 ...S.slot,
-                width: size,
-                height: size,
+                maxWidth: size,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -111,6 +116,7 @@ export default function ResourceChain({
             </button>
           )
         })}
+        </div>
       </div>
 
       {!compact && (
@@ -146,21 +152,36 @@ export function ResourceLegend({ pool }) {
 }
 
 const S = {
-  wrap: { position: 'relative', display: 'flex', alignItems: 'center', gap: 8 },
+  wrap: { display: 'flex', alignItems: 'center', gap: 10 },
+  // Holds the rail behind the slots; grows to take whatever width is going.
+  track: { position: 'relative', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' },
   rail: {
     position: 'absolute',
     left: 0,
-    right: 42,
+    right: 0,
+    top: '50%',
+    transform: 'translateY(-50%)',
     background: 'var(--border)',
     borderRadius: 999,
     zIndex: 0,
   },
-  slots: { position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', flexWrap: 'nowrap' },
+  slots: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
   slot: {
+    // Equal shares of the width, square, capped at `size`.
+    flex: '1 1 0',
+    minWidth: 0,
+    aspectRatio: '1 / 1',
     borderRadius: '50%',
     borderStyle: 'solid',
     padding: 0,
-    flexShrink: 0,
     transition: 'transform 140ms var(--ease), opacity 140ms var(--ease-out)',
   },
   count: {

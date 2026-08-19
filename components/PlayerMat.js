@@ -2,14 +2,17 @@
 //
 // The printed mat is a landscape board in the player's party colour:
 //
-//   - a scalloped strip across the top that does two jobs at once. The twelve
-//     linked circles hold your resource tokens, and answered Ideology Cards tuck
-//     in behind them so their edges show below the strip (p.12: "keep the
-//     Ideology Card under your Player Mat with your answer face up"). Each card
-//     tucks above the Ideologue it belongs to, so the four bundles line up with
-//     the four panels underneath. The strip carries the passive rule:
-//     "FOR EVERY 2 IDEOLOGY CARDS YOU HOLD OF AN IDEOLOGUE, GET 1 EXTRA
-//      RESOURCE OF THAT TYPE."
+//   - a scalloped strip across the top holding your twelve resource tokens. The
+//     slots share the width equally, so the chain reaches the full width of the
+//     mat rather than clumping at the left with an empty rail beside it. The
+//     strip carries the passive rule: "FOR EVERY 2 IDEOLOGY CARDS YOU HOLD OF AN
+//     IDEOLOGUE, GET 1 EXTRA RESOURCE OF THAT TYPE."
+//
+//     (The printed mat also tucks answered Ideology Cards in behind these slots.
+//     Drawing those edges on screen was noise: the unlock track under each
+//     Ideologue already says how many you hold and what it is worth, so the card
+//     bundles were saying the same thing twice in less legible form. Removed for
+//     now; IdeologyCardStack is still there if it earns its place back.)
 //   - four Ideologue panels side by side, each with a name plate in its colour
 //   - beneath each, its two powers tagged with a 3 and a 5 card icon
 //
@@ -35,7 +38,6 @@
 import { IDEOLOGUES, IDEOLOGUE_IDS, RESOURCES } from '../lib/shasn/constants'
 import ResourceChain from './ResourceChain'
 import PartyEmblem from './PartyEmblem'
-import IdeologyCardStack from './IdeologyCardStack'
 import IdeologueMark from './IdeologueMark'
 import UnlockTrack from './UnlockTrack'
 import MatStatus from './MatStatus'
@@ -116,30 +118,15 @@ export default function PlayerMat({
     <div className={seatClass} style={S.mat}>
       <span style={{ ...S.band, background: color }} />
 
-      {/* The scalloped strip: tokens in the twelve slots, answered Ideology
-          Cards tucked in behind, their edges showing above the panel each one
-          belongs to. */}
+      {/* The chain: twelve slots, spread across the full width of the mat. */}
       <div style={S.chainBar}>
         <ResourceChain
           pool={player.pool}
           cap={player.resourceCap}
           selected={discardSelection}
           onTokenClick={onDiscardToken}
-          size={28}
+          size={30}
         />
-
-        <div style={S.tuckRow}>
-          {IDEOLOGUE_IDS.map((id) => (
-            <div key={id} style={S.tuckCell}>
-              <IdeologyCardStack
-                ideologue={id}
-                count={counts[id]}
-                justAdded={justTucked === id}
-                width={38}
-              />
-            </div>
-          ))}
-        </div>
 
         <span style={S.passiveRule}>
           For every 2 Ideology Cards you hold of an Ideologue, get 1 extra resource of that type
@@ -172,7 +159,7 @@ export default function PlayerMat({
           const held = counts[id]
           const passive = Math.floor(held / 2)
           return (
-            <div key={id} style={S.panel}>
+            <div key={id} style={S.panel} className={justTucked === id ? 'shasn-card-tuck' : undefined}>
               <div style={{ ...S.namePlate, borderColor: ideo.color }}>
                 <IdeologueMark ideologue={id} size={12} color={ideo.color} stroke={2.2} />
                 <span style={{ color: ideo.color, letterSpacing: '0.06em' }}>
@@ -260,13 +247,6 @@ const S = {
     borderBottom: '1px solid var(--border)',
     padding: '13px 12px 8px',
   },
-  tuckRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 8,
-    padding: '10px 0 2px',
-  },
-  tuckCell: { display: 'flex', justifyContent: 'center' },
   passiveRule: {
     display: 'block',
     textAlign: 'center',
