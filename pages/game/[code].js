@@ -706,6 +706,7 @@ export default function GameRoom() {
                 player={p}
                 color={colorOf(p.id)}
                 party={partyOf(p.id)}
+                board={game.board}
                 isActive={p.id === active?.id}
                 score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
                 variant="compact"
@@ -739,6 +740,7 @@ export default function GameRoom() {
                 player={p}
                 color={colorOf(p.id)}
                 party={partyOf(p.id)}
+                board={game.board}
                 isActive={p.id === active?.id}
                 score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
                 variant="compact"
@@ -773,6 +775,7 @@ export default function GameRoom() {
             player={me}
             color={colorOf(me.id)}
             party={partyOf(me.id)}
+            board={game.board}
             isActive={isMyTurn}
             isYou
             score={standings.find((s) => s.playerId === me.id)?.score ?? 0}

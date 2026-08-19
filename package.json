@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node tests/board.test.mjs && node tests/economy.test.mjs && node tests/game.test.mjs && node tests/powers.test.mjs && node tests/trading.test.mjs && node tests/trades.test.mjs && node tests/interrupt.test.mjs && node tests/setup.test.mjs && node tests/theme.test.mjs && node tests/hooks.test.mjs && node tests/render.test.mjs && node tests/room.test.mjs"
+    "test": "node tests/board.test.mjs && node tests/economy.test.mjs && node tests/game.test.mjs && node tests/powers.test.mjs && node tests/trading.test.mjs && node tests/trades.test.mjs && node tests/interrupt.test.mjs && node tests/setup.test.mjs && node tests/matStatus.test.mjs && node tests/theme.test.mjs && node tests/hooks.test.mjs && node tests/render.test.mjs && node tests/room.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",

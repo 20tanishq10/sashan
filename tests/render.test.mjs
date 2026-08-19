@@ -47,6 +47,7 @@ writeFileSync(
     `export * as Parties from '${abs('lib/shasn/parties.js')}'`,
     `export * as Zones from '${abs('lib/shasn/zones.js')}'`,
     `export * as MajorityTrack from '${abs('lib/shasn/majorityTrack.js')}'`,
+    `export * as Effects from '${abs('lib/shasn/effects.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
   ].join('\n')
 )
@@ -330,6 +331,78 @@ check('the board survives a state change, which is what drives the animations', 
     React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
   render('ShasnBoard (before)', el(before))
   render('ShasnBoard (after)', el(GAME.board))
+})
+
+check('the mat shows what is currently true about a player', () => {
+  // The whole point of the rebuild: a player can be carrying ten states that
+  // change what they may do, and the mat used to mention none of them.
+  const PlayerMat = M.PlayerMat
+  const afflicted = {
+    ...ME,
+    auctionDebt: 3,
+    effects: { ...M.Effects.emptyEffects(), conspiracySurcharge: 2, hawala: true },
+  }
+  const board = { ...GAME.board, evicted: { ...GAME.board.evicted, [ME.id]: 2 } }
+
+  const html = render(
+    'PlayerMat with status',
+    React.createElement(PlayerMat, {
+      player: afflicted,
+      color: colorOf(ME.id),
+      board,
+      variant: 'full',
+      isYou: true,
+    })
+  )
+  ok(html.includes('Owe 3'), 'the debt is on the mat')
+  ok(html.includes('Purchases blocked'), 'and why it matters')
+  ok(html.includes('+2'), 'the surcharge is shown')
+  ok(html.includes('evicted voter'), 'and voters waiting to be placed')
+})
+
+check('an opponent mat carries the same status, because it is public', () => {
+  // viewFor passes effects and auctionDebt straight through — only Conspiracy
+  // card identities are hidden. Knowing the player to your left cannot buy
+  // anything is exactly what an open-information game should let you see.
+  const PlayerMat = M.PlayerMat
+  const them = {
+    ...GAME.players[1],
+    auctionDebt: 4,
+    conspiracyCardCount: 2,
+    conspiracyCards: [],
+  }
+  const html = render(
+    'PlayerMat compact with status',
+    React.createElement(PlayerMat, {
+      player: them,
+      color: '#c2185b',
+      variant: 'compact',
+      score: 1,
+    })
+  )
+  ok(html.includes('Owe 4'), 'an opponent debt is visible')
+})
+
+check('the unlock track shows how far an Ideologue has to go', () => {
+  const UnlockTrack = M.UnlockTrack
+  eq(
+    renderToStaticMarkup(React.createElement(UnlockTrack, { held: 0, color: '#3f9e63' })).includes(
+      'none yet'
+    ),
+    true
+  )
+  ok(
+    renderToStaticMarkup(React.createElement(UnlockTrack, { held: 4, color: '#3f9e63' })).includes(
+      '1 more to level 5'
+    ),
+    'counts down to the next unlock'
+  )
+  ok(
+    renderToStaticMarkup(React.createElement(UnlockTrack, { held: 5, color: '#3f9e63' })).includes(
+      'both unlocked'
+    ),
+    'and says when it is done'
+  )
 })
 
 check('a full player mat renders', () => {
