@@ -2,7 +2,7 @@
 //
 // Run with:  node tests/board.test.mjs   (or npm test)
 
-import { zones, consts, board as B, createRunner, eq, ok } from './harness.mjs'
+import { zones, consts, board as B, majorityTrack as MT, createRunner, eq, ok } from './harness.mjs'
 
 const { check, report } = createRunner()
 
@@ -393,5 +393,90 @@ check('standings sort by score and list zones held', () => {
 })
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// The majority track (p.19)
+//
+// The board draws a zone's areas scattered, so reading "how close is anyone"
+// means counting. The track is the same areas sorted by owner against the
+// majority line, which is what the plaque now shows.
+// ---------------------------------------------------------------------------
+
+check('the track has one segment per area in the zone', () => {
+  const b = B.initBoard(['p1', 'p2'])
+  for (const zoneId of zones.ZONE_IDS) {
+    const t = MT.majorityTrack(b, zoneId)
+    eq(t.segments.length, zones.ZONES[zoneId].areas, `${zoneId} segments:`)
+    eq(t.empty, zones.ZONES[zoneId].areas, `${zoneId} starts empty:`)
+  }
+})
+
+check('segments are sorted by holding, biggest first, empties last', () => {
+  let b = B.initBoard(['p1', 'p2'])
+  b = B.placeVoters(b, 'north', 'p2', [0, 1]).board
+  b = B.placeVoters(b, 'north', 'p1', [4, 5, 6, 7]).board
+
+  const t = MT.majorityTrack(b, 'north')
+  eq(t.leader.playerId, 'p1', 'the larger holding leads:')
+  eq(t.segments.slice(0, 4).map((s) => s.owner), ['p1', 'p1', 'p1', 'p1'])
+  eq(t.segments.slice(4, 6).map((s) => s.owner), ['p2', 'p2'])
+  ok(t.segments.slice(6).every((s) => s.owner === null), 'then the empties')
+})
+
+check('the threshold sits on the last segment before the majority line', () => {
+  const b = B.initBoard(['p1'])
+  for (const zoneId of zones.ZONE_IDS) {
+    const t = MT.majorityTrack(b, zoneId)
+    const at = t.segments.findIndex((s) => s.threshold)
+    eq(at, zones.ZONES[zoneId].majority - 1, `${zoneId} line:`)
+  }
+})
+
+check('a held zone reports its holder', () => {
+  let b = B.initBoard(['p1', 'p2'])
+  const need = zones.ZONES.north.majority
+  b = B.placeVoters(b, 'north', 'p1', Array.from({ length: need }, (_, i) => i)).board
+
+  const t = MT.majorityTrack(b, 'north')
+  eq(t.holder, 'p1', 'holder:')
+  ok(!t.dead, 'a held zone is not dead')
+})
+
+check('a zone filled with nobody at the requirement is dead', () => {
+  // p.19 — those points simply go unclaimed. Worth surfacing, since a player
+  // can spend a whole game contesting a zone that can no longer pay out.
+  let b = B.initBoard(['p1', 'p2', 'p3'])
+  const zoneId = 'north'
+  const areas = zones.ZONES[zoneId].areas
+  const volatile = new Set(zones.ZONES[zoneId].volatile)
+  const free = Array.from({ length: areas }, (_, i) => i).filter((i) => !volatile.has(i))
+  for (let i = 0; i < free.length; i++) {
+    b = B.placeVoters(b, zoneId, ['p1', 'p2', 'p3'][i % 3], [free[i]]).board
+  }
+  // Fill the volatile areas too, so the zone is genuinely full.
+  let k = 0
+  for (const i of volatile) {
+    b = B.placeVoters(b, zoneId, ['p1', 'p2', 'p3'][k++ % 3], [i]).board
+  }
+
+  const t = MT.majorityTrack(b, zoneId)
+  eq(t.empty, 0, 'the zone is full:')
+  ok(!t.holder, 'nobody reached the requirement')
+  ok(t.dead, 'so the zone is dead')
+})
+
+check('needed() says how many more, or null when it is out of reach', () => {
+  let b = B.initBoard(['p1', 'p2'])
+  const zoneId = 'north'
+  const need = zones.ZONES[zoneId].majority
+
+  eq(MT.needed(b, zoneId, 'p1'), need, 'from nothing, the full requirement:')
+
+  b = B.placeVoters(b, zoneId, 'p1', [0, 1]).board
+  eq(MT.needed(b, zoneId, 'p1'), need - 2, 'after two:')
+
+  b = B.placeVoters(b, zoneId, 'p1', Array.from({ length: need - 2 }, (_, i) => i + 2)).board
+  eq(MT.needed(b, zoneId, 'p1'), 0, 'once held:')
+})
 
 report('Board engine (Phase 1)')

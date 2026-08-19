@@ -46,6 +46,7 @@ writeFileSync(
     `export * as Persistence from '${abs('lib/shasn/persistence.js')}'`,
     `export * as Parties from '${abs('lib/shasn/parties.js')}'`,
     `export * as Zones from '${abs('lib/shasn/zones.js')}'`,
+    `export * as MajorityTrack from '${abs('lib/shasn/majorityTrack.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
   ].join('\n')
 )
@@ -219,7 +220,7 @@ check('a majority voter is turned over and shows its emblem', () => {
     'ShasnBoard with a majority',
     React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
   )
-  ok(html.includes('MAJORITY'), 'the plaque says so')
+  ok(html.includes('holds the majority'), 'the plaque says so')
   ok(html.includes('#ffffff'), 'the flipped face is pale')
 })
 
@@ -258,7 +259,65 @@ check('the board renders with voters, majorities and plaques', () => {
     })
   )
   ok(html.includes('<svg'), 'drew an svg')
-  ok(html.includes('MAJORITY') || html.includes('needed'), 'drew zone plaques')
+  ok(html.includes('NORTH'), 'drew zone plaques')
+  ok(html.includes('areas still open') || html.includes('holds the majority'), 'described each zone')
+})
+
+check('the majority track sorts a zone and marks the line', () => {
+  // Sorting is the whole trick. The map already shows these areas scattered, so
+  // you have to count them; grouped and laid against a threshold you can read
+  // "two more and it is mine" without counting anything.
+  const { majorityTrack, needed } = M.MajorityTrack
+  const { ZONES } = M.Zones
+
+  const zoneId = 'north'
+  const board = JSON.parse(JSON.stringify(GAME.board))
+  const owners = board.zones[zoneId].owners
+  owners.fill(null)
+  for (let i = 0; i < 2; i++) owners[i] = 'p2' // the smaller holding first, on purpose
+  for (let i = 2; i < 6; i++) owners[i] = 'p1'
+
+  const t = majorityTrack(board, zoneId)
+  eq(t.segments.length, ZONES[zoneId].areas, 'one segment per area:')
+  eq(t.leader.playerId, 'p1', 'biggest holding leads:')
+  eq(t.leader.count, 4)
+
+  // Sorted: all of p1, then all of p2, then the empties — regardless of where
+  // they actually sit on the map.
+  eq(t.segments.slice(0, 4).map((s) => s.owner), ['p1', 'p1', 'p1', 'p1'])
+  eq(t.segments.slice(4, 6).map((s) => s.owner), ['p2', 'p2'])
+  ok(t.segments.slice(6).every((s) => s.owner === null), 'then the empty areas')
+
+  const tick = t.segments.findIndex((s) => s.threshold)
+  eq(tick, ZONES[zoneId].majority - 1, 'the line falls at the requirement:')
+
+  eq(needed(board, zoneId, 'p1'), ZONES[zoneId].majority - 4, 'p1 needs the difference:')
+})
+
+check('a zone nobody can win is marked dead', () => {
+  // A zone can fill up with no one reaching the requirement, and those points
+  // simply go unclaimed (p.19). The board never used to admit it.
+  const { majorityTrack } = M.MajorityTrack
+  const ShasnBoard = M.ShasnBoard
+  const { ZONES } = M.Zones
+
+  const zoneId = 'north'
+  const board = JSON.parse(JSON.stringify(GAME.board))
+  const owners = board.zones[zoneId].owners
+  // Fill every area, spread so thin that nobody reaches the majority.
+  for (let i = 0; i < owners.length; i++) owners[i] = ['p1', 'p2', 'p3'][i % 3]
+
+  const t = majorityTrack(board, zoneId)
+  ok(!t.holder, 'nobody holds it')
+  ok(t.dead, 'and nobody can')
+  eq(t.empty, 0, 'it is full:')
+
+  const html = render(
+    'ShasnBoard with a dead zone',
+    React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
+  )
+  ok(html.includes('NO MAJORITY POSSIBLE'), 'the plaque says so')
+  ok(html.includes('points go unclaimed'), 'and explains the cost')
 })
 
 check('the board survives a state change, which is what drives the animations', () => {

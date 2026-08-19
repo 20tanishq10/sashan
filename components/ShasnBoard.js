@@ -14,8 +14,11 @@
 //   - Volatile Area   dashed red ring, kept for the whole game rather than only
 //                     while empty — its voters are immune to gerrymandering
 //                     (p.15-16), so their positions matter long afterwards
-//   - zone plaque     name over the printed majority/total fraction, with a swap
-//                     glyph when someone holds Gerrymandering Rights
+//   - zone plaque     the zone's areas SORTED into a track with the majority
+//                     line marked, so "two more and it is mine" is one glance
+//                     rather than a count. A dashed plaque means the zone filled
+//                     without anyone reaching the requirement and its points are
+//                     gone (p.19) — which the board never used to admit.
 //
 // The map is deliberately quiet — pale territories, hairline borders — so that
 // the only saturated things on it are voters and the zones people hold. When a
@@ -27,6 +30,7 @@ import { ZONES, ZONE_IDS } from '../lib/shasn/zones'
 import { ZONE_GEOMETRY, VIEW_BOX, PIP_RADIUS } from '../lib/shasn/boardGeometry'
 import { RAW } from '../lib/ui/theme'
 import { partyForSeat } from '../lib/shasn/parties'
+import { majorityTrack } from '../lib/shasn/majorityTrack'
 import PartyEmblem from './PartyEmblem'
 import * as Board from '../lib/shasn/board'
 
@@ -240,34 +244,46 @@ export default function ShasnBoard({
           const g = ZONE_GEOMETRY[zoneId]
           const z = ZONES[zoneId]
           const [lx, ly] = g.label
-          const holder = Board.majorityHolder(board, zoneId)
-          const counts = Board.voterCounts(board, zoneId)
-          const leader = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+          const track = majorityTrack(board, zoneId)
           const hasRights = rights[zoneId]
           const changed = changes.zones[zoneId]
+
+          // Fixed height whichever state the zone is in, so plaques do not jump
+          // around the map as majorities form and break.
+          const W = 104
+          const H = 58
+          const x0 = lx - W / 2
+          const y0 = ly - 24
 
           return (
             <g
               key={`${zoneId}-label`}
               pointerEvents="none"
               className={changed ? 'shasn-plaque-flip' : undefined}
+              opacity={track.dead ? 0.62 : 1}
             >
+              {/* The plaque stays pale even when the zone is held — the zone
+                  OUTLINE already sweeps to the holder's colour, and that is the
+                  loud signal. The plaque's job is the quiet one: how close is
+                  everybody, and can this still be won. */}
               <rect
-                x={lx - 46}
-                y={ly - 26}
-                width={92}
-                height={holder ? 60 : 46}
+                x={x0}
+                y={y0}
+                width={W}
+                height={H}
                 rx={9}
-                fill={holder ? colorOf(holder) : RAW.surface}
-                stroke={holder ? 'rgba(0,0,0,0.14)' : RAW.zoneLine}
-                strokeWidth={1.5}
-                style={{ transition: 'fill 320ms var(--ease)' }}
+                fill={RAW.surface}
+                stroke={track.holder ? colorOf(track.holder) : RAW.zoneLine}
+                strokeWidth={track.holder ? 3 : 1.5}
+                strokeDasharray={track.dead ? '4 3' : undefined}
+                style={{ transition: 'stroke 320ms var(--ease)' }}
               />
+
               <text
                 x={lx}
-                y={ly - 11}
+                y={y0 + 14}
                 fontSize={9.5}
-                fill={holder ? 'rgba(255,255,255,0.86)' : RAW.ink3}
+                fill={RAW.ink3}
                 textAnchor="middle"
                 letterSpacing="1.3"
                 fontWeight="600"
@@ -275,50 +291,49 @@ export default function ShasnBoard({
               >
                 {z.label.toUpperCase()}
               </text>
-              <text
-                x={lx}
-                y={ly + 11}
-                fontSize={21}
-                fill={holder ? RAW.surface : RAW.ink}
-                textAnchor="middle"
-                fontWeight="650"
-                fontFamily="var(--sans)"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
-                {z.majority}/{z.areas}
-              </text>
-              {holder && (
+
+              <MajorityTrack
+                track={track}
+                colorOf={colorOf}
+                x={x0 + 9}
+                y={y0 + 21}
+                width={W - 18}
+                height={10}
+              />
+
+              {track.dead ? (
                 <text
                   x={lx}
-                  y={ly + 29}
-                  fontSize={9}
-                  fill="rgba(255,255,255,0.88)"
+                  y={y0 + 48}
+                  fontSize={8}
+                  fill={RAW.danger}
                   textAnchor="middle"
-                  letterSpacing="1.4"
+                  letterSpacing="0.8"
                   fontWeight="600"
                   fontFamily="var(--sans)"
                 >
-                  MAJORITY
+                  NO MAJORITY POSSIBLE
                 </text>
-              )}
-              {!holder && leader && (
+              ) : (
                 <text
                   x={lx}
-                  y={ly + 26}
-                  fontSize={9}
-                  fill={RAW.ink3}
+                  y={y0 + 49}
+                  fontSize={15}
+                  fill={RAW.ink}
                   textAnchor="middle"
+                  fontWeight="650"
                   fontFamily="var(--sans)"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
-                  {leader[1]} / {z.majority} needed
+                  {z.majority}/{z.areas}
                 </text>
               )}
+
               {/* Gerrymandering Rights used to be a coloured dot, which read as
                   a stray voter sitting on the plaque. It is an ability, so it
                   gets a verb: two arrows swapping places. */}
               {hasRights && (
-                <g transform={`translate(${lx + 34} ${ly - 31})`}>
+                <g transform={`translate(${x0 + W - 18} ${y0 - 9})`}>
                   <circle cx="9" cy="9" r="10" fill={RAW.surface} stroke={colorOf(hasRights)} strokeWidth="2" />
                   <path
                     d="M4 6.5h9l-2.5-2.5M14 11.5H5l2.5 2.5"
@@ -331,6 +346,10 @@ export default function ShasnBoard({
                   <title>Gerrymandering Rights</title>
                 </g>
               )}
+
+              <title>
+                {describeZone(z, track, players)}
+              </title>
             </g>
           )
         })}
@@ -417,6 +436,68 @@ function diffBoard(before, after) {
   }
 
   return { pips, zones, moveDelta }
+}
+
+/**
+ * The zone's areas, sorted by owner with the majority line marked.
+ *
+ * Sorting is the entire point: the map already shows these same areas scattered
+ * across the zone, which you have to count. Grouped and laid against a threshold
+ * you can read "two more and it is mine" without counting anything.
+ */
+function MajorityTrack({ track, colorOf, x, y, width, height }) {
+  const n = track.segments.length
+  if (!n) return null
+
+  const gap = 1.6
+  const seg = (width - gap * (n - 1)) / n
+
+  return (
+    <g>
+      {track.segments.map((s, i) => {
+        const sx = x + i * (seg + gap)
+        return (
+          <g key={i}>
+            <rect
+              x={sx}
+              y={y}
+              width={seg}
+              height={height}
+              rx={1.8}
+              fill={s.owner ? colorOf(s.owner) : RAW.surface}
+              stroke={s.owner ? 'none' : RAW.pipLine}
+              strokeWidth={s.owner ? 0 : 1}
+              style={{ transition: 'fill 260ms var(--ease)' }}
+            />
+            {/* The majority line, sitting in the gap after this segment. */}
+            {s.threshold && i < n - 1 && (
+              <path
+                d={`M${(sx + seg + gap / 2).toFixed(2)} ${y - 3}V${y + height + 3}`}
+                stroke={RAW.ink}
+                strokeWidth={1.8}
+                strokeLinecap="round"
+              />
+            )}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+/** The tooltip: the whole state of a zone in one sentence. */
+function describeZone(zone, track, players) {
+  const name = (id) => players.find((p) => p.id === id)?.name || 'someone'
+  if (track.holder) {
+    return `${zone.label} — ${name(track.holder)} holds the majority, worth ${zone.majority} points`
+  }
+  if (track.dead) {
+    return `${zone.label} — full, but nobody reached ${zone.majority}. Its ${zone.majority} points go unclaimed.`
+  }
+  if (!track.leader) {
+    return `${zone.label} — empty. ${zone.majority} of ${zone.areas} areas takes it.`
+  }
+  return `${zone.label} — ${name(track.leader.playerId)} leads with ${track.leader.count} of ${zone.majority}, ${track.empty} areas still open`
 }
 
 /** An eight-point burst, marking an area that will set off a Headline (p.17). */
