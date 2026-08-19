@@ -25,6 +25,7 @@ import VoterCardRow from '../../components/VoterCardRow'
 import DeckStrip from '../../components/DeckStrip'
 import PartyEmblem from '../../components/PartyEmblem'
 import Card, { CardText } from '../../components/Card'
+import Announcer, { pushNotice, dropNotice } from '../../components/Announcer'
 import { partyForSeat } from '../../lib/shasn/parties'
 import * as Board from '../../lib/shasn/board'
 import * as R from '../../lib/shasn/resources'
@@ -47,8 +48,12 @@ export default function GameRoom() {
   const [stalled, setStalled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
   const [legacy, setLegacy] = useState(false)
+  // Feedback used to be one red line inside a panel near the bottom of the page,
+  // and the client-side validation messages were only cleared by making a server
+  // call — so correcting your mistake left the complaint on screen. Notices now
+  // appear over the table and clear themselves.
+  const [notices, setNotices] = useState([])
 
   // interaction modes
   const [selection, setSelection] = useState(null) // influencing a Voter Card
@@ -58,6 +63,19 @@ export default function GameRoom() {
   const [note, setNote] = useState('')
   const [reveal, setReveal] = useState(null) // ideology card unmasked after answering
   const [justTucked, setJustTucked] = useState(null) // stack that just gained a card
+
+  /**
+   * Tell the player something, over the table, where they are looking.
+   *
+   * Declared above the effects that use it and never behind a branch — hooks
+   * must run in the same order on every render, and getting that wrong here once
+   * took the whole room down. See tests/hooks.test.mjs.
+   */
+  const say = useCallback((tone, text) => {
+    setNotices((n) => pushNotice(n, tone, typeof text === 'string' ? text : String(text || '')))
+  }, [])
+
+  const hush = useCallback((id) => setNotices((n) => dropNotice(n, id)), [])
 
   // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -112,7 +130,7 @@ export default function GameRoom() {
           }
           await fetchGame(sessionToken)
         } catch (e) {
-          setError(e.message)
+          say('error', e.message)
         }
       } finally {
         setLoading(false)
@@ -147,6 +165,33 @@ export default function GameRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, legacy])
 
+  // ── Acknowledging what goes right ────────────────────────────────────────
+  //
+  // Nothing did. You could take a zone — the single most consequential thing
+  // that happens in this game — and the interface would not react at all. The
+  // board animates the outline sweeping to your colour, but only if you happen
+  // to be looking at that corner of the map.
+  //
+  // Unconditional and above the render guards, like every other hook here.
+  const heldBefore = useRef(null)
+  useEffect(() => {
+    if (!game || !myPlayerId) return
+    const mine = new Set(
+      ZONE_IDS.filter((z) => Board.majorityHolder(game.board, z) === myPlayerId)
+    )
+
+    const before = heldBefore.current
+    heldBefore.current = mine
+    if (!before) return // first look; nothing to compare against
+
+    for (const z of mine) {
+      if (!before.has(z)) say('gain', `You took ${ZONES[z].label} — ${ZONES[z].majority} points`)
+    }
+    for (const z of before) {
+      if (!mine.has(z)) say('warn', `You lost your majority in ${ZONES[z].label}`)
+    }
+  }, [game, myPlayerId, say])
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function send(type, payload = {}) {
@@ -154,7 +199,6 @@ export default function GameRoom() {
     // the shot clock on someone else's turn — so this is not gated on isMyTurn.
     if (isSpectator || busy) return
     setBusy(true)
-    setError(null)
     try {
       const res = await fetch('/api/game-action', {
         method: 'POST',
@@ -167,7 +211,7 @@ export default function GameRoom() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error)
+        say('error', json.error)
       } else {
         setGame(json.game)
         setStandings(json.standings || [])
@@ -175,7 +219,7 @@ export default function GameRoom() {
       }
       return json
     } catch (e) {
-      setError(e.message)
+      say('error', e.message)
     } finally {
       setBusy(false)
     }
@@ -203,7 +247,7 @@ export default function GameRoom() {
     return (
       <Shell>
         <div style={S.panel}>
-          <p style={S.error}>{error || 'Game not found.'}</p>
+          <p style={S.error}>Game not found.</p>
           <Link href="/" style={S.btnGhost}>Home</Link>
         </div>
       </Shell>
@@ -233,7 +277,7 @@ export default function GameRoom() {
     const occupant = game.board.zones[zoneId].owners[areaIndex]
 
     if (powerMode) {
-      if (!occupant) return setError('Select a voter.')
+      if (!occupant) return say('error', 'Select a voter.')
       if (powerMode.action === 'breaking_ground') {
         send('breaking_ground', { zoneId, areaIndex })
         setPowerMode(null)
@@ -247,7 +291,7 @@ export default function GameRoom() {
       if (powerMode.action === 'tough_love') {
         const picked = powerMode.picked || []
         if (picked.length && picked[0].zoneId !== zoneId) {
-          return setError('Both voters must be in the same zone.')
+          return say('error', 'Both voters must be in the same zone.')
         }
         const next = [...picked, { zoneId, areaIndex }]
         if (next.length < 2) return setPowerMode({ ...powerMode, picked: next })
@@ -259,10 +303,10 @@ export default function GameRoom() {
 
     if (gerry) {
       if (!gerry.from) {
-        if (!occupant) return setError('Pick a voter to move.')
+        if (!occupant) return say('error', 'Pick a voter to move.')
         return setGerry({ ...gerry, from: { zoneId, areaIndex } })
       }
-      if (occupant) return setError('Destination must be empty.')
+      if (occupant) return say('error', 'Destination must be empty.')
       send('gerrymander', {
         rightsZoneId: gerry.rightsZoneId,
         from: gerry.from,
@@ -278,9 +322,9 @@ export default function GameRoom() {
     }
 
     if (!selection) return
-    if (occupant) return setError('That area is taken.')
+    if (occupant) return say('error', 'That area is taken.')
     if (selection.zoneId && selection.zoneId !== zoneId) {
-      return setError('Voters from one Voter Card cannot be split across zones.')
+      return say('error', 'Voters from one Voter Card cannot be split across zones.')
     }
     const areas = [...selection.areas, areaIndex]
     if (areas.length < selectedCard.voters) {
@@ -405,6 +449,8 @@ export default function GameRoom() {
 
       {/* One line announcing the handoff, then it gets out of the way. */}
       {!finished && <TurnBanner active={active} isMyTurn={isMyTurn} />}
+
+      <Announcer notices={notices} onDismiss={hush} />
 
       {finished ? (
         <div style={{ ...S.panel, borderColor: 'var(--good)' }}>
@@ -629,7 +675,6 @@ export default function GameRoom() {
             )
           )}
 
-          {error && <p style={S.error}>{error}</p>}
           {stalled && (
             <p style={S.stall}>
               The campaign has stalled — everyone is at the resource cap and no open Voter Card can
@@ -809,7 +854,7 @@ export default function GameRoom() {
             }
             onUsePower={(ideo, lvl, action, def) => {
               if (!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS) {
-                return setError('You can only use powers during your actions.')
+                return say('error', 'You can only use powers during your actions.')
               }
               setSelection(null)
               setGerry(null)

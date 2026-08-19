@@ -42,6 +42,10 @@ import MatStatus from './MatStatus'
 import * as Ideology from '../lib/shasn/ideology'
 import * as R from '../lib/shasn/resources'
 
+// A power you have not unlocked yet. Deliberately readable rather than hidden —
+// the unlock track underneath says how far off it is, so the row is a goal.
+const LOCKED = 0.42
+
 export default function PlayerMat({
   player,
   color,
@@ -200,7 +204,7 @@ export default function PlayerMat({
                     onClick={clickable ? () => onUsePower(id, lvl, action, def) : undefined}
                     style={{
                       ...S.powerRow,
-                      opacity: on ? 1 : 0.38,
+                      opacity: on ? 1 : LOCKED,
                       cursor: clickable ? 'pointer' : 'default',
                       background: clickable ? 'var(--surface)' : 'transparent',
                       borderColor: clickable ? 'var(--border-2)' : 'transparent',

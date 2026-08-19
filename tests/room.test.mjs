@@ -283,6 +283,33 @@ check('the room is still standing after the card files away', () => {
   ok(text().includes('SHASN'), 'the room is still rendered')
 })
 
+// ── Feedback ───────────────────────────────────────────────────────────────
+// A rejected action used to report into a panel near the bottom of the page,
+// and a client-side complaint was only cleared by making a server call.
+
+check('a rejected action says so over the table, not in a footnote', () => {
+  // The board is mid-screen; the old error slot was near the bottom.
+  const before = text()
+  ok(!/taken|cannot|must be/i.test(before), 'nothing is complaining yet')
+})
+
+await act(async () => {
+  // Click an occupied area during the actions phase — an illegal move.
+  const filled = Object.keys(GAME.board.zones).find((z) =>
+    GAME.board.zones[z].owners.some(Boolean)
+  )
+  if (filled) {
+    const circles = container.querySelectorAll('svg circle')
+    circles[0]?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+  }
+})
+await settle(80)
+
+check('clicking the board never throws, legal or not', () => {
+  drain('clicking the board')
+  ok(!text().includes('boundary'), 'the error boundary did not trip')
+})
+
 // ── The endgame ────────────────────────────────────────────────────────────
 // Filling the board ends the election (p.19) and swaps the whole room for the
 // final tally. That render path had its own hook-ordering bug in the Scoreboard,

@@ -24,6 +24,7 @@
 // one appearance across the whole game.
 
 import DeckGlyph, { DECK_LABELS, DECK_TONES } from './DeckGlyph'
+import { STATE, stateFor, STATE_LABEL } from '../lib/ui/states'
 
 export default function Card({
   deck = 'voter',
@@ -51,10 +52,14 @@ export default function Card({
   const interactive = Boolean(onClick) && !disabled
   const pad = compact ? '8px 9px' : '10px 13px'
 
+  // One vocabulary for the whole app rather than a per-component opacity.
+  const state = stateFor({ selected, spent, disabled })
+  const stateNote = STATE_LABEL[state]
+
   return (
     <div
       onClick={interactive ? onClick : undefined}
-      title={title_ || undefined}
+      title={[title_, stateNote].filter(Boolean).join(' — ') || undefined}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       onKeyDown={
@@ -68,14 +73,16 @@ export default function Card({
           : undefined
       }
       className={className}
+      aria-disabled={disabled || undefined}
       style={{
         ...S.card,
         width: width || undefined,
+        boxShadow: 'var(--sh-1)',
+        ...STATE[state],
+        // A card is never fully inert: you must still be able to read what it
+        // costs, even when you cannot pay for it.
+        pointerEvents: 'auto',
         cursor: interactive ? 'pointer' : 'default',
-        opacity: disabled ? 0.45 : spent ? 0.6 : 1,
-        filter: spent ? 'grayscale(0.7)' : 'none',
-        borderColor: selected ? 'var(--accent)' : 'var(--border)',
-        boxShadow: selected ? '0 0 0 2px var(--accent-bg), var(--sh-2)' : 'var(--sh-1)',
         transform: selected ? 'translateY(-3px)' : 'none',
         ...style,
       }}

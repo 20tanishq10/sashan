@@ -34,6 +34,10 @@ import { majorityTrack } from '../lib/shasn/majorityTrack'
 import PartyEmblem from './PartyEmblem'
 import * as Board from '../lib/shasn/board'
 
+// Zones outside the current decision recede furthest: they are not broken, they
+// are simply not this choice. See lib/ui/states.js for the whole vocabulary.
+const OUT_OF_SCOPE = 0.3
+
 export const PLAYER_COLORS = RAW.p.slice(0, 5)
 
 export function colorForSeat(i) {
@@ -107,7 +111,7 @@ export default function ShasnBoard({
               stroke={holder ? colorOf(holder) : RAW.zoneLine}
               strokeWidth={holder ? 7 : 3}
               strokeLinejoin="round"
-              opacity={dim ? 0.32 : 1}
+              opacity={dim ? OUT_OF_SCOPE : 1}
               filter="url(#zoneShadow)"
               className={
                 change === 'won'
@@ -129,7 +133,7 @@ export default function ShasnBoard({
           const dim = legalZones && !legalZones.has(zoneId)
 
           return (
-            <g key={`${zoneId}-pips`} opacity={dim ? 0.32 : 1}>
+            <g key={`${zoneId}-pips`} opacity={dim ? OUT_OF_SCOPE : 1}>
               {g.pips.map(([cx, cy], i) => {
                 const owner = owners[i]
                 const volatile = ZONES[zoneId].volatile.includes(i)

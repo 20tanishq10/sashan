@@ -51,6 +51,16 @@ export const zoneReqData = await load('data/zoneRequirements')
 export const boardGeometry = await load('boardGeometry')
 export const setup = await load('setup')
 export const game = await load('game')
+
+// The UI vocabulary modules. Pure objects and reducers, no JSX, so they load the
+// same way the engine does.
+// The UI vocabulary — pure objects and reducers, no JSX. Copied alongside the
+// engine so Node reads them as ESM without complaining about the package type.
+copyTree(join(here, '..', 'lib', 'ui'), join(out, 'ui'))
+const ui = (name) => import(pathToFileURL(join(out, 'ui', `${name}.mjs`)).href)
+
+export const states = await ui('states')
+export const announcer = await ui('notices')
 export const persistence = await load('persistence')
 export const conspiracyData = await load('data/conspiracyCards')
 export const headlineData = await load('data/headlineCards')

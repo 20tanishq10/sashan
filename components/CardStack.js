@@ -15,6 +15,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { T } from '../lib/ui/theme'
 
+// Not a state — the cards deeper in a pile are further into the mat's shadow.
+// Named so the checker in tests/states.test.mjs can tell depth from disabled.
+const DEPTH_FADE = 0.3
+const DEPTH_STEP = 0.16
+
 const TONE = {
   conspiracy: 'var(--danger)',
   headline: 'var(--amber)',
@@ -57,7 +62,7 @@ export default function CardStack({
                 height,
                 bottom: (layers - i) * 3,
                 left: (layers - i) * 1.2,
-                opacity: 0.3 + i * 0.16,
+                opacity: DEPTH_FADE + i * DEPTH_STEP,
               }}
             />
           ))}

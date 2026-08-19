@@ -654,6 +654,14 @@ a:hover { text-decoration: underline; }
   100% { transform: translateY(-8px);  opacity: 0 }
 }
 
+/* ── Feedback ────────────────────────────────────────────────
+   A notice arriving where the eye already is. */
+.shasn-notice { animation: shasn-notice 260ms var(--ease); }
+@keyframes shasn-notice {
+  from { transform: translateY(-10px) scale(.96); opacity: 0 }
+  to   { transform: translateY(0) scale(1);       opacity: 1 }
+}
+
 /* ── Cards and decks ─────────────────────────────────────────── */
 
 /* A card lifting off the top of a stack. */
