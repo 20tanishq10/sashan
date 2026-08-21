@@ -282,7 +282,7 @@ const S = {
     boxShadow: 'var(--sh-1)',
   },
   verdictName: { fontSize: 21, fontWeight: 650, letterSpacing: '-0.02em' },
-  verdictSub: { fontSize: 12.5, color: 'var(--ink-3)' },
+  verdictSub: { fontSize: 12.5, color: 'var(--ink-on-dark-3)' },
 
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: {
@@ -292,7 +292,7 @@ const S = {
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
-    color: 'var(--ink-3)',
+    color: 'var(--ink-on-dark-3)',
     fontWeight: 600,
   },
   td: { padding: '9px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'top' },
@@ -302,24 +302,24 @@ const S = {
     marginRight: 7, verticalAlign: 'middle',
   },
   youTag: {
-    fontSize: 9, background: 'var(--surface-3)', color: 'var(--ink-3)', borderRadius: 999,
+    fontSize: 9, background: 'var(--surface-3)', color: 'var(--ink-on-dark-3)', borderRadius: 999,
     padding: '1px 7px', marginLeft: 6, letterSpacing: '0.08em',
     textTransform: 'uppercase', fontWeight: 600,
   },
   crown: { marginLeft: 6 },
   points: { fontSize: 17, fontWeight: 650, fontVariantNumeric: 'tabular-nums', display: 'inline-block' },
-  projected: { fontSize: 11, color: 'var(--ink-3)', marginLeft: 6 },
+  projected: { fontSize: 11, color: 'var(--ink-on-dark-3)', marginLeft: 6 },
   zoneList: { fontSize: 12 },
-  none: { color: 'var(--ink-3)', fontSize: 12 },
+  none: { color: 'var(--ink-on-dark-3)', fontSize: 12 },
   contestWrap: { display: 'flex', gap: 4, flexWrap: 'wrap' },
   contestChip: {
     fontSize: 10, border: '1.5px solid', borderRadius: 999,
     padding: '2px 8px', background: 'var(--surface)', whiteSpace: 'nowrap',
     fontVariantNumeric: 'tabular-nums',
   },
-  footnote: { fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 10 },
+  footnote: { fontSize: 11, color: 'var(--ink-on-dark-3)', lineHeight: 1.5, marginTop: 10 },
   h4: {
     fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.09em',
-    fontWeight: 600, color: 'var(--ink-3)', margin: '22px 0 8px',
+    fontWeight: 600, color: 'var(--ink-on-dark-3)', margin: '22px 0 8px',
   },
 }

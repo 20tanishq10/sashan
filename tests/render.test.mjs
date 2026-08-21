@@ -48,6 +48,7 @@ writeFileSync(
     `export * as Zones from '${abs('lib/shasn/zones.js')}'`,
     `export * as MajorityTrack from '${abs('lib/shasn/majorityTrack.js')}'`,
     `export * as Effects from '${abs('lib/shasn/effects.js')}'`,
+    `export * as Theme from '${abs('lib/ui/theme.js')}'`,
     `export * as Geometry from '${abs('lib/shasn/boardGeometry.js')}'`,
     `export * as Board from '${abs('components/ShasnBoard.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
@@ -224,7 +225,9 @@ check('a majority voter is turned over and shows its emblem', () => {
     React.createElement(ShasnBoard, { board, players: GAME.players, colorOf, selectedAreas: [] })
   )
   ok(html.includes('holds the majority'), 'the plaque says so')
-  ok(html.includes('#ffffff'), 'the flipped face is pale')
+  // The pale face is whatever the palette calls a surface — asserting on a
+  // literal white broke the moment the game stopped being white.
+  ok(html.includes(M.Theme.RAW.surface), `the flipped face is pale (${M.Theme.RAW.surface})`)
 })
 
 check('no zone plaque sits on top of a voter area', () => {

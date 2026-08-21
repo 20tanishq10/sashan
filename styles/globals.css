@@ -1,129 +1,214 @@
 /* ============================================================
    SHASN — DESIGN SYSTEM
-   Modern minimal: neutral greys, one accent, system sans.
+   Maximalist. Lacquer, brass and block print.
 
-   Colour does one job here: it carries meaning. Chrome is grey so
-   that the five player colours and four resource colours are the
-   only saturated things on screen, and therefore always readable
-   as information rather than decoration.
+   The rule that survives from the neutral version, and matters
+   more here not less: colour carries INFORMATION. Ornament lives
+   in the chrome — frames, grounds, borders, backdrops — and the
+   things you have to read stay legible on top of it. Five party
+   colours and four resource colours are the only hues doing a
+   job; everything else is furniture.
+
+   There are no image files. Every texture is drawn in
+   components/art/ArtDefs.js, which is what lets a zone recolour
+   to its holder and a token take its Ideologue's hue.
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Rozha+One&family=Marcellus&family=Mukta:wght@400;600;700&display=swap');
+
 :root {
-  /* ── Neutrals ────────────────────────────────────────────── */
-  --bg:          #f4f5f7;   /* page */
-  --bg-2:        #eceef1;   /* the table the board sits on */
-  --surface:     #ffffff;   /* panels, cards */
-  --surface-2:   #fafbfc;   /* inset fills */
-  --surface-3:   #f1f3f5;   /* stronger inset, table headers */
-  --border:      #e6e8ec;   /* hairline */
-  --border-2:    #d2d6dd;   /* stronger edge, inputs */
-  --border-3:    #b9bfc9;   /* emphasis edge */
+  /* ── The ground ───────────────────────────────────────────── */
+  --lacquer:      #171009;   /* the table itself             */
+  --lacquer-2:    #241811;   /* a panel resting on it        */
+  --lacquer-3:    #33231a;   /* raised chrome                */
+  --indigo-deep:  #14294f;   /* jali screens                 */
+  --indigo:       #1f3f74;
 
-  --ink:         #15181d;   /* primary text */
-  --ink-2:       #575e6b;   /* secondary */
-  --ink-3:       #949ba8;   /* tertiary, hints, disabled */
-  --on-dark:     #ffffff;
+  /* ── Ivory: anything that has to be read ──────────────────── */
+  --ivory:        #f7edd9;
+  --ivory-2:      #efe1c5;
+  --ivory-3:      #e2cfa8;
 
-  /* ── One accent ──────────────────────────────────────────── */
-  --accent:      #2f6feb;
-  --accent-ink:  #1c50b8;
-  --accent-bg:   #eaf1fe;
-  --accent-brd:  #bed4fb;
+  /* ── Metal ────────────────────────────────────────────────── */
+  --brass:        #d9ad3e;
+  --brass-light:  #f2d98b;
+  --brass-dark:   #8a5f11;
+  --brass-bg:     rgba(217,173,62,0.14);
 
-  /* ── Semantics (used sparingly, for state not decoration) ── */
-  --danger:      #cf4436;
-  --danger-bg:   #fdeeec;
-  --danger-brd:  #f5c9c3;
-  --amber:       #b0761a;
-  --amber-bg:    #fdf5e6;
-  --amber-brd:   #ecd6a8;
-  --good:        #17794b;
-  --good-bg:     #e9f6ef;
-  --good-brd:    #b9dfca;
+  /* ── The heat ─────────────────────────────────────────────── */
+  --saffron:      #e08214;
+  --saffron-deep: #b45f06;
+  --vermilion:    #c1272d;
+  --vermilion-deep:#8d1519;
+  --bottle:       #0e6b4f;
+  --bottle-deep:  #094c38;
+  --rani:         #c2185b;
 
-  /* ── Player identity ─────────────────────────────────────────
-     Chosen from hues the resources do NOT use. Voters and resource
-     tokens are both coloured discs, so an overlap made a red disc
-     ambiguous: Street Clout, or Player 1's voter? Every seat also
-     carries an emblem (lib/shasn/parties.js), so identity survives
-     colourblindness too. tests/theme.test.mjs enforces the gap. */
-  --p0: #7b52c4;   /* violet   */
-  --p1: #c2185b;   /* magenta  */
-  --p2: #0c6d8f;   /* teal     */
-  --p3: #5b6e1f;   /* olive    */
-  --p4: #37414f;   /* charcoal */
-  --p5: #8e3b8e;   /* plum — spare, unused at 5 players */
+  /* ── Roles, mapped onto the above ─────────────────────────── */
+  --bg:          var(--lacquer);
+  --bg-2:        var(--lacquer-2);
+  --surface:     var(--ivory);
+  --surface-2:   var(--ivory-2);
+  --surface-3:   var(--ivory-3);
+  --border:      rgba(138,95,17,0.28);
+  --border-2:    rgba(138,95,17,0.5);
+  --border-3:    var(--brass-dark);
 
-  /* ── Board ───────────────────────────────────────────────── */
-  --board-bg:    #e4e7ec;   /* the table under the map */
-  --zone:        #ffffff;   /* zone territory */
-  --zone-2:      #f5f6f8;   /* alternating zone */
-  --zone-3:      #eceef2;   /* the inner zone */
-  --zone-line:   #b9bfc9;   /* unclaimed zone edge */
-  --pip:         #ffffff;   /* empty voter area */
-  --pip-line:    #c3c8d1;
+  --ink:         #241708;   /* on ivory */
+  --ink-2:       #5a4526;
+  --ink-3:       #8b7550;
+  --on-dark:     var(--ivory);
 
-  /* ── Shape ───────────────────────────────────────────────── */
-  --r-sm:  4px;
-  --r:     6px;
-  --r-md:  8px;
-  --r-lg:  12px;
-  --r-xl:  16px;
+  /* Ink for the dark surfaces, since half the app now sits on lacquer. */
+  --ink-on-dark:   var(--ivory);
+  --ink-on-dark-2: #c9b48c;
+  --ink-on-dark-3: #93805e;
 
-  /* ── Elevation. Minimal: borders do most of the work. ────── */
-  --sh-1: 0 1px 2px rgba(21,24,29,0.05);
-  --sh-2: 0 2px 8px rgba(21,24,29,0.07), 0 1px 2px rgba(21,24,29,0.04);
-  --sh-3: 0 8px 28px rgba(21,24,29,0.11), 0 2px 6px rgba(21,24,29,0.05);
-  --sh-4: 0 20px 56px rgba(21,24,29,0.18), 0 4px 12px rgba(21,24,29,0.07);
+  --accent:      var(--saffron);
+  --accent-ink:  var(--saffron-deep);
+  --accent-bg:   rgba(224,130,20,0.16);
+  --accent-brd:  rgba(224,130,20,0.45);
 
-  /* ── Type ────────────────────────────────────────────────── */
-  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          "Inter", "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --danger:      var(--vermilion);
+  --danger-bg:   rgba(193,39,45,0.14);
+  --danger-brd:  rgba(193,39,45,0.42);
+  --amber:       var(--brass-dark);
+  --amber-bg:    rgba(217,173,62,0.16);
+  --amber-brd:   rgba(217,173,62,0.45);
+  --good:        var(--bottle);
+  --good-bg:     rgba(14,107,79,0.14);
+  --good-brd:    rgba(14,107,79,0.42);
 
-  /* ── Motion ──────────────────────────────────────────────────
-     Expressive: things have weight. A token that arrives should
-     look like it was put down, not like it faded in.
+  /* ── Player identity ───────────────────────────────────────
+     Still held clear of the four resource hues — a voter and a
+     resource token are both round and coloured, and a red disc
+     must never be ambiguous. tests/theme.test.mjs enforces the
+     separation numerically. */
+  --p0: #6c3fb5;   /* violet    */
+  --p1: #b3167a;   /* fuchsia   */
+  --p2: #12a09a;   /* turquoise */
+  --p3: #7d9422;   /* lime      */
+  --p4: #3d3a38;   /* charcoal  */
+  --p5: #a0522d;   /* terracotta — spare, unused at 5 players */
 
-     Durations are named by what they are for rather than by
-     length, so a beat can be retimed everywhere at once. */
-  --ease:      cubic-bezier(.2,.8,.3,1);    /* general entrance   */
-  --ease-out:  cubic-bezier(.4,0,.2,1);     /* general exit       */
-  --ease-pop:  cubic-bezier(.2,1.5,.4,1);   /* lands with a bump  */
-  --ease-drop: cubic-bezier(.34,1.56,.5,1); /* heavier overshoot  */
-  --ease-fly:  cubic-bezier(.55,0,.9,.45);  /* accelerates away   */
+  /* ── Board ─────────────────────────────────────────────────── */
+  --board-bg:    #1d1409;
+  --zone:        #f3e6cd;
+  --zone-2:      #ecdcbd;
+  --zone-3:      #e2cfa8;
+  --zone-line:   var(--brass-dark);
+  --pip:         #fdf7e9;
+  --pip-line:    #b5975f;
 
-  --t-tick:   140ms;  /* a state flip: hover, select      */
-  --t-beat:   320ms;  /* one thing happening              */
-  --t-move:   480ms;  /* something travelling a distance  */
-  --t-story:  760ms;  /* a sequence resolving             */
-  --t-stagger: 55ms;  /* between items in a run           */
+  /* ── Shape. Rounder, and arches where it counts. ──────────── */
+  --r-sm:  5px;
+  --r:     8px;
+  --r-md:  11px;
+  --r-lg:  16px;
+  --r-xl:  22px;
+
+  /* ── Elevation. Things sit ON a table now, so they cast. ──── */
+  --sh-1: 0 1px 3px rgba(0,0,0,0.35);
+  --sh-2: 0 4px 12px rgba(0,0,0,0.42), 0 1px 3px rgba(0,0,0,0.3);
+  --sh-3: 0 10px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35);
+  --sh-4: 0 24px 60px rgba(0,0,0,0.6), 0 6px 18px rgba(0,0,0,0.4);
+  --sh-brass: inset 0 1px 0 rgba(255,240,200,0.35), inset 0 -2px 4px rgba(0,0,0,0.35);
+
+  /* ── Type ──────────────────────────────────────────────────
+     Rozha One for display — a Devanagari-derived Latin with the
+     weight this needs. Marcellus for headings that must stay
+     calm, Mukta for everything you actually read. */
+  --display: "Rozha One", "Marcellus", Georgia, serif;
+  --head:    "Marcellus", Georgia, serif;
+  --sans:    "Mukta", ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+  --mono:    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  --ease:      cubic-bezier(.2,.8,.3,1);
+  --ease-out:  cubic-bezier(.4,0,.2,1);
+  --ease-pop:  cubic-bezier(.2,1.5,.4,1);
+  --ease-drop: cubic-bezier(.34,1.56,.5,1);
+  --ease-fly:  cubic-bezier(.55,0,.9,.45);
+
+  --t-tick:   140ms;
+  --t-beat:   320ms;
+  --t-move:   480ms;
+  --t-story:  760ms;
+  --t-stagger: 55ms;
 }
+
 
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #__next { height: 100%; }
+/* The table. A dark lacquered ground with a jali screen behind it, both drawn
+   as CSS so there is no image to load and nothing to go blurry. The radial
+   warmth in the middle is a lamp over the board. */
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--ink);
+  color: var(--ink-on-dark);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 15.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  background-color: var(--lacquer);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(224,130,20,0.13), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(20,41,79,0.35), transparent 70%),
+    repeating-linear-gradient(45deg,
+      rgba(217,173,62,0.045) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(-45deg,
+      rgba(217,173,62,0.045) 0 1px, transparent 1px 22px);
+  background-attachment: fixed;
+}
+
+/* A brass rule with a lozenge in the middle. Used to break sections without
+   another box. */
+.rule {
+  border: none;
+  height: 14px;
+  margin: 22px 0;
+  background:
+    linear-gradient(var(--brass-dark), var(--brass-dark)) center/100% 1px no-repeat;
+  position: relative;
+  opacity: 0.5;
+}
+.rule::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--brass);
+  box-shadow: 0 0 0 3px var(--lacquer);
 }
 h1, h2, h3, h4, h5 {
   margin: 0;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-  color: var(--ink);
+  font-family: var(--head);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.22;
+  color: inherit;
 }
-h1 { font-size: 2rem; letter-spacing: -0.03em; }
-h2 { font-size: 1.4rem; letter-spacing: -0.022em; }
-h3 { font-size: 1rem; }
-h4 { font-size: 0.875rem; }
+h1 { font-family: var(--display); font-size: 2.6rem; letter-spacing: 0.005em; }
+h2 { font-size: 1.55rem; }
+h3 { font-size: 1.05rem; }
+h4 { font-size: 0.9rem; }
+
+/* Display type gets the full treatment: a warm gradient fill and a brass
+   underglow, which is what makes a title look printed rather than typed. */
+.display {
+  font-family: var(--display);
+  background: linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 55%, var(--saffron-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 10px rgba(224,130,20,0.25);
+}
 p  { margin: 0; }
 ul, ol { margin: 0; padding: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -149,14 +234,72 @@ a:hover { text-decoration: underline; }
   border-radius: var(--r-lg);
 }
 
+/* ── Ornamented surfaces ──────────────────────────────────────
+   Three grounds, used consistently: `paper` for anything you read,
+   `carved` for chrome sitting on the table, `screen` for the deep
+   ornamental backdrop. */
+
+.paper {
+  position: relative;
+  background-color: var(--ivory);
+  background-image:
+    radial-gradient(circle at 18% 18%, rgba(193,39,45,0.05) 0 2px, transparent 2px),
+    radial-gradient(circle at 68% 62%, rgba(14,107,79,0.05) 0 2px, transparent 2px);
+  background-size: 34px 34px, 34px 34px;
+  color: var(--ink);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+.carved {
+  position: relative;
+  background-color: var(--lacquer-2);
+  background-image:
+    linear-gradient(180deg, rgba(255,220,150,0.06), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.16) 0 1px, transparent 1px 7px);
+  color: var(--ink-on-dark);
+  border: 1px solid rgba(217,173,62,0.28);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2), inset 0 1px 0 rgba(255,220,150,0.12);
+}
+
+.screen {
+  background-color: var(--indigo-deep);
+  background-image:
+    repeating-linear-gradient(45deg, rgba(217,173,62,0.11) 0 1.5px, transparent 1.5px 20px),
+    repeating-linear-gradient(-45deg, rgba(217,173,62,0.11) 0 1.5px, transparent 1.5px 20px);
+  color: var(--ink-on-dark);
+}
+
+/* A brass edge. Four corner pieces and a hairline, which is what makes a panel
+   read as a made object rather than a div. */
+.brass-frame {
+  position: relative;
+  border: 1px solid var(--brass-dark);
+  box-shadow: var(--sh-brass), var(--sh-2);
+}
+.brass-frame::before,
+.brass-frame::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--brass);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.brass-frame::before { top: 4px; left: 4px; border-right: none; border-bottom: none; border-radius: 5px 0 0 0; }
+.brass-frame::after  { bottom: 4px; right: 4px; border-left: none; border-top: none; border-radius: 0 0 5px 0; }
+
 /* ── Eyebrow / label ────────────────────────────────────────── */
 .label {
   display: block;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-family: var(--head);
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--brass);
 }
 .label--accent { color: var(--accent); }
 .label--danger { color: var(--danger); }
@@ -192,10 +335,12 @@ a:hover { text-decoration: underline; }
   border-radius: var(--r-md);
   border: 1px solid transparent;
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
   transition: background 130ms var(--ease-out),
+              filter 130ms var(--ease-out),
               border-color 130ms var(--ease-out),
               box-shadow 130ms var(--ease-out),
               opacity 130ms var(--ease-out);
@@ -203,40 +348,62 @@ a:hover { text-decoration: underline; }
 .btn:disabled { opacity: 0.42; cursor: not-allowed; }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.btn--primary { background: var(--accent); color: var(--on-dark); box-shadow: var(--sh-1); }
-.btn--primary:hover:not(:disabled) { background: var(--accent-ink); }
+.btn--primary {
+  background: linear-gradient(180deg, var(--saffron) 0%, var(--saffron-deep) 100%);
+  color: #fff6e4;
+  border-color: var(--brass-dark);
+  box-shadow: var(--sh-brass), var(--sh-2);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+.btn--primary:hover:not(:disabled) { filter: brightness(1.1); }
 
-.btn--ghost { background: var(--surface); color: var(--ink); border-color: var(--border-2); box-shadow: var(--sh-1); }
-.btn--ghost:hover:not(:disabled) { background: var(--surface-3); border-color: var(--border-3); }
+.btn--ghost {
+  background: linear-gradient(180deg, var(--lacquer-3) 0%, var(--lacquer-2) 100%);
+  color: var(--ivory);
+  border-color: rgba(217,173,62,0.4);
+  box-shadow: var(--sh-brass), var(--sh-1);
+}
+.btn--ghost:hover:not(:disabled) { border-color: var(--brass); color: var(--brass-light); }
 
-.btn--danger { background: var(--danger); color: var(--on-dark); box-shadow: var(--sh-1); }
-.btn--danger:hover:not(:disabled) { filter: brightness(0.93); }
+.btn--danger {
+  background: linear-gradient(180deg, var(--vermilion) 0%, var(--vermilion-deep) 100%);
+  color: #ffeee6;
+  border-color: rgba(0,0,0,0.4);
+  box-shadow: var(--sh-brass), var(--sh-2);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+.btn--danger:hover:not(:disabled) { filter: brightness(1.12); }
 
 .btn--sm { padding: 5px 11px; font-size: 12.5px; border-radius: var(--r); }
 
 /* ── Form ───────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label {
-  font-size: 12px; font-weight: 600; color: var(--ink-2);
+  font-family: var(--head);
+  font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--brass);
 }
 .input, .select {
   width: 100%;
-  padding: 9px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border-2);
+  padding: 10px 13px;
+  background: rgba(10,7,4,0.5);
+  color: var(--ivory);
+  border: 1px solid rgba(217,173,62,0.35);
   border-radius: var(--r-md);
-  font-size: 14.5px;
+  font-size: 15px;
+  font-family: var(--sans);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
   transition: border-color 130ms var(--ease-out), box-shadow 130ms var(--ease-out);
 }
 .input:focus, .select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-bg);
+  border-color: var(--brass);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 0 0 3px var(--accent-bg);
 }
 .input::placeholder { color: var(--ink-3); }
 
 /* ── Helpers ────────────────────────────────────────────────── */
-.muted { color: var(--ink-3); font-size: 14px; }
+.muted { color: var(--ink-on-dark-3); font-size: 14px; }
 .error { color: var(--danger); font-size: 13px; }
 .mono  { font-family: var(--mono); }
 .row   { display: flex; align-items: center; }
@@ -246,20 +413,28 @@ a:hover { text-decoration: underline; }
 
 /* ── Generic card surface ───────────────────────────────────── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  position: relative;
+  background-color: var(--lacquer-2);
+  background-image:
+    linear-gradient(180deg, rgba(255,220,150,0.07), transparent 45%),
+    repeating-linear-gradient(45deg, rgba(217,173,62,0.05) 0 1px, transparent 1px 18px);
+  color: var(--ink-on-dark);
+  border: 1px solid var(--brass-dark);
   border-radius: var(--r-xl);
-  padding: 28px;
+  padding: 30px;
   width: 100%;
-  box-shadow: var(--sh-2);
+  box-shadow: var(--sh-3), var(--sh-brass);
 }
 .card--sm { max-width: 420px; }
 
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  background-image: linear-gradient(180deg, rgba(255,220,150,0.06), transparent 40%);
+  color: var(--ink-on-dark);
+  border: 1px solid rgba(217,173,62,0.3);
   border-radius: var(--r-lg);
   padding: 16px;
+  box-shadow: var(--sh-2);
 }
 .panel-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -273,55 +448,102 @@ a:hover { text-decoration: underline; }
 .landing { flex-direction: column; gap: 26px; max-width: 940px; margin: 0 auto; width: 100%; }
 
 .hero {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--indigo-deep);
+  background-image:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgba(224,130,20,0.28), transparent 70%),
+    repeating-linear-gradient(45deg, rgba(217,173,62,0.1) 0 1.5px, transparent 1.5px 22px),
+    repeating-linear-gradient(-45deg, rgba(217,173,62,0.1) 0 1.5px, transparent 1.5px 22px);
+  border: 1px solid var(--brass-dark);
   border-radius: var(--r-xl);
-  padding: 56px 44px;
-  box-shadow: var(--sh-2);
+  padding: 68px 44px 60px;
+  box-shadow: var(--sh-4), inset 0 1px 0 rgba(255,220,150,0.2);
   text-align: center;
+  color: var(--ivory);
+}
+/* An arch of light behind the title, like a lit niche. */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  width: 380px;
+  height: 380px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(224,130,20,0.22), transparent 62%);
+  pointer-events: none;
 }
 .hero-eyebrow {
-  display: block; margin-bottom: 16px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--ink-3);
+  position: relative;
+  display: block; margin-bottom: 18px;
+  font-family: var(--head);
+  font-size: 12px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--brass);
 }
-.hero h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); margin-bottom: 14px; }
-.hero-sub { color: var(--ink-2); font-size: 17px; max-width: 30em; margin: 0 auto 30px; }
+.hero h1 {
+  position: relative;
+  font-family: var(--display);
+  font-size: clamp(3rem, 8vw, 5rem);
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+  background: linear-gradient(180deg, #ffeec2 0%, var(--brass) 52%, var(--saffron-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 4px 24px rgba(224,130,20,0.35);
+}
+.hero-sub {
+  position: relative;
+  color: var(--ink-on-dark-2);
+  font-size: 17.5px;
+  max-width: 30em;
+  margin: 0 auto 32px;
+}
+.hero-actions { position: relative; }
 .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .feature-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  background-image: linear-gradient(180deg, rgba(255,220,150,0.07), transparent 45%);
+  border: 1px solid rgba(217,173,62,0.3);
   border-radius: var(--r-lg);
-  padding: 22px;
+  padding: 24px;
+  color: var(--ink-on-dark);
+  box-shadow: var(--sh-2);
 }
-.feature-card h3 { margin-bottom: 6px; }
-.feature-card p  { font-size: 14px; color: var(--ink-2); }
+.feature-card h3 { margin-bottom: 7px; color: var(--brass); }
+.feature-card p  { font-size: 14.5px; color: var(--ink-on-dark-2); }
 
 /* ============================================================
    CREATE / JOIN
    ============================================================ */
 .form-page { align-items: center; }
 .form-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  background-image:
+    linear-gradient(180deg, rgba(255,220,150,0.08), transparent 40%),
+    repeating-linear-gradient(45deg, rgba(217,173,62,0.05) 0 1px, transparent 1px 18px);
+  border: 1px solid var(--brass-dark);
   border-radius: var(--r-xl);
-  padding: 34px;
+  padding: 36px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: var(--sh-2);
+  max-width: 440px;
+  color: var(--ink-on-dark);
+  box-shadow: var(--sh-4), inset 0 1px 0 rgba(255,220,150,0.15);
 }
-.form-card h2 { margin-bottom: 4px; }
-.form-card .sub { color: var(--ink-3); font-size: 14px; margin-bottom: 26px; }
+.form-card h2 { margin-bottom: 5px; color: var(--brass-light); }
+.form-card .sub { color: var(--ink-on-dark-3); font-size: 14.5px; margin-bottom: 28px; }
 .form-fields { display: flex; flex-direction: column; gap: 16px; }
 
 .back-link {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 6px;
   margin-bottom: 18px;
-  font-size: 13px; color: var(--ink-3);
+  font-family: var(--head); font-size: 13px; letter-spacing: 0.06em;
+  color: var(--brass);
 }
-.back-link:hover { color: var(--ink); text-decoration: none; }
+.back-link:hover { color: var(--brass-light); text-decoration: none; }
 
 /* ============================================================
    LOBBY
@@ -333,60 +555,67 @@ a:hover { text-decoration: underline; }
   display: flex; justify-content: space-between; align-items: flex-end;
   gap: 20px; flex-wrap: wrap; margin-bottom: 22px;
 }
-.lobby-title-block h2 { margin: 6px 0 4px; }
-.lobby-title-block p  { color: var(--ink-3); font-size: 14px; }
+.lobby-title-block h2 { margin: 7px 0 5px; font-family: var(--display); font-size: 2.1rem; color: var(--brass-light); }
+.lobby-title-block p  { color: var(--ink-on-dark-3); font-size: 14.5px; }
 
 .code-block {
-  display: flex; align-items: center; gap: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 18px;
+  background: linear-gradient(180deg, var(--lacquer-3), var(--lacquer-2));
+  border: 1px solid var(--brass-dark);
   border-radius: var(--r-lg);
-  padding: 12px 18px;
-  box-shadow: var(--sh-1);
+  padding: 13px 20px;
+  box-shadow: var(--sh-brass), var(--sh-2);
 }
 .code-value {
-  font-family: var(--mono);
-  font-size: 26px; font-weight: 600; letter-spacing: 0.14em;
-  color: var(--ink);
+  font-family: var(--display);
+  font-size: 30px; letter-spacing: 0.2em;
+  background: linear-gradient(180deg, var(--brass-light), var(--brass) 60%, var(--brass-dark));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 
 .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
 .lobby-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  background-image: linear-gradient(180deg, rgba(255,220,150,0.06), transparent 40%);
+  border: 1px solid rgba(217,173,62,0.3);
   border-radius: var(--r-lg);
-  padding: 18px;
+  padding: 20px;
+  color: var(--ink-on-dark);
+  box-shadow: var(--sh-2);
 }
 .lobby-panel h3 {
-  margin-bottom: 14px; padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 15px; padding-bottom: 11px;
+  color: var(--brass);
+  border-bottom: 1px solid rgba(217,173,62,0.28);
 }
 
 .player-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .player-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 13px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  padding: 11px 14px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(217,173,62,0.2);
   border-radius: var(--r-md);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
   transition: border-color 150ms var(--ease-out), background 150ms var(--ease-out);
 }
-.player-row.is-ready { border-color: var(--good-brd); background: var(--good-bg); }
+.player-row.is-ready { border-color: rgba(14,107,79,0.6); background: rgba(14,107,79,0.18); }
 .player-row-left { display: flex; flex-direction: column; gap: 1px; }
-.player-seat { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
-.player-name { font-weight: 600; font-size: 15px; }
+.player-seat { font-family: var(--head); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass); }
+.player-name { font-family: var(--head); font-size: 16px; color: var(--ivory); }
 .player-badges { display: flex; gap: 5px; align-items: center; }
 
 .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .brief-list { list-style: none; display: flex; flex-direction: column; gap: 9px; }
 .brief-list li {
-  font-size: 14px; color: var(--ink-2);
-  padding-left: 17px; position: relative;
+  font-size: 14.5px; color: var(--ink-on-dark-2);
+  padding-left: 19px; position: relative;
 }
+/* A brass lozenge rather than a bullet. */
 .brief-list li::before {
   content: ''; position: absolute; left: 0; top: 9px;
-  width: 5px; height: 5px; border-radius: 50%; background: var(--border-3);
+  width: 7px; height: 7px; transform: rotate(45deg); background: var(--brass);
 }
 
 /* ============================================================
@@ -396,15 +625,15 @@ a:hover { text-decoration: underline; }
 .log-entry {
   display: flex; align-items: baseline; gap: 9px;
   padding: 7px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px; color: var(--ink-2);
+  border-bottom: 1px solid rgba(217,173,62,0.16);
+  font-size: 13.5px; color: var(--ink-on-dark-2);
 }
 .log-entry:last-child { border-bottom: none; }
 .log-msg { flex: 1; }
 .log-tag {
   flex-shrink: 0; min-width: 66px;
   padding: 1px 7px; border-radius: var(--r-sm);
-  background: var(--surface-3); color: var(--ink-3);
+  background: rgba(0,0,0,0.35); color: var(--brass);
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
   text-align: center;
 }
@@ -412,15 +641,16 @@ a:hover { text-decoration: underline; }
 .log-tag--resolve, .log-tag--conspiracy { background: var(--danger-bg); color: var(--danger); }
 .log-tag--turn                        { background: var(--accent-bg); color: var(--accent-ink); }
 .log-tag--score, .log-tag--majority   { background: var(--good-bg);   color: var(--good); }
-.log-entry--event   { color: var(--ink); }
-.log-entry--resolve { color: var(--ink); font-weight: 550; }
+.log-entry--event   { color: var(--ivory); }
+.log-entry--resolve { color: var(--ivory); font-weight: 600; }
 
 /* ============================================================
    RULEBOOK
    ============================================================ */
 .rulebook {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  color: var(--ink-on-dark);
+  border: 1px solid rgba(217,173,62,0.3);
   border-radius: var(--r-lg);
   overflow: hidden;
 }
@@ -439,21 +669,21 @@ a:hover { text-decoration: underline; }
 .rulebook-body.is-open { display: block; }
 .rulebook-section-content h3 { font-size: 0.9rem; margin-bottom: 6px; }
 .rulebook-section-content p,
-.rulebook-section-content li { font-size: 14px; color: var(--ink-2); }
+.rulebook-section-content li { font-size: 14.5px; color: var(--ink-on-dark-2); }
 .rulebook-section-content ul,
 .rulebook-section-content ol { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
-.rulebook-section-content strong { color: var(--ink); }
+.rulebook-section-content strong { color: var(--brass-light); }
 
 .rulebook-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
 .rulebook-table th {
   text-align: left; padding: 7px 10px;
-  background: var(--surface-3); color: var(--ink-3);
+  background: rgba(0,0,0,0.3); color: var(--brass);
   font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
   border-bottom: 1px solid var(--border);
 }
-.rulebook-table td { padding: 8px 10px; color: var(--ink-2); border-bottom: 1px solid var(--border); vertical-align: top; }
+.rulebook-table td { padding: 8px 10px; color: var(--ink-on-dark-2); border-bottom: 1px solid rgba(217,173,62,0.16); vertical-align: top; }
 .rulebook-table tr:last-child td { border-bottom: none; }
-.rulebook-table td:first-child { color: var(--ink); font-weight: 600; }
+.rulebook-table td:first-child { color: var(--ivory); font-weight: 600; }
 
 .rulebook-modal-overlay {
   position: fixed; inset: 0; z-index: 100;
@@ -464,8 +694,9 @@ a:hover { text-decoration: underline; }
 }
 @media (min-width: 600px) { .rulebook-modal-overlay { align-items: center; padding: 24px; } }
 .rulebook-modal {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--lacquer-2);
+  color: var(--ink-on-dark);
+  border: 1px solid var(--brass-dark);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   width: 100%; max-width: 680px; max-height: 85vh; overflow-y: auto;
   box-shadow: var(--sh-4);
@@ -473,8 +704,9 @@ a:hover { text-decoration: underline; }
 @media (min-width: 600px) { .rulebook-modal { border-radius: var(--r-xl); max-height: 80vh; } }
 .rulebook-modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 15px 20px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--surface); z-index: 1;
+  padding: 15px 20px; border-bottom: 1px solid rgba(217,173,62,0.3);
+  position: sticky; top: 0; background: var(--lacquer-2); z-index: 1;
+  color: var(--brass);
 }
 .rulebook-modal-header h2 { font-size: 1rem; }
 

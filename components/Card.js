@@ -99,6 +99,8 @@ export default function Card({
         </div>
       )}
 
+      {eyebrow !== false && <span style={S.rule} />}
+
       {(title != null || subtitle != null) && (
         <div style={{ ...S.titleWrap, padding: `${compact ? 4 : 6}px ${compact ? 9 : 13}px 0` }}>
           {title != null && <div style={compact ? S.titleSm : S.title}>{title}</div>}
@@ -125,8 +127,17 @@ export function CardText({ children }) {
 const S = {
   card: {
     position: 'relative',
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
+    // Ivory card stock with a block-printed ground, and a warm sheen from the
+    // top-left as though a lamp is over the table.
+    backgroundColor: 'var(--ivory)',
+    backgroundImage: [
+      'linear-gradient(150deg, rgba(255,255,255,0.6), transparent 45%)',
+      'radial-gradient(circle at 18% 18%, rgba(168,28,34,0.055) 0 2.4px, transparent 2.4px)',
+      'radial-gradient(circle at 68% 62%, rgba(15,122,74,0.055) 0 2.4px, transparent 2.4px)',
+    ].join(','),
+    backgroundSize: 'auto, 34px 34px, 34px 34px',
+    color: 'var(--ink)',
+    border: '1px solid var(--brass-dark)',
     borderRadius: 'var(--r-lg)',
     overflow: 'hidden',
     display: 'flex',
@@ -135,7 +146,16 @@ const S = {
     transition:
       'transform 140ms var(--ease), box-shadow 140ms var(--ease), opacity 140ms var(--ease-out), border-color 140ms var(--ease-out)',
   },
-  edge: { position: 'absolute', top: 0, left: 0, right: 0, height: 4, zIndex: 1 },
+  // The deck's tone, laid over brass so the top edge reads as an inlaid band.
+  edge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+    zIndex: 1,
+    boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.35), 0 1px 0 rgba(217,173,62,0.55)',
+  },
 
   head: {
     display: 'flex',
@@ -148,28 +168,46 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 5,
-    fontSize: 9.5,
-    fontWeight: 600,
-    letterSpacing: '0.09em',
+    fontFamily: 'var(--head)',
+    fontSize: 10,
+    letterSpacing: '0.16em',
     textTransform: 'uppercase',
-    color: 'var(--ink-3)',
+    color: 'var(--brass-dark)',
     whiteSpace: 'nowrap',
   },
+  // A struck coin rather than a chip.
   badge: {
-    fontSize: 10.5,
-    fontWeight: 600,
-    color: 'var(--ink)',
-    border: '1px solid var(--border-2)',
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#3a2508',
+    background: 'linear-gradient(180deg, #f6e1a0, #d9ad3e 55%, #9c6e14)',
+    border: '1px solid #7a5610',
+    boxShadow: 'inset 0 1px 0 rgba(255,245,215,0.7), 0 1px 2px rgba(0,0,0,0.35)',
     borderRadius: 999,
-    padding: '0 7px',
+    padding: '1px 9px',
     fontVariantNumeric: 'tabular-nums',
     whiteSpace: 'nowrap',
   },
 
+  // A brass rule under the header. Cheap, and it does more for "this is a
+  // printed card" than any amount of border radius.
+  rule: {
+    display: 'block',
+    height: 1,
+    margin: '7px 13px 0',
+    background:
+      'linear-gradient(90deg, transparent, var(--brass-dark) 18%, var(--brass) 50%, var(--brass-dark) 82%, transparent)',
+    opacity: 0.7,
+  },
   titleWrap: { display: 'flex', flexDirection: 'column', gap: 2 },
-  title: { fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' },
-  titleSm: { fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: 'var(--ink)' },
-  subtitle: { fontSize: 11, color: 'var(--ink-3)' },
+  title: {
+    fontFamily: 'var(--head)',
+    fontSize: 16.5,
+    lineHeight: 1.32,
+    color: 'var(--ink)',
+  },
+  titleSm: { fontFamily: 'var(--display)', fontSize: 15, lineHeight: 1.25, color: 'var(--ink)' },
+  subtitle: { fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.06em' },
 
   body: { flex: 1 },
   footer: { fontSize: 10.5, color: 'var(--ink-3)', lineHeight: 1.45 },
@@ -177,13 +215,14 @@ const S = {
   text: {
     margin: 0,
     fontFamily: 'inherit',
-    fontSize: 12.5,
-    lineHeight: 1.55,
+    fontSize: 13,
+    lineHeight: 1.6,
     whiteSpace: 'pre-wrap',
-    background: 'var(--surface-2)',
-    border: '1px solid var(--border)',
+    background: 'rgba(255,255,255,0.55)',
+    border: '1px solid var(--border-2)',
     borderRadius: 'var(--r-md)',
-    padding: 10,
+    padding: 11,
     color: 'var(--ink-2)',
+    boxShadow: 'inset 0 1px 3px rgba(138,95,17,0.15)',
   },
 }

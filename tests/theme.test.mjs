@@ -19,8 +19,23 @@ const { check, report } = createRunner()
 
 const css = readFileSync('styles/globals.css', 'utf8')
 const root = css.match(/:root \{([\s\S]*?)\n\}/)[1]
-const TOKENS = Object.fromEntries(
+const RAW_TOKENS = Object.fromEntries(
   [...root.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map(([, k, v]) => [k, v.trim()])
+)
+
+/**
+ * Role tokens now alias the palette — `--surface: var(--ivory)` — so comparing
+ * a declared value against a literal has to follow the chain first. Bounded, so
+ * a token that accidentally refers to itself fails loudly rather than hanging.
+ */
+function resolve(value, depth = 0) {
+  const alias = /^var\((--[a-z0-9-]+)\)$/.exec(String(value).trim())
+  if (!alias || depth > 8) return value
+  return resolve(RAW_TOKENS[alias[1]], depth + 1)
+}
+
+const TOKENS = Object.fromEntries(
+  Object.entries(RAW_TOKENS).map(([k, v]) => [k, resolve(v)])
 )
 
 /** Custom properties set inline by JS on the element itself. */
@@ -195,6 +210,80 @@ check('each Ideologue is coloured as the resource it pays', () => {
   eq(ideologues.length, 4, 'four Ideologues:')
   for (const [, resource, color] of ideologues) {
     eq(color, resources[resource], `${resource} Ideologue vs its resource:`)
+  }
+})
+
+check('text on the lacquer ground is actually readable', () => {
+  // Half the app now sits on a dark lacquered table. The old --ink tokens are
+  // near-black and were fine on ivory; on lacquer they are invisible. This is
+  // the failure most likely to creep back in, because it looks fine in the code.
+  const lum = (hex) => {
+    const c = [1, 3, 5]
+      .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  const ground = TOKENS['--lacquer']
+  // 4.5 is the WCAG bar for body text; the tertiary tone is for hints and
+  // metadata, which is held to the large-text bar of 3.
+  const pairs = [
+    ['--ink-on-dark', 4.5],
+    ['--ink-on-dark-2', 4.5],
+    ['--ink-on-dark-3', 3],
+    ['--brass', 3],
+    ['--ivory', 4.5],
+  ]
+  const failures = []
+  for (const [token, floor] of pairs) {
+    const ratio = contrast(TOKENS[token], ground)
+    if (ratio < floor) failures.push(`${token} on the lacquer: ${ratio.toFixed(1)}:1, wants ${floor}`)
+  }
+  eq(failures, [], 'unreadable on the dark ground:')
+})
+
+check('text on ivory is readable too', () => {
+  const lum = (hex) => {
+    const c = [1, 3, 5]
+      .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  const paper = TOKENS['--ivory']
+  const failures = []
+  for (const [token, floor] of [['--ink', 4.5], ['--ink-2', 4.5], ['--ink-3', 3]]) {
+    const ratio = contrast(TOKENS[token], paper)
+    if (ratio < floor) failures.push(`${token} on ivory: ${ratio.toFixed(1)}:1, wants ${floor}`)
+  }
+  eq(failures, [], 'unreadable on the card stock:')
+})
+
+check('the ornament is drawn, not fetched', () => {
+  // The whole approach rests on there being no image files: it is what lets a
+  // zone recolour to its holder and keeps everything sharp at any size. A stray
+  // url() to an image would quietly break both.
+  const offenders = []
+  for (const f of sourceFiles().concat(['styles/globals.css'])) {
+    const src = readFileSync(f, 'utf8')
+    for (const [, url] of src.matchAll(/url\(\s*['"]?([^)'"]+)['"]?\s*\)/g)) {
+      if (/\.(png|jpe?g|gif|webp|svg|avif)\b/i.test(url)) offenders.push(`${f} loads ${url}`)
+    }
+  }
+  eq(offenders, [], 'image files being loaded:')
+
+  // And the ornament library really does hold the patterns.
+  const art = readFileSync('components/art/ArtDefs.js', 'utf8')
+  for (const id of ['art-jali', 'art-block', 'art-rangoli', 'art-brass', 'art-lacquer']) {
+    ok(art.includes(`id="${id}"`), `${id} is defined`)
   }
 })
 

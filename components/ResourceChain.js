@@ -104,19 +104,25 @@ export default function ResourceChain({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: id ? RESOURCES[id].color : 'var(--surface)',
+                // A struck coin: the resource colour lit from above-left, sunk
+                // into a brass rim. An empty slot is the rim with nothing in it.
+                background: id
+                  ? `radial-gradient(circle at 34% 28%, rgba(255,255,255,.45), rgba(255,255,255,0) 55%), ${RESOURCES[id].color}`
+                  : 'radial-gradient(circle at 50% 40%, rgba(0,0,0,.5), rgba(0,0,0,.25))',
                 borderColor: overflow
-                  ? 'var(--danger)'
+                  ? 'var(--vermilion)'
                   : isMarked
-                  ? 'var(--ink)'
+                  ? 'var(--brass-light)'
                   : id
-                  ? 'rgba(0,0,0,.14)'
-                  : 'var(--border-2)',
-                borderWidth: isMarked || overflow ? 2.5 : id ? 1.5 : 1,
+                  ? 'rgba(0,0,0,.4)'
+                  : 'rgba(217,173,62,.35)',
+                borderWidth: isMarked || overflow ? 2.5 : id ? 2 : 1,
                 cursor: clickable ? 'pointer' : 'default',
-                opacity: isMarked ? 0.4 : 1,
-                transform: isMarked ? 'translateY(-3px)' : 'none',
-                boxShadow: id && !isMarked ? 'inset 0 -2px 3px rgba(0,0,0,.16)' : 'none',
+                opacity: isMarked ? 0.45 : 1,
+                transform: isMarked ? 'translateY(-4px) scale(1.06)' : 'none',
+                boxShadow: id && !isMarked
+                  ? 'inset 0 -2px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.45)'
+                  : 'inset 0 2px 5px rgba(0,0,0,.55)',
               }}
             >
               {/* The mark is what makes a token identifiable without colour —
@@ -217,14 +223,16 @@ const S = {
   wrap: { display: 'flex', alignItems: 'center', gap: 10 },
   // Holds the rail behind the slots; grows to take whatever width is going.
   track: { position: 'relative', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' },
+  // The chain the coins sit in — a brass bar with a lit top edge.
   rail: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: '50%',
     transform: 'translateY(-50%)',
-    background: 'var(--border)',
+    background: 'linear-gradient(180deg, #9c6e14, #5c3d08 55%, #8a5f11)',
     borderRadius: 999,
+    boxShadow: 'inset 0 1px 0 rgba(246,225,160,.45), inset 0 -2px 4px rgba(0,0,0,.5)',
     zIndex: 0,
   },
   slots: {
@@ -257,13 +265,13 @@ const S = {
   },
   count: {
     marginLeft: 'auto',
-    fontSize: 13,
+    fontFamily: 'var(--display)',
+    fontSize: 17,
     fontVariantNumeric: 'tabular-nums',
-    fontWeight: 650,
-    color: 'var(--ink)',
+    color: 'var(--brass-light)',
     zIndex: 1,
   },
-  capText: { fontStyle: 'normal', fontWeight: 400, color: 'var(--ink-3)', fontSize: 11 },
+  capText: { fontStyle: 'normal', color: 'var(--ink-on-dark-3)', fontSize: 12 },
   legend: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 9.5, color: 'var(--ink-2)' },
   legendItem: { display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' },
   legendDot: {

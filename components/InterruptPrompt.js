@@ -108,14 +108,14 @@ const S = {
     boxShadow: '0 20px 50px rgba(20,14,8,.45)',
   },
   eyebrow: {
-    fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink-3)',
+    fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink-on-dark-3)',
   },
   title: { fontSize: 19, margin: '6px 0 12px' },
   body: {
     fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', fontFamily: 'inherit',
     background: 'var(--surface)', border: '1px solid var(--border)', padding: 11, borderRadius: 7, margin: 0,
   },
-  clar: { fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 },
+  clar: { fontSize: 11, color: 'var(--ink-on-dark-3)', fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
@@ -127,7 +127,7 @@ const S = {
     padding: '10px 15px', background: 'var(--surface)', border: '1px solid var(--border-2)',
     borderRadius: 8, fontSize: 13, cursor: 'pointer',
   },
-  note: { fontSize: 10.5, color: 'var(--ink-3)', marginTop: 12, fontStyle: 'italic', lineHeight: 1.5 },
+  note: { fontSize: 10.5, color: 'var(--ink-on-dark-3)', marginTop: 12, fontStyle: 'italic', lineHeight: 1.5 },
 
   watch: {
     background: 'var(--amber-bg)', border: '1px solid var(--amber-brd)', borderRadius: 8,

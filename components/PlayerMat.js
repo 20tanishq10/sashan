@@ -193,8 +193,8 @@ export default function PlayerMat({
                       ...S.powerRow,
                       opacity: on ? 1 : LOCKED,
                       cursor: clickable ? 'pointer' : 'default',
-                      background: clickable ? 'var(--surface)' : 'transparent',
-                      borderColor: clickable ? 'var(--border-2)' : 'transparent',
+                      background: clickable ? 'rgba(217,173,62,.12)' : 'transparent',
+                      borderColor: clickable ? 'var(--brass)' : 'transparent',
                     }}
                     title={on ? def.text : `Locked — needs ${lvl} ${ideo.label} cards. ${def.text}`}
                   >
@@ -230,29 +230,47 @@ const S = {
 
   mat: {
     position: 'relative',
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
+    // A lacquered board, brass-edged, with a jali screen worked into it.
+    backgroundColor: 'var(--lacquer-2)',
+    backgroundImage: [
+      'linear-gradient(180deg, rgba(255,220,150,.09), transparent 38%)',
+      'repeating-linear-gradient(45deg, rgba(217,173,62,.055) 0 1.5px, transparent 1.5px 20px)',
+      'repeating-linear-gradient(-45deg, rgba(217,173,62,.055) 0 1.5px, transparent 1.5px 20px)',
+    ].join(','),
+    border: '1px solid var(--brass-dark)',
     borderRadius: 'var(--r-lg)',
-    color: 'var(--ink)',
-    boxShadow: 'var(--sh-2)',
+    color: 'var(--ink-on-dark)',
+    boxShadow: 'var(--sh-3), inset 0 1px 0 rgba(255,220,150,.16)',
     overflow: 'hidden',
   },
 
   /* The player's colour, as an edge rather than a flood. */
-  band: { position: 'absolute', top: 0, left: 0, right: 0, height: 4, zIndex: 1 },
+  band: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+    zIndex: 1,
+    boxShadow: 'inset 0 -1px 0 rgba(0,0,0,.4), 0 1px 0 rgba(217,173,62,.5)',
+  },
 
   // --- the scalloped strip ---
   chainBar: {
-    background: 'var(--surface-3)',
-    borderBottom: '1px solid var(--border)',
-    padding: '13px 12px 8px',
+    background: 'linear-gradient(180deg, rgba(0,0,0,.4), rgba(0,0,0,.18))',
+    borderBottom: '1px solid rgba(217,173,62,.3)',
+    boxShadow: 'inset 0 3px 8px rgba(0,0,0,.5)',
+    padding: '14px 14px 9px',
   },
   passiveRule: {
     display: 'block',
     textAlign: 'center',
-    fontSize: 9,
-    color: 'var(--ink-3)',
-    padding: '6px 10px 0',
+    fontFamily: 'var(--head)',
+    fontSize: 9.5,
+    letterSpacing: '0.05em',
+    color: 'var(--brass)',
+    opacity: 0.75,
+    padding: '8px 10px 0',
   },
 
   // --- header ---
@@ -264,7 +282,14 @@ const S = {
     padding: '10px 13px 4px',
     flexWrap: 'wrap',
   },
-  matName: { fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 },
+  matName: {
+    fontFamily: 'var(--display)',
+    fontSize: 20,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 9,
+    color: 'var(--ivory)',
+  },
   nameDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0 },
   you: {
     fontSize: 9,
@@ -276,7 +301,7 @@ const S = {
     textTransform: 'uppercase',
     fontWeight: 600,
   },
-  tally: { fontSize: 11.5, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' },
+  tally: { fontSize: 12, color: 'var(--ink-on-dark-3)', fontVariantNumeric: 'tabular-nums' },
   statusRow: { padding: '0 13px', marginBottom: 2 },
 
   // --- Ideologue panels ---
@@ -287,19 +312,23 @@ const S = {
     padding: '8px 11px 13px',
   },
   panel: {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15))',
+    border: '1px solid rgba(217,173,62,.22)',
     borderRadius: 'var(--r-md)',
-    padding: 8,
+    boxShadow: 'inset 0 2px 6px rgba(0,0,0,.45), inset 0 -1px 0 rgba(255,220,150,.08)',
+    padding: 9,
   },
+  // A little enamelled nameplate, like the zone plates on the board.
   namePlate: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, var(--ivory), var(--ivory-2))',
+    border: '1px solid var(--brass-dark)',
     borderBottom: '2px solid',
     borderRadius: 'var(--r-sm)',
+    boxShadow: '0 1px 3px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.6)',
     padding: '5px 6px',
+    fontFamily: 'var(--head)',
     fontSize: 8.5,
-    fontWeight: 700,
+    letterSpacing: '0.1em',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -329,16 +358,17 @@ const S = {
     justifyContent: 'center',
     fontSize: 11,
     fontWeight: 700,
-    background: 'var(--surface)',
+    background: 'rgba(0,0,0,.4)',
   },
   powerText: { display: 'flex', flexDirection: 'column', lineHeight: 1.3, minWidth: 0 },
   powerName: {
-    fontSize: 8.5,
-    letterSpacing: '0.05em',
+    fontFamily: 'var(--head)',
+    fontSize: 9,
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--ink)',
+    color: 'var(--ivory)',
   },
-  powerShort: { fontSize: 8.5, color: 'var(--ink-3)' },
+  powerShort: { fontSize: 8.5, color: 'var(--ink-on-dark-3)' },
   uses: {
     marginLeft: 'auto',
     fontSize: 9,

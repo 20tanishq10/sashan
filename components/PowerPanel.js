@@ -192,7 +192,7 @@ const S = {
     marginTop: 10,
   },
   prompt: { fontSize: 13, margin: '0 0 10px', lineHeight: 1.45 },
-  label: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-3)', margin: '10px 0 5px' },
+  label: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-on-dark-3)', margin: '10px 0 5px' },
   row: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' },
   chip: {
     padding: '4px 10px', borderRadius: 11, fontSize: 11, color: 'var(--surface)',

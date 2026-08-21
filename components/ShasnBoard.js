@@ -24,10 +24,17 @@
 //                     zone is tight, because the centroid of a 21-area zone is
 //                     squarely on top of half a dozen voters.
 //
-// The map is deliberately quiet — pale territories, hairline borders — so that
-// the only saturated things on it are voters and the zones people hold. When a
-// zone changes hands its outline sweeps to the new colour and the plaque turns;
-// those are the moments worth looking up for, so they are the only ones that move.
+// The board is a lacquered panel with a jali screen cut into it, brass framed,
+// with block-printed cloth for territories and enamelled plates for the zone
+// names. Every one of those is drawn in this file rather than loaded as an
+// image, which is what lets a zone recolour to its holder and keeps the whole
+// thing sharp at any size.
+//
+// Ornament stays in the CHROME. The grounds, frames and plates are textured; the
+// voters, the tracks and the party colours on top of them are not, because those
+// are the things you actually have to read. When a zone changes hands its
+// outline sweeps to the new colour and the plate turns; those are the moments
+// worth looking up for, so they are the only ones that move.
 
 import { useEffect, useRef } from 'react'
 import { ZONES, ZONE_IDS } from '../lib/shasn/zones'
@@ -82,12 +89,70 @@ export default function ShasnBoard({
         }}
       >
         <defs>
-          <filter id="zoneShadow" x="-6%" y="-6%" width="112%" height="112%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#15181d" floodOpacity="0.14" />
+          <filter id="zoneShadow" x="-8%" y="-8%" width="116%" height="116%">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#000" floodOpacity="0.45" />
           </filter>
-          <filter id="pipShadow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#15181d" floodOpacity="0.28" />
+          <filter id="pipShadow" x="-60%" y="-60%" width="220%" height="220%">
+            <feDropShadow dx="0" dy="2" stdDeviation="1.6" floodColor="#000" floodOpacity="0.45" />
           </filter>
+
+          {/* The board is lacquered wood with a jali screen cut into it. Both
+              drawn here rather than loaded, so the whole thing stays sharp at
+              any size and costs nothing to fetch. */}
+          <pattern id="boardJali" width="46" height="46" patternUnits="userSpaceOnUse">
+            <rect width="46" height="46" fill={RAW.boardBg} />
+            <g fill="none" stroke="#d9ad3e" strokeLinejoin="round">
+              <path d="M23 0 46 23 23 46 0 23Z" strokeWidth="1.4" opacity="0.16" />
+              <path d="M23 9 37 23 23 37 9 23Z" strokeWidth="1" opacity="0.11" />
+            </g>
+            <circle cx="23" cy="23" r="2.4" fill="#d9ad3e" opacity="0.14" />
+          </pattern>
+
+          {/* Zone grounds: block-printed cloth, one stamp per zone family so
+              neighbouring territories are told apart by texture as well as by
+              their outline. */}
+          <pattern id="zonePrintA" width="38" height="38" patternUnits="userSpaceOnUse">
+            <rect width="38" height="38" fill={RAW.zone} />
+            <g fill="#a81c22" opacity="0.13">
+              <circle cx="19" cy="19" r="3" />
+              <ellipse cx="19" cy="8" rx="2.6" ry="5" />
+              <ellipse cx="19" cy="30" rx="2.6" ry="5" />
+              <ellipse cx="8" cy="19" rx="5" ry="2.6" />
+              <ellipse cx="30" cy="19" rx="5" ry="2.6" />
+            </g>
+          </pattern>
+          <pattern id="zonePrintB" width="34" height="34" patternUnits="userSpaceOnUse">
+            <rect width="34" height="34" fill={RAW.zone2} />
+            <g fill="#0f7a4a" opacity="0.14">
+              <path d="M17 6 21 15 17 24 13 15Z" />
+              <circle cx="4" cy="28" r="2.2" />
+              <circle cx="30" cy="28" r="2.2" />
+            </g>
+          </pattern>
+          <pattern id="zonePrintC" width="30" height="30" patternUnits="userSpaceOnUse">
+            <rect width="30" height="30" fill={RAW.zone3} />
+            <g fill="#173f86" opacity="0.15">
+              <circle cx="8" cy="8" r="2.1" />
+              <circle cx="22" cy="22" r="2.1" />
+              <circle cx="22" cy="8" r="1.3" />
+              <circle cx="8" cy="22" r="1.3" />
+            </g>
+          </pattern>
+
+          {/* Brass, for anything that reads as metal. */}
+          <linearGradient id="boardBrass" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0" stopColor="#f6e1a0" />
+            <stop offset="0.42" stopColor="#d9ad3e" />
+            <stop offset="0.7" stopColor="#9c6e14" />
+            <stop offset="1" stopColor="#e8cb74" />
+          </linearGradient>
+
+          {/* A voter is an inlaid stone, not a flat disc: lit from above left. */}
+          <radialGradient id="stoneLight" cx="0.34" cy="0.3" r="0.75">
+            <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
+            <stop offset="0.55" stopColor="#fff" stopOpacity="0.08" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.22" />
+          </radialGradient>
         </defs>
 
         <rect
@@ -95,7 +160,31 @@ export default function ShasnBoard({
           y={VIEW_BOX.y}
           width={VIEW_BOX.w}
           height={VIEW_BOX.h}
-          fill={RAW.boardBg}
+          fill="url(#boardJali)"
+        />
+
+        {/* A brass frame around the whole board, inset from the edge. */}
+        <rect
+          x={VIEW_BOX.x + 9}
+          y={VIEW_BOX.y + 9}
+          width={VIEW_BOX.w - 18}
+          height={VIEW_BOX.h - 18}
+          rx={16}
+          fill="none"
+          stroke="url(#boardBrass)"
+          strokeWidth={5}
+          opacity={0.75}
+        />
+        <rect
+          x={VIEW_BOX.x + 17}
+          y={VIEW_BOX.y + 17}
+          width={VIEW_BOX.w - 34}
+          height={VIEW_BOX.h - 34}
+          rx={12}
+          fill="none"
+          stroke="#d9ad3e"
+          strokeWidth={1.2}
+          opacity={0.35}
         />
 
         {/* Zone territories */}
@@ -111,9 +200,9 @@ export default function ShasnBoard({
             <polygon
               key={zoneId}
               points={g.path}
-              fill={inner ? RAW.zone3 : band ? RAW.zone2 : RAW.zone}
-              stroke={holder ? colorOf(holder) : RAW.zoneLine}
-              strokeWidth={holder ? 7 : 3}
+              fill={inner ? 'url(#zonePrintC)' : band ? 'url(#zonePrintB)' : 'url(#zonePrintA)'}
+              stroke={holder ? colorOf(holder) : 'url(#boardBrass)'}
+              strokeWidth={holder ? 8 : 4}
               strokeLinejoin="round"
               opacity={dim ? OUT_OF_SCOPE : 1}
               filter="url(#zoneShadow)"
@@ -189,6 +278,16 @@ export default function ShasnBoard({
                       strokeWidth={sel ? 6 : majorityVoter ? 6 : 1.5}
                       filter={owner ? 'url(#pipShadow)' : undefined}
                       style={{ transition: 'fill 260ms var(--ease), stroke 260ms var(--ease)' }}
+                    />
+
+                    {/* The light on the stone. Drawn over every voter, empty or
+                        held, so the board reads as inlay rather than as paint. */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={PIP_RADIUS}
+                      fill="url(#stoneLight)"
+                      pointerEvents="none"
                     />
 
                     {majorityVoter && (
@@ -277,6 +376,19 @@ export default function ShasnBoard({
                   OUTLINE already sweeps to the holder's colour, and that is the
                   loud signal. The plaque's job is the quiet one: how close is
                   everybody, and can this still be won. */}
+              {/* An enamelled plate screwed to the board. Brass surround,
+                  ivory face, and a shadow so it sits ON the cloth rather than
+                  being printed into it. */}
+              <rect
+                x={x0 - 2}
+                y={y0 - 2}
+                width={W + 4}
+                height={H + 4}
+                rx={11}
+                fill="url(#boardBrass)"
+                opacity={track.dead ? 0.55 : 1}
+                filter="url(#zoneShadow)"
+              />
               <rect
                 x={x0}
                 y={y0}
@@ -284,21 +396,24 @@ export default function ShasnBoard({
                 height={H}
                 rx={9}
                 fill={RAW.surface}
-                stroke={track.holder ? colorOf(track.holder) : RAW.zoneLine}
-                strokeWidth={track.holder ? 3 : 1.5}
+                stroke={track.holder ? colorOf(track.holder) : 'rgba(138,95,17,0.45)'}
+                strokeWidth={track.holder ? 3 : 1.2}
                 strokeDasharray={track.dead ? '4 3' : undefined}
                 style={{ transition: 'stroke 320ms var(--ease)' }}
               />
+              {/* Two rivets, because a plate is fixed to something. */}
+              <circle cx={x0 + 6} cy={y0 + 6} r={1.8} fill="#9c6e14" opacity={0.8} />
+              <circle cx={x0 + W - 6} cy={y0 + H - 6} r={1.8} fill="#9c6e14" opacity={0.8} />
 
               <text
                 x={lx}
                 y={y0 + 12}
                 fontSize={9}
-                fill={RAW.ink3}
+                fill="#8a5f11"
                 textAnchor="middle"
-                letterSpacing="1.3"
-                fontWeight="600"
-                fontFamily="var(--sans)"
+                letterSpacing="1.5"
+                fontWeight="700"
+                fontFamily="var(--head)"
               >
                 {z.label.toUpperCase()}
               </text>
@@ -329,11 +444,10 @@ export default function ShasnBoard({
                 <text
                   x={lx}
                   y={y0 + 37}
-                  fontSize={13}
+                  fontSize={15}
                   fill={RAW.ink}
                   textAnchor="middle"
-                  fontWeight="650"
-                  fontFamily="var(--sans)"
+                  fontFamily="var(--display)"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
                   {z.majority}/{z.areas}
@@ -345,7 +459,8 @@ export default function ShasnBoard({
                   gets a verb: two arrows swapping places. */}
               {hasRights && (
                 <g transform={`translate(${x0 + W - 15} ${y0 - 8})`}>
-                  <circle cx="9" cy="9" r="10" fill={RAW.surface} stroke={colorOf(hasRights)} strokeWidth="2" />
+                  <circle cx="9" cy="9" r="11" fill="url(#boardBrass)" />
+                  <circle cx="9" cy="9" r="8.5" fill={RAW.surface} stroke={colorOf(hasRights)} strokeWidth="2" />
                   <path
                     d="M4 6.5h9l-2.5-2.5M14 11.5H5l2.5 2.5"
                     fill="none"
