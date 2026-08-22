@@ -68,6 +68,19 @@ export default function ShasnBoard({
   // follow, which is what a portrait map in a landscape viewport needs: the
   // board can only get bigger by getting taller.
   fit = 'width',
+  // The printed board is a map of India, so it is portrait (872x1218) and its
+  // width is decided entirely by the height it is given. In a landscape browser
+  // that leaves a wide dead gutter no amount of column sizing can fill.
+  //
+  // 'landscape' turns the whole board a quarter turn. It is India on its side —
+  // the North zone sits to the LEFT of the South zone — which is a real cost and
+  // the reason this is a choice rather than the default. What it buys is about
+  // 2.3x the board area in a room that keeps the player mat along the bottom.
+  //
+  // The rotation is a transform on one group, not a second set of coordinates,
+  // so boardGeometry.js stays the single source of truth and hit-testing,
+  // animations and the plaque solver all keep working untouched.
+  orientation = 'portrait',
   maxWidth = 980,
   focusPlayerId = null, // lift one player's territory, drop everything else
   onZoneHover = null,   // (zoneId | null) => void
@@ -84,6 +97,14 @@ export default function ShasnBoard({
     partyOf?.(playerId) || partyForSeat(players.findIndex((p) => p.id === playerId)).id
 
   const byHeight = fit === 'height'
+  const rotated = orientation === 'landscape'
+
+  // Read right to left: shift the geometry to the origin, turn it a quarter
+  // turn anticlockwise, then push it back down into view. The result maps the
+  // 872x1218 portrait box exactly onto a 1218x872 landscape one.
+  const turn = rotated
+    ? `translate(0,${VIEW_BOX.w}) rotate(-90) translate(${-VIEW_BOX.x},${-VIEW_BOX.y})`
+    : undefined
 
   return (
     <div
@@ -95,7 +116,11 @@ export default function ShasnBoard({
       onMouseLeave={onZoneHover ? () => onZoneHover(null) : undefined}
     >
       <svg
-        viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.w} ${VIEW_BOX.h}`}
+        viewBox={
+          rotated
+            ? `0 0 ${VIEW_BOX.h} ${VIEW_BOX.w}`
+            : `${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.w} ${VIEW_BOX.h}`
+        }
         style={{
           ...(byHeight
             ? { height: '100%', width: 'auto', maxWidth: '100%' }
@@ -171,6 +196,8 @@ export default function ShasnBoard({
             <stop offset="1" stopColor="#000" stopOpacity="0.22" />
           </radialGradient>
         </defs>
+
+        <g transform={turn}>
 
         <rect
           x={VIEW_BOX.x}
@@ -398,6 +425,9 @@ export default function ShasnBoard({
             <g
               key={`${zoneId}-label`}
               pointerEvents="none"
+              /* Turned back the other way about its own centre. Without this the
+                 zone names would read bottom-to-top. */
+              transform={rotated ? `rotate(90, ${lx}, ${ly})` : undefined}
               className={changed ? 'shasn-plaque-flip' : undefined}
               opacity={track.dead ? 0.62 : 1}
             >
@@ -508,6 +538,7 @@ export default function ShasnBoard({
             </g>
           )
         })}
+        </g>
       </svg>
     </div>
   )

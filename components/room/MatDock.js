@@ -5,19 +5,16 @@
 // the board it exists to support. Docked, it costs the board a fixed strip of
 // height and never covers it.
 //
-// It is one bar, at one height, always.
+// Two forms rather than a drag handle:
 //
-// It used to fork on screen height: tall screens got the whole mat. Measured on
-// a 936px-tall screen that mat was 374px — 40% of the viewport — and the board
-// is portrait, so its width is decided entirely by the height left over. The
-// mat was costing the board roughly 200px of WIDTH in order to show four cards.
+//   full     — the whole mat, on a screen with the height to spare
+//   summary  — one bar with the numbers you need mid-turn, when there is not
 //
-// So there is no fork any more. The counts that mattered are in this bar, and
-// the powers moved to the command bar, where the rest of your actions already
-// were. Nothing that lived on the mat lost its home — see tests/room.test.mjs,
-// which checks exactly that, because deleting a surface is how features quietly
-// become unreachable.
+// Which one you get is a media query rather than a preference, because the
+// question is not what you would like, it is whether the pixels exist. Both
+// carry the command bar, since your options belong with your resources.
 
+import PlayerMat from '../PlayerMat'
 import ResourceChain from '../ResourceChain'
 import PartyEmblem from '../PartyEmblem'
 import IdeologueMark from '../IdeologueMark'
@@ -33,8 +30,11 @@ export default function MatDock({
   board,
   isMyTurn,
   score,
+  justTucked,
   discardSelection,
   onDiscardToken,
+  powerActionFor,
+  onUsePower,
   commandBar,
 }) {
   if (!player) return null
@@ -44,6 +44,29 @@ export default function MatDock({
 
   return (
     <div style={S.dock}>
+      {/* Tall enough for the whole mat. */}
+      <div className="room-dock--full" style={S.full}>
+        <div style={S.matWrap}>
+          <PlayerMat
+            player={player}
+            color={color}
+            party={party}
+            board={board}
+            isActive={isMyTurn}
+            isYou
+            score={score}
+            variant="full"
+            justTucked={justTucked}
+            discardSelection={discardSelection}
+            onDiscardToken={onDiscardToken}
+            powerActionFor={powerActionFor}
+            onUsePower={onUsePower}
+          />
+        </div>
+        {commandBar && <div style={S.commands}>{commandBar}</div>}
+      </div>
+
+      {/* Not tall enough. The board keeps the difference. */}
       <div className="room-dock--summary" style={S.summary}>
         <span style={S.who}>
           {party && <PartyEmblem party={party} size={15} color={color} />}
@@ -51,30 +74,13 @@ export default function MatDock({
           <span style={S.score}>{score} pts</span>
         </span>
 
-        {/* The chain is clickable here, not merely readable. Discarding down to
-            the resource cap is done by lifting tokens off it, and this bar is
-            now the only chain of your own on the screen — without these two
-            props that whole flow would have nowhere to happen. */}
         <span style={S.chain}>
-          <ResourceChain
-            pool={player.pool}
-            cap={player.resourceCap}
-            size={20}
-            compact
-            selected={discardSelection}
-            onTokenClick={onDiscardToken}
-          />
+          <ResourceChain pool={player.pool} cap={player.resourceCap} size={20} compact />
         </span>
 
         <span style={S.counts}>
           {IDEOLOGUE_IDS.map((id) => (
-            <span
-              key={id}
-              style={S.count}
-              title={`${IDEOLOGUES[id].label}: ${counts[id]} card${
-                counts[id] === 1 ? '' : 's'
-              }${counts[id] < 3 ? ` — ${3 - counts[id]} more to Level 3` : ''}`}
-            >
+            <span key={id} style={S.count} title={`${IDEOLOGUES[id].label}: ${counts[id]}`}>
               <IdeologueMark
                 ideologue={id}
                 size={12}
@@ -103,8 +109,12 @@ const S = {
     background: 'linear-gradient(180deg, rgba(0,0,0,.3), transparent)',
   },
 
+  full: { display: 'block', padding: '10px 16px 12px' },
+  matWrap: { maxWidth: 1180, margin: '0 auto' },
+  commands: { maxWidth: 1180, margin: '10px auto 0' },
+
   summary: {
-    // `display` is set in globals.css; this is everything else.
+    // `display` is set by the media query; this is everything else.
     alignItems: 'center',
     gap: 16,
     padding: '8px 16px',

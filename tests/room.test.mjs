@@ -507,13 +507,13 @@ check('and the option goes when Jumla leaves play', () => {
   drain('Jumla gone')
 })
 
-// ── The dock is a bar, and nothing was stranded on the mat ─────────────────
+// ── An unlocked power is reachable ─────────────────────────────────────────
 //
-// The full mat took 374px on a 936px screen — 40% of the viewport — and the
-// board is portrait, so that height was the only thing deciding its width. The
-// mat is gone. The danger of deleting a surface is that whatever lived on it
-// quietly becomes unreachable, which is exactly what would have happened to the
-// Ideologue powers and to the cap-discard flow.
+// The mat stays along the bottom, by choice, and carries the power buttons. The
+// board buys its space back by turning a quarter turn instead. This check does
+// not care WHERE the power is offered — only that unlocking one makes it
+// available somewhere, which is the thing that broke when the mat was briefly
+// removed and would break again if it moved.
 
 GAME = {
   ...GAME,
@@ -532,23 +532,9 @@ GAME = {
 }
 await settle(4300) // the page polls every 4s
 
-check('an unlocked power is reachable without the mat', () => {
-  // Prospecting used to be a button inside the full mat and nowhere else.
+check('an unlocked power is offered somewhere', () => {
   drain('unlocking a power')
   ok(/Prospecting/i.test(text()), `the power is offered; saw: ${text().slice(0, 220)}`)
-})
-
-check('the power sits in the dock with the other actions, not in a panel', () => {
-  const dock = container.querySelector('.room-dock--summary')
-  ok(dock, 'the dock is a bar')
-  ok(/Prospecting/i.test(dock.textContent), 'and the power is in it')
-  ok(/End turn/i.test(dock.textContent), 'next to the way to finish')
-})
-
-check('the full mat is gone entirely, not merely hidden', () => {
-  // Hidden-but-rendered is how a "removed" surface comes back on somebody
-  // else's screen: one media query away from stealing the height again.
-  ok(!container.querySelector('.room-dock--full'), 'no full mat in the DOM at all')
 })
 
 // ── The endgame ────────────────────────────────────────────────────────────

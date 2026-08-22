@@ -389,10 +389,12 @@ check('Jumla and Polo Retreat get real pickers, not the manual box', () => {
   ok(!/What did you agree/.test(polo), 'and not the manual box')
 })
 
-check('the docked bar is the only home the cap-discard flow has left', () => {
+check('the cap-discard flow has a chain it can actually use', () => {
   // Discarding to the resource cap is done by lifting tokens off your own
-  // chain. That chain used to be inside the full mat; the mat is gone, so if
-  // this bar's chain is not wired the flow has no surface at all.
+  // chain, so the dock has to hand the selection and the click handler down to
+  // whichever chain it is showing. Wiring this is easy to drop when the dock
+  // changes shape, and when it is dropped the flow silently has nowhere to
+  // happen.
   //
   // Chain tokens are ALWAYS <button> and merely disabled when inert, so this
   // counts enabled ones. An earlier version of this check counted every button

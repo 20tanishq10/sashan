@@ -27,6 +27,7 @@ export default function BoardStage({
   focusPlayerId,
   hoveredZone,
   onZoneHover,
+  orientation = 'landscape', // the map turned a quarter turn; see ShasnBoard
   prompt,       // { text, onCancel } — the current instruction, if any
   focusedName,  // whose territory is being shown, if any
   onReleaseFocus,
@@ -40,6 +41,7 @@ export default function BoardStage({
           colorOf={colorOf}
           partyOf={partyOf}
           fit="height"
+          orientation={orientation}
           legalZones={legalZones}
           selectedAreas={selectedAreas}
           onAreaClick={onAreaClick}
