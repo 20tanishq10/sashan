@@ -58,7 +58,7 @@ writeFileSync(
     // The room's regions. Kept in their own folder because they are layout,
     // not game pieces.
     ...['RoomHeader', 'RivalRail', 'BoardStage', 'MarketRail', 'MatDock', 'CommandBar',
-        'TurnDigest', 'ZoneCard'].map(
+        'TurnDigest', 'ZoneCard', 'RoundPanel'].map(
       (n) => `export { default as ${n} } from '${abs('components/room/' + n + '.js')}'`
     ),
     `export * as G from '${abs('lib/shasn/game.js')}'`,
@@ -74,6 +74,10 @@ writeFileSync(
     `export * as Geometry from '${abs('lib/shasn/boardGeometry.js')}'`,
     `export * as Board from '${abs('components/ShasnBoard.js')}'`,
     `export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`,
+    `export * as Jumla from '${abs('lib/shasn/jumla.js')}'`,
+    `export * as Rounds from '${abs('lib/shasn/rounds.js')}'`,
+    `export * as ConspiracyData from '${abs('lib/shasn/data/conspiracyCards.js')}'`,
+    `export * as HeadlineData from '${abs('lib/shasn/data/headlineCards.js')}'`,
   ].join('\n')
 )
 
@@ -288,6 +292,102 @@ check('the zone card answers what the plaque cannot', () => {
   ok(html.includes('to hold'), 'states the requirement')
   ok(html.includes('empty'), 'counts what is left')
   ok(/need|Yours|holds it|no longer|requirement/.test(html), 'and says what it means for you')
+})
+
+check('a card going round the table says whose slot it is', () => {
+  // The unusual state: it is nobody's turn in the normal sense, and the person
+  // who has to act is usually not the active player. If the panel does not say
+  // whose slot it is, the table simply stalls while everyone waits for someone
+  // else.
+  const round = {
+    kind: 'gerrymander',
+    cardName: 'Submerged',
+    queue: ['p2', 'p3'],
+    acted: [{ playerId: 'p1', action: 'pass' }],
+    options: {},
+  }
+
+  const theirs = render(
+    'RoundPanel, not my slot',
+    React.createElement(M.RoundPanel, {
+      round,
+      players: GAME.players,
+      myPlayerId: 'p1',
+      colorOf,
+      onPass: () => {},
+    })
+  )
+  ok(theirs.includes('Submerged'), 'the card is named')
+  ok(theirs.includes('Bo'), 'and the player whose slot it is')
+  ok(theirs.includes('1 of 3'), 'with progress through the table')
+  ok(!theirs.includes('Pass'), 'and no controls, because I cannot act')
+
+  const mine = render(
+    'RoundPanel, my slot',
+    React.createElement(M.RoundPanel, {
+      round,
+      players: GAME.players,
+      myPlayerId: 'p2',
+      colorOf,
+      onPass: () => {},
+    })
+  )
+  ok(/Move one voter/.test(mine), 'my slot states what to do')
+  ok(mine.includes('Pass'), 'and always offers a way out — a slot that cannot be passed deadlocks')
+})
+
+check('the cash-out round asks for something different', () => {
+  const html = render(
+    'RoundPanel, cashing out',
+    React.createElement(M.RoundPanel, {
+      round: {
+        kind: 'cashOutVoter',
+        cardName: 'A Trip To Goalpara',
+        queue: ['p1'],
+        acted: [],
+        options: {},
+      },
+      players: GAME.players,
+      myPlayerId: 'p1',
+      colorOf,
+      onPass: () => {},
+    })
+  )
+  ok(/Voter Card/.test(html), 'it is about the market, not the board')
+  ok(!/Volatile/.test(html), 'and does not leak the other round\'s instructions')
+})
+
+check('Jumla and Polo Retreat get real pickers, not the manual box', () => {
+  // Both used to fall through to "resolve it at the table and type what you
+  // agreed", which is how four cards in the deck ended up inert.
+  const jumla = render(
+    'CardResolver, Jumla',
+    React.createElement(M.CardResolver, {
+      card: M.ConspiracyData.CONSPIRACY_CARDS.jumla,
+      kind: 'conspiracy',
+      onResolve: () => {},
+      onManual: () => {},
+      players: GAME.players,
+      myPlayerId: 'p1',
+    })
+  )
+  ok(/Place it/.test(jumla), 'Jumla offers placement')
+  ok(!/What did you agree/.test(jumla), 'and not the manual box')
+
+  const polo = render(
+    'CardResolver, Polo Retreat',
+    React.createElement(M.CardResolver, {
+      card: M.HeadlineData.HEADLINE_CARDS.polo_retreat,
+      kind: 'headline',
+      onResolve: () => {},
+      onManual: () => {},
+      players: GAME.players,
+      myPlayerId: 'p1',
+    })
+  )
+  ok(/Pair them/.test(polo), 'Polo Retreat offers a pairing')
+  for (const p of GAME.players) ok(polo.includes(p.name), `${p.name} can be chosen`)
+  ok(!/What did you agree/.test(polo), 'and not the manual box')
 })
 
 check('every deck glyph draws', () => {

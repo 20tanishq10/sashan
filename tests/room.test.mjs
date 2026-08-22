@@ -82,6 +82,7 @@ writeFileSync(
    export * as RES from '${abs('lib/shasn/resources.js')}'
    export * as Deck from '${abs('lib/shasn/deck.js')}'
    export * as Persistence from '${abs('lib/shasn/persistence.js')}'
+   export * as Rounds from '${abs('lib/shasn/rounds.js')}'
    export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`
 )
 
@@ -415,6 +416,84 @@ check('the mat is docked at the bottom, with the commands on it', () => {
   ok(text().includes('Ada'), 'my mat is in it')
   ok(/End turn/i.test(text()), 'and so is the way to finish')
   drain('checking the dock')
+})
+
+// ── A card going round the table ───────────────────────────────────────────
+// Submerged and A Trip To Goalpara are the one state where you must act and it
+// is NOT your turn. Everything else on this page is gated on isMyTurn, so this
+// is exactly the sort of thing that renders as a dead panel.
+
+GAME = {
+  ...GAME,
+  round: M.Rounds.openRound({
+    kind: 'cashOutVoter',
+    cardId: 'a_trip_to_goalpara',
+    cardName: 'A Trip To Goalpara',
+    queue: ['p2', 'p1'],
+    options: { holdRefill: true },
+  }),
+}
+await settle(4300) // the page polls every 4s; a server-side change needs one
+
+check("someone else's slot renders without offering me controls", () => {
+  drain('a round on somebody else')
+  const t = text()
+  ok(t.includes('A Trip To Goalpara'), 'the card is named')
+  ok(t.includes('Bo'), 'and whose slot it is')
+  ok(!/Click one of the open Voter Cards/.test(t), 'but I am not told to act')
+})
+
+GAME = { ...GAME, round: { ...GAME.round, queue: ['p1'], acted: [{ playerId: 'p2', action: 'act' }] } }
+await settle(4300) // the page polls every 4s; a server-side change needs one
+
+check('my slot tells me what to do, even though it is not my turn', () => {
+  drain('my slot in a round')
+  const t = text()
+  ok(/Click one of the open Voter Cards/.test(t), `I am told to act; saw: ${t.slice(0, 200)}`)
+  ok(/Pass/.test(t), 'and given a way out')
+  ok(!text().includes('boundary'), 'the error boundary did not trip')
+})
+
+check('the round is the first thing in the rail, above everything else', () => {
+  // It blocks the whole game — nothing else you could be asked to do outranks it.
+  const rail = container.querySelector('.room-rail')
+  const idx = rail.textContent.indexOf('A Trip To Goalpara')
+  ok(idx >= 0 && idx < 80, `near the top of the rail; found at ${idx}`)
+})
+
+GAME = { ...GAME, round: null }
+await settle(4300) // the page polls every 4s; a server-side change needs one
+
+check('the panel goes when the round closes', () => {
+  ok(!text().includes('A Trip To Goalpara'), 'no leftover furniture')
+  drain('closing the round')
+})
+
+// ── Jumla ──────────────────────────────────────────────────────────────────
+
+GAME = {
+  ...GAME,
+  players: GAME.players.map((p) =>
+    p.id === 'p2'
+      ? { ...p, ideologyCards: [...p.ideologyCards, { cardId: 'jumla', ideologue: 'capitalist', jumla: true }] }
+      : p
+  ),
+}
+await settle(4300) // the page polls every 4s; a server-side change needs one
+
+check('Jumla in a rival stack can be bought from where I am sitting', () => {
+  drain('Jumla on the table')
+  const t = text()
+  ok(/Take Jumla/.test(t), `the option is offered; saw: ${t.slice(0, 200)}`)
+  ok(!text().includes('boundary'), 'the error boundary did not trip')
+})
+
+GAME = { ...GAME, players: GAME.players.map((p) => ({ ...p, ideologyCards: p.ideologyCards.filter((e) => e.cardId !== 'jumla') })) }
+await settle(4300) // the page polls every 4s; a server-side change needs one
+
+check('and the option goes when Jumla leaves play', () => {
+  ok(!/Take Jumla/.test(text()), 'no offer to buy a card nobody holds')
+  drain('Jumla gone')
 })
 
 // ── The endgame ────────────────────────────────────────────────────────────

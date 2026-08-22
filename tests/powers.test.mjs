@@ -9,6 +9,7 @@ import {
   powers as P,
   cards as C,
   effects as Effects,
+  jumla as Jumla,
   game as G,
   conspiracyData,
   headlineData,
@@ -457,20 +458,301 @@ check("Vikas Model's resource option grants any 4", () => {
   eq(r.game.players[0].pool.trust, 4, 'took 4 trust:')
 })
 
-check('a card needing a multi-player flow is handed to the table', () => {
-  // Jumla hands you an extra Ideology Card that opponents can buy off you and
-  // that you may re-file each turn — a flow that does not exist yet, so it is
-  // deliberately left to the players rather than half-applied.
+// ===========================================================================
+// Jumla (p.18) — the Conspiracy Card that becomes an Ideology Card
+// ===========================================================================
+//
+// "This is an extra Ideology Card of your choice. Opponents can take this card
+//  by paying you as many resources as the Ideologue level this card is on. At
+//  the end of your turn, you may place this card under a different Ideologue."
+//
+// It is the only card in the game that is bought, held, counted and stolen, so
+// it gets more attention here than its one line of text suggests.
+
+check('Jumla asks which Ideologue before it will resolve', () => {
   const { game } = ready({ conspiracyCards: ['jumla'] })
   const r = G.playConspiracy(game, { cardId: 'jumla' })
   ok(!r.error, r.error)
-  ok(r.manual, 'should require manual resolution')
-  ok(r.game.awaitingResolution, 'awaiting resolution recorded')
+  ok(r.manual, 'without a choice it cannot be placed')
+  ok(/Ideologue/.test(r.game.awaitingResolution?.prompt || ''), 'and says so')
+})
 
-  const done = G.resolveManually(r.game, { note: 'Placed under The Idealist.' })
-  ok(!done.error, done.error)
-  eq(done.game.awaitingResolution, null, 'cleared:')
-  eq(done.game.players[0].conspiracyCards.length, 0, 'card spent:')
+check('Jumla joins your Ideology stack and counts toward your powers', () => {
+  // The point of the card. Two Capitalist cards is nothing; Jumla makes it three,
+  // which is the Level 3 threshold.
+  const { game } = ready({
+    conspiracyCards: ['jumla'],
+    ideologyCards: cardsOf(2, 'capitalist'),
+  })
+  ok(!I.unlockedPowers(game.players[0].ideologyCards).capitalist.level3, 'not unlocked at 2')
+
+  const r = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' })
+  ok(!r.error, r.error)
+  ok(!r.manual, 'it resolves with a choice')
+
+  const me = r.game.players[0]
+  eq(me.ideologyCards.length, 3, 'the stack grew:')
+  ok(I.unlockedPowers(me.ideologyCards).capitalist.level3, 'and Level 3 unlocked')
+  eq(me.conspiracyCards.length, 0, 'it left your Conspiracy hand:')
+})
+
+check('Jumla is not discarded when played — it stays on the table', () => {
+  // Every other Conspiracy Card goes to the discard pile when played. Jumla does
+  // not: it is still in play, in somebody's stack. Discarding it would let the
+  // same card be drawn again while the first copy sits on the board.
+  const { game } = ready({ conspiracyCards: ['jumla'] })
+  const before = game.conspiracyDeck.discard.length
+  const r = G.playConspiracy(game, { cardId: 'jumla', choice: 'idealist' })
+  ok(!r.error, r.error)
+  eq(r.game.conspiracyDeck.discard.length, before, 'the discard pile is unchanged:')
+  ok(!r.game.conspiracyDeck.discard.includes('jumla'), 'and Jumla is not in it')
+})
+
+check('the price of Jumla is the level it sits on', () => {
+  // The one phrase on the card that has to be interpreted. Cards stack under an
+  // Ideologue, so the level is the position in that stack.
+  const { game } = ready({
+    conspiracyCards: ['jumla'],
+    ideologyCards: [...cardsOf(3, 'supremo'), ...cardsOf(1, 'idealist')],
+  })
+  const r = G.playConspiracy(game, { cardId: 'jumla', choice: 'supremo' })
+  ok(!r.error, r.error)
+  eq(Jumla.priceOf(r.game), 4, 'fourth card under the Supremo:')
+
+  const cheap = G.playConspiracy(game, { cardId: 'jumla', choice: 'idealist' })
+  eq(Jumla.priceOf(cheap.game), 2, 'second card under the Idealist:')
+})
+
+check('an opponent can buy Jumla, and the money goes to the holder', () => {
+  let { game } = ready({
+    conspiracyCards: ['jumla'],
+    ideologyCards: cardsOf(2, 'capitalist'),
+  })
+  game = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' }).game
+  game = {
+    ...game,
+    players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ funds: 6 }) } : p)),
+  }
+
+  const price = Jumla.priceOf(game)
+  eq(price, 3, 'third card under the Capitalist:')
+
+  const sellerBefore = R.poolTotal(game.players[0].pool)
+  const buyerBefore = R.poolTotal(game.players[1].pool)
+
+  const r = G.takeJumla(game, { playerId: 'p2', payment: { funds: 3 } })
+  ok(!r.error, r.error)
+  eq(R.poolTotal(r.game.players[1].pool), buyerBefore - price, 'the buyer paid:')
+  eq(R.poolTotal(r.game.players[0].pool), sellerBefore + price, 'the holder was paid:')
+  eq(worldTotal(game), worldTotal(r.game), 'and nothing was created or destroyed:')
+})
+
+check('losing Jumla can take a power away with it', () => {
+  // The real bite of the card. Two Capitalist cards plus Jumla is a Level 3
+  // power; buy Jumla and the power goes.
+  let { game } = ready({
+    conspiracyCards: ['jumla'],
+    ideologyCards: cardsOf(2, 'capitalist'),
+  })
+  game = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' }).game
+  ok(I.unlockedPowers(game.players[0].ideologyCards).capitalist.level3, 'unlocked while held')
+
+  game = {
+    ...game,
+    players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ funds: 6 }) } : p)),
+  }
+  const r = G.takeJumla(game, { playerId: 'p2' })
+  ok(!r.error, r.error)
+  ok(
+    !I.unlockedPowers(r.game.players[0].ideologyCards).capitalist.level3,
+    'and gone once it is taken'
+  )
+  ok(
+    I.unlockedPowers(r.game.players[1].ideologyCards).capitalist.count === 1,
+    'the buyer has it now'
+  )
+})
+
+check('Jumla exists in exactly one place at a time', () => {
+  let { game } = ready({ conspiracyCards: ['jumla'], ideologyCards: cardsOf(2, 'capitalist') })
+  game = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' }).game
+  game = {
+    ...game,
+    players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ funds: 6 }) } : p)),
+  }
+  const r = G.takeJumla(game, { playerId: 'p2' })
+  ok(!r.error, r.error)
+
+  const copies = r.game.players.reduce(
+    (n, p) => n + p.ideologyCards.filter((e) => Jumla.isJumla(e)).length,
+    0
+  )
+  eq(copies, 1, 'one copy across the whole table:')
+})
+
+check('you cannot buy Jumla off yourself, or buy it when you cannot pay', () => {
+  let { game } = ready({ conspiracyCards: ['jumla'], ideologyCards: cardsOf(2, 'capitalist') })
+  game = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' }).game
+
+  ok(G.takeJumla(game, { playerId: 'p1' }).error, 'not off yourself')
+
+  const broke = {
+    ...game,
+    players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ funds: 1 }) } : p)),
+  }
+  const r = G.takeJumla(broke, { playerId: 'p2' })
+  ok(r.error, 'refused when short')
+  ok(/costs 3/.test(r.error), `and states the price; got: ${r.error}`)
+
+  const wrongCount = G.takeJumla(
+    { ...game, players: game.players.map((p, i) => (i === 1 ? { ...p, pool: pool({ funds: 9 }) } : p)) },
+    { playerId: 'p2', payment: { funds: 2 } }
+  )
+  ok(wrongCount.error, 'and refused when the payment is the wrong size')
+})
+
+check('the holder may re-file Jumla on their own turn, and nobody else may', () => {
+  let { game } = ready({ conspiracyCards: ['jumla'], ideologyCards: cardsOf(2, 'capitalist') })
+  game = G.playConspiracy(game, { cardId: 'jumla', choice: 'capitalist' }).game
+
+  const moved = G.moveJumla(game, { playerId: 'p1', ideologue: 'idealist' })
+  ok(!moved.error, moved.error)
+  eq(Jumla.findJumla(moved.game).ideologue, 'idealist', 'moved:')
+  ok(
+    !I.unlockedPowers(moved.game.players[0].ideologyCards).capitalist.level3,
+    'and the power it was propping up is gone'
+  )
+
+  ok(G.moveJumla(game, { playerId: 'p2', ideologue: 'idealist' }).error, 'not by a non-holder')
+  ok(G.moveJumla(game, { playerId: 'p1', ideologue: 'capitalist' }).error, 'and not to where it is')
+})
+
+// ===========================================================================
+// Polo Retreat (p.17) — lending a Level 3 power
+// ===========================================================================
+
+check('Polo Retreat pairs two players and lends their Level 3 powers', () => {
+  const { game } = newGame()
+  const players = game.players.map((p, i) =>
+    i === 0
+      ? { ...p, ideologyCards: cardsOf(3, 'capitalist') }
+      : i === 1
+        ? { ...p, ideologyCards: cardsOf(3, 'supremo') }
+        : p
+  )
+
+  const r = C.applyEffect(
+    { type: 'sharePowers', level: 3, players: 2 },
+    { players, board: game.board, reserve: game.reserve, actorId: 'p3', targets: ['p1', 'p2'] }
+  )
+  ok(!r.error, r.error)
+  ok(!r.manual, 'the engine resolves it now')
+
+  eq(r.players[0].effects.sharedLevel3With, 'p2', 'Ada borrows from Bo:')
+  eq(r.players[1].effects.sharedLevel3With, 'p1', 'and Bo from Ada:')
+  eq(r.players[2].effects.sharedLevel3With, null, 'nobody else is involved:')
+})
+
+check('a borrowed Level 3 power can actually be used', () => {
+  // The field existed before this and nothing read it, so the card granted a
+  // permission that no code checked. This is the check.
+  let { game, rng } = newGame()
+  game = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 0
+        ? { ...p, ideologyCards: cardsOf(3, 'supremo'), pool: pool({ funds: 3 }) }
+        : i === 1
+          ? { ...p, ideologyCards: cardsOf(3, 'capitalist') }
+          : p
+    ),
+  }
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+  game = G.answerIdeology(game, card.answers[0].ideologue).game
+  if (game.turnPhase === consts.TURN_PHASES.RESOURCE_CAP) {
+    game = G.discardToCap(game, R.autoDiscardToCap(G.activePlayer(game).pool)).game
+  }
+
+  // Ada has the Supremo's L3, not the Capitalist's, so Prospecting is barred.
+  const barred = G.prospect(game, { give: pool({ funds: 1 }), take: pool({ trust: 2 }) })
+  ok(barred.error, 'barred without the card')
+  ok(/not unlocked/.test(barred.error), `and says why; got: ${barred.error}`)
+
+  // Now Bo lends it.
+  const lent = {
+    ...game,
+    players: game.players.map((p) =>
+      p.id === 'p1' ? Effects.withEffects(p, { sharedLevel3With: 'p2' }) : p
+    ),
+  }
+  const r = G.prospect(lent, { give: pool({ funds: 1 }), take: pool({ trust: 2 }) })
+  ok(!r.error, `and allowed with it; got: ${r.error}`)
+})
+
+check('a lender with nothing to lend opens the whole level instead', () => {
+  // The card's own clarification: "If either of the players don't have any
+  // unlocked Level 3 powers, both players can use any one Level 3 power of their
+  // choice." Otherwise pairing with a beginner is a dead card.
+  const { game } = newGame()
+  const players = game.players.map((p, i) =>
+    i === 0 ? { ...p, ideologyCards: cardsOf(3, 'capitalist') } : p // p2 has nothing
+  )
+  const r = C.applyEffect(
+    { type: 'sharePowers', level: 3, players: 2 },
+    { players, board: game.board, reserve: game.reserve, actorId: 'p3', targets: ['p1', 'p2'] }
+  )
+  ok(!r.error, r.error)
+  eq(r.players[0].effects.sharedLevel3With, 'any', 'the whole level opens:')
+  eq(r.players[1].effects.sharedLevel3With, 'any', 'for both of them:')
+})
+
+check('a borrowed power is offered by the UI, and marked as borrowed', () => {
+  let { game } = newGame()
+  game = {
+    ...game,
+    players: game.players.map((p, i) =>
+      i === 0
+        ? Effects.withEffects({ ...p, ideologyCards: cardsOf(3, 'supremo') }, {
+            sharedLevel3With: 'any',
+          })
+        : p
+    ),
+  }
+  const actions = P.availableActions(game)
+  const prospecting = actions.find((a) => a.action === 'prospect')
+  ok(prospecting, 'Prospecting is offered')
+  ok(prospecting.borrowed, 'and flagged as borrowed rather than earned')
+
+  const own = actions.find((a) => a.action === 'donations')
+  ok(own && !own.borrowed, "the player's own power is not flagged")
+})
+
+check('Polo Retreat lapses at the start of your next turn', () => {
+  // "in their next turns" — one turn, not forever.
+  let { game, rng } = newGame()
+  game = {
+    ...game,
+    players: game.players.map((p) =>
+      p.id === 'p1' ? Effects.withEffects(p, { sharedLevel3With: 'p2' }) : p
+    ),
+  }
+  const card = I.getIdeologyCard(game.pendingIdeologyCard)
+  game = G.answerIdeology(game, card.answers[0].ideologue).game
+  if (game.turnPhase === consts.TURN_PHASES.RESOURCE_CAP) {
+    game = G.discardToCap(game, R.autoDiscardToCap(G.activePlayer(game).pool)).game
+  }
+
+  const later = aroundTheTable(game, rng)
+  eq(later.players[0].effects.sharedLevel3With, null, 'the loan is over:')
+})
+
+check('two different players cannot be paired with themselves', () => {
+  const { game } = newGame()
+  const r = C.applyEffect(
+    { type: 'sharePowers', level: 3, players: 2 },
+    { players: game.players, board: game.board, reserve: game.reserve, actorId: 'p3', targets: ['p1', 'p1'] }
+  )
+  ok(r.error, 'refused')
 })
 
 check('The Hawala Network installs a standing exchange with the Reserve', () => {

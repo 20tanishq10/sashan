@@ -26,10 +26,16 @@ const TURN_ACTIONS = new Set([
   'donations',
   'payback',
   'tough_love',
+  'move_jumla',
 ])
 
 // Actions that consume randomness and therefore need the rng counter advanced.
+//
+// act_in_round is here because the LAST slot of A Trip To Goalpara refills the
+// open Voter Card row, which draws. Most slots draw nothing, but the counter has
+// to be advanced on the action that might.
 const RANDOM_ACTIONS = new Set([
+  'act_in_round',
   'answer_ideology_timeout',
   'influence',
   'redraw_ideology',
@@ -69,12 +75,23 @@ function dispatch(game, rng, action, actorId) {
       return Game.playConspiracy(game, { ...p, playerId: actorId })
     case 'respond_interrupt':
       return Game.respondInterrupt(game, { ...p, playerId: actorId })
+    // Deliberately not turn-gated: a round goes round the table, so the player
+    // acting is by definition usually not the active player. The engine checks
+    // that it is this player's slot.
+    case 'act_in_round':
+      return Game.actInRound(game, rng, { ...p, playerId: actorId })
+    // Also not turn-gated: the card says "opponents can take this card" with no
+    // timing restriction, and snatching it mid-round is the point.
+    case 'take_jumla':
+      return Game.takeJumla(game, { ...p, playerId: actorId })
     case 'resolve_headline':
       return Game.resolveNextHeadline(game, rng, p)
     case 'resolve_awaiting':
       return Game.resolveAwaiting(game, p)
     case 'resolve_manually':
       return Game.resolveManually(game, p)
+    case 'move_jumla':
+      return Game.moveJumla(game, { ...p, playerId: actorId })
     case 'end_turn':
       return Game.endTurn(game, rng)
     case 'prospect':

@@ -12,14 +12,27 @@ import { useState } from 'react'
 import Card, { CardText } from './Card'
 import IdeologueMark from './IdeologueMark'
 import * as R from '../lib/shasn/resources'
-import { RESOURCES, RESOURCE_IDS } from '../lib/shasn/constants'
+import { RESOURCES, RESOURCE_IDS, IDEOLOGUES, IDEOLOGUE_IDS } from '../lib/shasn/constants'
 
-export default function CardResolver({ card, kind, prompt, onResolve, onManual, busy }) {
+export default function CardResolver({
+  card,
+  kind,
+  prompt,
+  onResolve,
+  onManual,
+  busy,
+  players = [], // needed only by the cards that choose people
+  myPlayerId = null,
+}) {
   const effect = card?.effect
   const options = effect?.type === 'choice' ? effect.options : null
   const [picked, setPicked] = useState(null)
   const [take, setTake] = useState(R.emptyPool())
   const [note, setNote] = useState('')
+  // Jumla picks an Ideologue; Polo Retreat picks two players. Both are held here
+  // rather than in the page, because they only exist while this card is up.
+  const [ideologue, setIdeologue] = useState(null)
+  const [pair, setPair] = useState([])
 
   if (!card) return null
 
@@ -35,13 +48,85 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
       className="shasn-deal"
       deck={deck}
       title={card.name}
-      badge={card.cost != null ? card.cost : null}
+      badge={badgeFor(card.cost)}
       footer={card.clarification || null}
       style={{ marginTop: 12 }}
     >
       <CardText>{card.text}</CardText>
 
-      {options ? (
+      {effect?.type === 'wildIdeologyCard' ? (
+        /* Jumla (p.18) — "This is an extra Ideology Card of your choice."
+           The choice is which Ideologue it stacks under, which decides both what
+           it unlocks and what an opponent pays to take it off you. */
+        <>
+          <p style={S.prompt}>{prompt || 'Place Jumla under an Ideologue:'}</p>
+          <div style={S.options}>
+            {IDEOLOGUE_IDS.map((id) => (
+              <button
+                key={id}
+                onClick={() => setIdeologue(id)}
+                style={{
+                  ...S.option,
+                  borderColor: ideologue === id ? 'var(--accent)' : 'var(--border)',
+                  background: ideologue === id ? 'var(--accent-bg)' : 'var(--surface)',
+                }}
+              >
+                <IdeologueMark ideologue={id} size={16} />
+                {IDEOLOGUES[id].label}
+              </button>
+            ))}
+          </div>
+          <button
+            style={S.primary}
+            disabled={busy || !ideologue}
+            onClick={() => onResolve(ideologue)}
+          >
+            Place it
+          </button>
+        </>
+      ) : effect?.type === 'sharePowers' ? (
+        /* Polo Retreat (p.17) — "Choose 2 players." Including yourself is legal:
+           the card says players, not opponents. */
+        <>
+          <p style={S.prompt}>
+            {prompt || `Choose ${effect.players} players to pair (${pair.length}/${effect.players}):`}
+          </p>
+          <div style={S.options}>
+            {players.map((p) => {
+              const on = pair.includes(p.id)
+              return (
+                <button
+                  key={p.id}
+                  onClick={() =>
+                    setPair(
+                      on
+                        ? pair.filter((x) => x !== p.id)
+                        : pair.length >= effect.players
+                          ? pair
+                          : [...pair, p.id]
+                    )
+                  }
+                  style={{
+                    ...S.option,
+                    borderColor: on ? 'var(--accent)' : 'var(--border)',
+                    background: on ? 'var(--accent-bg)' : 'var(--surface)',
+                  }}
+                >
+                  {p.name}
+                  {p.id === myPlayerId && <span style={S.badge}>you</span>}
+                </button>
+              )
+            })}
+          </div>
+          <button
+            style={S.primary}
+            disabled={busy || pair.length !== effect.players}
+            onClick={() => onResolve(null, { targets: pair })}
+          >
+            Pair them
+          </button>
+        </>
+      ) : options ? (
         <>
           <p style={S.prompt}>{prompt || 'Pick one:'}</p>
           <div style={S.options}>
@@ -137,6 +222,21 @@ export default function CardResolver({ card, kind, prompt, onResolve, onManual, 
       )}
     </Card>
   )
+}
+
+/**
+ * A card's cost as something React can render.
+ *
+ * Conspiracy costs are objects — `{ any: 4 }` — not numbers, so passing the raw
+ * value through crashed the whole room with "Objects are not valid as a React
+ * child" the moment any Conspiracy Card needed resolving by hand. Headlines have
+ * no cost at all.
+ */
+function badgeFor(cost) {
+  if (cost == null) return null
+  if (typeof cost === 'number') return cost
+  const total = RESOURCE_IDS.reduce((n, id) => n + (cost[id] || 0), 0) + (cost.any || 0)
+  return total || null
 }
 
 function labelFor(option) {

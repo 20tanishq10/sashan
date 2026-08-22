@@ -456,6 +456,11 @@ function playOut(seed, playerCount = 3, maxTurns = 4000) {
       if (game.awaitingResolution) {
         game = G.resolveManually(game, { note: 'resolved at the table' }).game
       }
+      // Submerged and A Trip To Goalpara stop the game and walk it round the
+      // table. The bot takes each slot in turn — cashing out where it can, and
+      // passing on the Gerrymander, which needs a board decision this bot has
+      // no opinion about. Passing is a legal choice, so the game continues.
+      game = servicePendingRound(game, rng)
     }
 
     if (game.phase === consts.GAME_PHASES.FINISHED) break
@@ -466,6 +471,30 @@ function playOut(seed, playerCount = 3, maxTurns = 4000) {
   }
 
   return { game, turns }
+}
+
+/**
+ * Take every slot in an open round until it closes.
+ *
+ * The bot cashes out a Voter Card when asked (there is always one to take, and
+ * taking resources is never a bad move) and passes on the Gerrymander, which
+ * needs a judgement about the board. Passing is legal by design — a player with
+ * no Gerrymandering Rights has nothing to do with their slot — so this is a
+ * real path through the code, not a way around it.
+ */
+function servicePendingRound(game, rng) {
+  let guard = 0
+  while (game.round && guard++ < 12) {
+    const playerId = game.round.queue[0]
+    const r =
+      game.round.kind === 'cashOutVoter' && game.market.open.length
+        ? G.actInRound(game, rng, { playerId, action: 'act', openIndex: 0 })
+        : G.actInRound(game, rng, { playerId, action: 'pass' })
+    if (r.error) throw new Error(`round slot failed: ${r.error}`)
+    game = r.game
+  }
+  if (game.round) throw new Error('a round would not close')
+  return game
 }
 
 check('a full 3-player game reaches a finish without errors', () => {

@@ -21,6 +21,7 @@ import MarketRail from '../../components/room/MarketRail'
 import MatDock from '../../components/room/MatDock'
 import CommandBar from '../../components/room/CommandBar'
 import TurnDigest from '../../components/room/TurnDigest'
+import RoundPanel from '../../components/room/RoundPanel'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
 import InterruptPrompt from '../../components/InterruptPrompt'
 import TradePanel from '../../components/TradePanel'
@@ -33,6 +34,7 @@ import * as R from '../../lib/shasn/resources'
 import * as Ideology from '../../lib/shasn/ideology'
 import * as Voter from '../../lib/shasn/voterCards'
 import * as Cards from '../../lib/shasn/cards'
+import * as Jumla from '../../lib/shasn/jumla'
 import { ZONES, ZONE_IDS } from '../../lib/shasn/zones'
 import { RESOURCES, RESOURCE_IDS, IDEOLOGUES, TURN_PHASES } from '../../lib/shasn/constants'
 
@@ -66,6 +68,9 @@ export default function GameRoom() {
   const [justTucked, setJustTucked] = useState(null) // stack that just gained a card
   const [focusedRival, setFocusedRival] = useState(null) // whose territory to light
   const [hoveredZone, setHoveredZone] = useState(null)
+  // Taking your slot in a card that is going round the table. Same shape as
+  // `gerry` so the board click handler can treat them alike.
+  const [roundGerry, setRoundGerry] = useState(null)
   // The turn number whose digest you have already read, so it appears once.
   const [digestSeen, setDigestSeen] = useState(null)
 
@@ -286,9 +291,45 @@ export default function GameRoom() {
   // Shown once when the turn returns to you, and gone the moment you act on it.
   const showDigest = isMyTurn && !finished && digestSeen !== game.turnNumber
 
+  // ── A card going round the table ────────────────────────────────────────
+  // Submerged and A Trip To Goalpara ask every player in turn, so for most of
+  // their duration it is NOT your turn and you still have to act.
+  const round = game.round || null
+  const myRoundSlot = Boolean(round) && round.queue[0] === myPlayerId && !isSpectator
+
+  // Jumla sits in somebody's Ideology stack and can be bought off them at any
+  // time (p.18), so this is not gated on whose turn it is.
+  const jumlaAt = Jumla.findJumla(game)
+  const jumlaPrice = jumlaAt ? Jumla.priceOf(game) : 0
+  const jumlaHolder = jumlaAt ? game.players.find((p) => p.id === jumlaAt.playerId) : null
+  const canTakeJumla =
+    Boolean(jumlaAt) &&
+    !isSpectator &&
+    jumlaAt.playerId !== myPlayerId &&
+    R.poolTotal(me?.pool || {}) >= jumlaPrice
+
   // ── Board interaction ────────────────────────────────────────────────────
 
   function onAreaClick(zoneId, areaIndex) {
+    // A round is the one time you act on the board when it is not your turn, so
+    // this is checked before the isMyTurn guard below rather than after it.
+    if (roundGerry) {
+      const occupant = game.board.zones[zoneId].owners[areaIndex]
+      if (!roundGerry.from) {
+        if (!occupant) return say('error', 'Pick a voter to move.')
+        return setRoundGerry({ ...roundGerry, from: { zoneId, areaIndex } })
+      }
+      if (occupant) return say('error', 'Destination must be empty.')
+      send('act_in_round', {
+        action: 'act',
+        rightsZoneId: roundGerry.rightsZoneId,
+        from: roundGerry.from,
+        to: { zoneId, areaIndex },
+      })
+      setRoundGerry(null)
+      return
+    }
+
     if (!isMyTurn || finished) return
     const occupant = game.board.zones[zoneId].owners[areaIndex]
 
@@ -371,6 +412,59 @@ export default function GameRoom() {
 
   const attention = []
 
+  if (round) {
+    attention.push(
+      <RoundPanel
+        key="round"
+        round={round}
+        players={game.players}
+        myPlayerId={myPlayerId}
+        colorOf={colorOf}
+        busy={busy}
+        onPass={() => {
+          setRoundGerry(null)
+          send('act_in_round', { action: 'pass' })
+        }}
+      >
+        {myRoundSlot && round.kind === 'gerrymander' && (
+          <div style={S.attnRow}>
+            {myRightsZones.length === 0 ? (
+              <p style={S.attnText}>
+                You hold no majorities, so you have no Gerrymandering Rights and nothing to
+                move (p.15). Pass.
+              </p>
+            ) : roundGerry ? (
+              <p style={S.attnText}>
+                {roundGerry.from
+                  ? 'Now click an empty area to move it to — not a Volatile one.'
+                  : 'Click the voter you want to move.'}
+              </p>
+            ) : (
+              myRightsZones.map((z) => (
+                <button
+                  key={z}
+                  className="btn btn--ghost btn--sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelection(null)
+                    setGerry(null)
+                    setPowerMode(null)
+                    setRoundGerry({ rightsZoneId: z, from: null })
+                  }}
+                >
+                  using {ZONES[z].label}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+        {myRoundSlot && round.kind === 'cashOutVoter' && (
+          <p style={S.attnText}>Click one of the open Voter Cards to take it.</p>
+        )}
+      </RoundPanel>
+    )
+  }
+
   if (isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me) {
     const over = R.excessOverCap(me.pool, me.resourceCap)
     attention.push(
@@ -436,7 +530,9 @@ export default function GameRoom() {
           }
           prompt={game.awaitingResolution.prompt}
           busy={busy}
-          onResolve={(choice) => send('resolve_awaiting', { choice })}
+          players={game.players}
+          myPlayerId={myPlayerId}
+          onResolve={(choice, extra) => send('resolve_awaiting', { choice, ...(extra || {}) })}
           onManual={(n) => send('resolve_awaiting', { note: n })}
         />
       ) : (
@@ -513,6 +609,42 @@ export default function GameRoom() {
         why: 'You need the most voters in a zone to hold Gerrymandering Rights (p.15).',
       })
     }
+  }
+
+  // Jumla (p.18) — "At the end of your turn, you may place this card under a
+  // different Ideologue." Strictly optional, so it is an action you take rather
+  // than a prompt you have to dismiss.
+  if (canAct && jumlaAt?.playerId === myPlayerId) {
+    for (const id of Object.keys(IDEOLOGUES)) {
+      if (id === jumlaAt.ideologue) continue
+      commands.push({
+        id: `jumla-${id}`,
+        label: 'Move Jumla',
+        detail: IDEOLOGUES[id].label,
+        available: true,
+        hint: `Re-file Jumla under ${IDEOLOGUES[id].label}. It currently props up ${
+          IDEOLOGUES[jumlaAt.ideologue].label
+        } at level ${jumlaPrice}.`,
+        onClick: () => send('move_jumla', { ideologue: id }),
+      })
+    }
+  }
+
+  // Taking it off somebody else is NOT turn-gated — the card says "opponents"
+  // with no timing restriction, and the moment worth taking it is usually not
+  // your own turn.
+  if (jumlaAt && jumlaAt.playerId !== myPlayerId && !isSpectator && !finished) {
+    commands.push({
+      id: 'jumla-take',
+      label: 'Take Jumla',
+      detail: `${jumlaPrice} resource${jumlaPrice === 1 ? '' : 's'}`,
+      available: canTakeJumla && !busy,
+      why: canTakeJumla
+        ? undefined
+        : `Jumla is on level ${jumlaPrice} — you need ${jumlaPrice} resources to take it.`,
+      hint: `Buy Jumla from ${jumlaHolder?.name} for ${jumlaPrice}. It counts as one of their Ideology Cards, so taking it may cost them a power.`,
+      onClick: () => send('take_jumla', {}),
+    })
   }
 
   return (
@@ -719,12 +851,18 @@ export default function GameRoom() {
             market={game.market}
             pool={me?.pool}
             onSelect={(i) => {
+              // During A Trip To Goalpara the same three cards mean something
+              // else: you are not buying one, you are cashing one out.
+              if (myRoundSlot && round.kind === 'cashOutVoter') {
+                send('act_in_round', { action: 'act', openIndex: i })
+                return
+              }
               setGerry(null)
               setPowerMode(null)
               setSelection({ openIndex: i, zoneId: null, areas: [] })
             }}
             selectedIndex={selection?.openIndex ?? null}
-            disabled={!canAct}
+            disabled={myRoundSlot && round.kind === 'cashOutVoter' ? busy : !canAct}
             conspiracyDeck={game.conspiracyDeck}
             headlineDeck={game.headlineDeck}
             pendingHeadlines={game.pendingHeadlines?.length || 0}
