@@ -729,12 +729,25 @@ a:hover { text-decoration: underline; }
 .room {
   height: 100vh;
   height: 100dvh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* FLEX, NOT GRID — and that is the whole point.
+     This was `grid-template-rows: auto minmax(0,1fr) auto`: three rows for what
+     was assumed to be three children. It is four. The overlay slot between the
+     header and the stage renders an empty div even when there is nothing to
+     overlay, and that empty div took the 1fr row — measured live at 137.66px of
+     free space claimed by an element 0px tall. The stage was pushed into the
+     next `auto` row and has therefore been sized by its own content this whole
+     time, never receiving the space it was supposed to fill.
+
+     In a flex column an empty child is simply 0 tall and the stage takes the
+     remainder, however many overlay slots come and go. */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 .room-stage {
+  /* The one thing that grows. */
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 244px;
   gap: 14px;
@@ -793,17 +806,23 @@ a:hover { text-decoration: underline; }
   .room-dock--summary { display: none; }
 }
 
+/* Below three columns the rails stack above and below the board. Both were
+   fixed at 156px against a 488px stage, which left the board 0px — measured, in
+   a real browser: the map was not small, it was ABSENT. Anyone whose window is
+   under 1180px wide saw no board at all.
+
+   So the board now has a floor and the rails give way to it. */
 @media (max-width: 1180px) {
   .room-stage {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(200px, 1fr) auto;
   }
   /* Rivals and market become one horizontal strip above the board. */
   .room-rail {
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-    max-height: 156px;
+    max-height: 130px; /* was 156; two of these left the board 0px */
   }
   .room-rail > * { flex: 0 0 auto; }
 }

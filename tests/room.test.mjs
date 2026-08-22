@@ -537,6 +537,48 @@ check('an unlocked power is offered somewhere', () => {
   ok(/Prospecting/i.test(text()), `the power is offered; saw: ${text().slice(0, 220)}`)
 })
 
+// ── The shell gives the board the space it is owed ─────────────────────────
+//
+// This is the check that was missing all along, and the bug it describes was
+// found in a real browser, not here: `.room` was a grid declaring three rows for
+// what is actually four children. The overlay slot between the header and the
+// stage renders an empty div even when there is nothing to overlay, and that
+// empty div took the 1fr row — 137.66px of free space claimed by an element 0px
+// tall. The stage fell into the next `auto` row and was sized by its own content
+// forever after.
+//
+// jsdom does no layout, so it cannot measure the consequence. It CAN count
+// children, which is all this needed.
+
+check('the room shell does not assume how many children it has', () => {
+  const room = container.querySelector('.room')
+  ok(room, 'the shell is there')
+
+  // A flex column is indifferent to stray empty children; a grid with a fixed
+  // row list is not. If this ever goes back to grid, the row count has to match
+  // the child count exactly and stay matching, which is not a thing that holds.
+  const inline = room.getAttribute('style') || ''
+  ok(!/grid-template-rows/.test(inline), 'no hard-coded row list on the shell')
+
+  const empties = [...room.children].filter(
+    (c) => !c.textContent.trim() && !c.querySelector('svg, img, input, button')
+  )
+  ok(
+    empties.length > 0,
+    `the overlay slots really do render empty children — found ${empties.length}. ` +
+      'This is the fact that broke the grid, so it is asserted rather than assumed.'
+  )
+})
+
+check('the stage is the child that grows, and it is not the last one', () => {
+  // The stage sits between the header and the dock, so "give the remainder to
+  // the last child" would not have worked either.
+  const kids = [...container.querySelector('.room').children]
+  const stageIndex = kids.findIndex((c) => c.classList.contains('room-stage'))
+  ok(stageIndex > 0, 'something comes before the stage')
+  ok(stageIndex < kids.length - 1, 'and the dock comes after it')
+})
+
 // ── The endgame ────────────────────────────────────────────────────────────
 // Filling the board ends the election (p.19) and swaps the whole room for the
 // final tally. That render path had its own hook-ordering bug in the Scoreboard,
