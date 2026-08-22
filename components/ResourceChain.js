@@ -56,7 +56,10 @@ export default function ResourceChain({
   const ghosts = wasPool ? layoutTokens(wasPool) : []
 
   return (
-    <div style={S.wrap}>
+    /* Named so tests can look inside the chain specifically. A check that
+       merely counted buttons in the surrounding dock passed while the chain
+       itself was completely inert. */
+    <div className="shasn-chain" style={S.wrap}>
       <div style={{ ...S.track, height: size + 8 }}>
         {/* the linking bar behind the slots */}
         <div style={{ ...S.rail, height: size * 0.52 }} />

@@ -761,9 +761,11 @@ a:hover { text-decoration: underline; }
 }
 .room-rail::-webkit-scrollbar-track { background: transparent; }
 
-/* The board column. The board sizes itself to the height available and the
-   column centres it, which is why the gutters end up wide on a big screen —
-   a portrait map cannot use that width. */
+/* The board column.
+   The board is portrait (872x1218), so its width is decided entirely by the
+   height it is given: width = height x 0.716. Nothing else can make it bigger.
+   That is why the dock below is a bar and not a mat — every pixel the dock
+   gives back becomes 0.716 of a pixel of board width. */
 .room-board {
   min-height: 0;
   min-width: 0;
@@ -774,19 +776,24 @@ a:hover { text-decoration: underline; }
   gap: 8px;
 }
 
-/* ── Folding ────────────────────────────────────────────────
-   Two independent thresholds. Short screens give the mat back to
-   the board; narrow screens stop trying to hold three columns. */
+/* ── The dock is always a bar ────────────────────────────────
+   This used to fork on a 820px height threshold: taller screens got the whole
+   mat. That was wrong, and measurably so. On a 936px-tall screen the full mat
+   took 374px — 40% of the viewport — to show four cards, which left the board
+   470px of height and therefore only 337px of width inside a 1026px column.
+   The screen looked empty because it was.
 
-/* A 13" laptop with browser chrome has about 700px. The mat collapses to a
-   summary bar and the board keeps the difference. */
-@media (max-height: 820px) {
-  .room-dock--full { display: none; }
-  .room-dock--summary { display: flex; }
-}
-@media (min-height: 821px) {
-  .room-dock--summary { display: none; }
-}
+   There is no threshold at which a mat is worth more than the board it is
+   shrinking, so there is no longer a fork. Everything the full mat carried is
+   still reachable: the counts are in the bar, and the powers are in the
+   command bar with the other actions. */
+.room-dock--full { display: none; }
+.room-dock--summary { display: flex; }
+
+/* Your resource chain. Named so it can be found on its own: it is the surface
+   the cap-discard flow happens on, and a test that looked for clickable tokens
+   anywhere in the dock was satisfied by the command bar's buttons instead. */
+.shasn-chain { width: 100%; }
 
 @media (max-width: 1180px) {
   .room-stage {

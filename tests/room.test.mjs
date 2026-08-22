@@ -83,7 +83,7 @@ writeFileSync(
    export * as Deck from '${abs('lib/shasn/deck.js')}'
    export * as Persistence from '${abs('lib/shasn/persistence.js')}'
    export * as Rounds from '${abs('lib/shasn/rounds.js')}'
-   export { TURN_PHASES } from '${abs('lib/shasn/constants.js')}'`
+   export { TURN_PHASES, IDEOLOGUES } from '${abs('lib/shasn/constants.js')}'`
 )
 
 await esbuild.build({
@@ -266,12 +266,23 @@ check('answering does not take the room down', () => {
 })
 
 check('the reveal shows what the answer was worth', () => {
+  // This check used to search the whole page for the Ideologue's name, and so
+  // passed on the four panel headings inside the full player mat rather than on
+  // the reveal. When the mat was removed it failed and exposed the real bug:
+  // answering clears game.pendingIdeology, and the page unmounted the prompt in
+  // the same commit the reveal arrived. So it now looks inside the card.
   ok(lastReveal, 'the server sent a reveal')
   const ideologue = lastReveal.chosen.ideologue
-  const label = { capitalist: 'CAPITALIST', supremo: 'SUPREMO', showstopper: 'SHOWSTOPPER', idealist: 'IDEALIST' }[ideologue]
+  // The card prints the Ideologue's real label ("The Supremo"). The old check
+  // wanted "SUPREMO", which only ever existed as a CSS text-transform on the
+  // mat headings — more evidence it was reading the wrong element.
+  const label = M.IDEOLOGUES[ideologue].label
+
+  const card = container.querySelector('.shasn-card-reveal, .shasn-card-file')
+  ok(card, 'the reveal card is on screen at all')
   ok(
-    text().includes(label),
-    `the reveal names the Ideologue backed (expected ${label}); on screen: ${text().slice(0, 300)}`
+    card.textContent.toLowerCase().includes(label.toLowerCase()),
+    `and names the Ideologue backed (expected ${label}); card said: ${card.textContent.slice(0, 200)}`
   )
   drain('revealing the card')
 })
@@ -494,6 +505,50 @@ await settle(4300) // the page polls every 4s; a server-side change needs one
 check('and the option goes when Jumla leaves play', () => {
   ok(!/Take Jumla/.test(text()), 'no offer to buy a card nobody holds')
   drain('Jumla gone')
+})
+
+// ── The dock is a bar, and nothing was stranded on the mat ─────────────────
+//
+// The full mat took 374px on a 936px screen — 40% of the viewport — and the
+// board is portrait, so that height was the only thing deciding its width. The
+// mat is gone. The danger of deleting a surface is that whatever lived on it
+// quietly becomes unreachable, which is exactly what would have happened to the
+// Ideologue powers and to the cap-discard flow.
+
+GAME = {
+  ...GAME,
+  players: GAME.players.map((p) =>
+    p.id === 'p1'
+      ? {
+          ...p,
+          ideologyCards: [
+            { cardId: 'a', ideologue: 'capitalist' },
+            { cardId: 'b', ideologue: 'capitalist' },
+            { cardId: 'c', ideologue: 'capitalist' },
+          ],
+        }
+      : p
+  ),
+}
+await settle(4300) // the page polls every 4s
+
+check('an unlocked power is reachable without the mat', () => {
+  // Prospecting used to be a button inside the full mat and nowhere else.
+  drain('unlocking a power')
+  ok(/Prospecting/i.test(text()), `the power is offered; saw: ${text().slice(0, 220)}`)
+})
+
+check('the power sits in the dock with the other actions, not in a panel', () => {
+  const dock = container.querySelector('.room-dock--summary')
+  ok(dock, 'the dock is a bar')
+  ok(/Prospecting/i.test(dock.textContent), 'and the power is in it')
+  ok(/End turn/i.test(dock.textContent), 'next to the way to finish')
+})
+
+check('the full mat is gone entirely, not merely hidden', () => {
+  // Hidden-but-rendered is how a "removed" surface comes back on somebody
+  // else's screen: one media query away from stealing the height again.
+  ok(!container.querySelector('.room-dock--full'), 'no full mat in the DOM at all')
 })
 
 // ── The endgame ────────────────────────────────────────────────────────────

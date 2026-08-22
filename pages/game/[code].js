@@ -586,6 +586,49 @@ export default function GameRoom() {
   const canAct = isMyTurn && game.turnPhase === TURN_PHASES.ACTIONS
   const commands = []
 
+  // Ideologue powers used to live only inside the full mat, which meant the mat
+  // had to stay on screen at full height to keep them reachable — and the full
+  // mat was costing the board 40% of the viewport. They are actions, so they
+  // belong with the other actions.
+  if (canAct) {
+    for (const p of powers) {
+      const action = {
+        capitalist3: 'prospect',
+        capitalist5: 'breaking_ground',
+        supremo3: 'donations',
+        supremo5: 'payback',
+        idealist5: 'tough_love',
+      }[`${p.ideologue}${p.level}`]
+
+      // Going Viral, Election Fever and Helping Hands are modifiers consumed by
+      // other actions, not things you invoke. They stay on the mat as status.
+      if (!action) continue
+
+      const left = Ideology.powerUsesRemaining(
+        me.ideologyCards,
+        me.powerUses,
+        p.ideologue,
+        p.level
+      )
+      commands.push({
+        id: `power-${p.ideologue}-${p.level}`,
+        label: p.name,
+        detail: left > 1 ? `${left} left` : undefined,
+        available: left > 0,
+        active: powerMode?.action === action,
+        why: left > 0 ? undefined : `${p.name} is used up for this turn (p.22).`,
+        hint: p.text,
+        onClick: () => {
+          setSelection(null)
+          setGerry(null)
+          setPowerMode(
+            powerMode?.action === action ? null : { action, name: p.name, picked: [] }
+          )
+        },
+      })
+    }
+  }
+
   if (canAct) {
     for (const z of myRightsZones) {
       commands.push({
@@ -660,7 +703,13 @@ export default function GameRoom() {
         />
       )}
 
-      {pendingIdeology && !finished && !game.interrupt && (
+      {/* `|| reveal` matters. Answering clears game.pendingIdeology on the very
+          response that carries the reveal, so gating on the pending card alone
+          unmounted the prompt in the same commit the reveal arrived — the player
+          never saw which Ideologue they had backed or what it paid. The
+          component already handles a reveal with no pending card; the page was
+          simply refusing to render it. */}
+      {(pendingIdeology || reveal) && !finished && !game.interrupt && (
         <IdeologyPrompt
           pending={pendingIdeology}
           reveal={reveal}
@@ -883,7 +932,6 @@ export default function GameRoom() {
           board={game.board}
           isMyTurn={isMyTurn}
           score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
-          justTucked={justTucked}
           discardSelection={
             game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
           }
@@ -901,21 +949,6 @@ export default function GameRoom() {
                 }
               : null
           }
-          powerActionFor={(ideo, lvl) =>
-            ({
-              capitalist3: 'prospect',
-              capitalist5: 'breaking_ground',
-              supremo3: 'donations',
-              supremo5: 'payback',
-              idealist5: 'tough_love',
-            })[`${ideo}${lvl}`]
-          }
-          onUsePower={(ideo, lvl, action, def) => {
-            if (!canAct) return say('error', 'You can only use powers during your actions.')
-            setSelection(null)
-            setGerry(null)
-            setPowerMode({ action, name: def.name, picked: [] })
-          }}
           commandBar={
             <CommandBar
               actions={commands}

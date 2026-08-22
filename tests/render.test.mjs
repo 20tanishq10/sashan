@@ -63,7 +63,6 @@ writeFileSync(
     ),
     `export * as G from '${abs('lib/shasn/game.js')}'`,
     `export * as I from '${abs('lib/shasn/ideology.js')}'`,
-    `export * as R from '${abs('lib/shasn/resources.js')}'`,
     `export * as Setup from '${abs('lib/shasn/setup.js')}'`,
     `export * as Persistence from '${abs('lib/shasn/persistence.js')}'`,
     `export * as Parties from '${abs('lib/shasn/parties.js')}'`,
@@ -388,6 +387,46 @@ check('Jumla and Polo Retreat get real pickers, not the manual box', () => {
   ok(/Pair them/.test(polo), 'Polo Retreat offers a pairing')
   for (const p of GAME.players) ok(polo.includes(p.name), `${p.name} can be chosen`)
   ok(!/What did you agree/.test(polo), 'and not the manual box')
+})
+
+check('the docked bar is the only home the cap-discard flow has left', () => {
+  // Discarding to the resource cap is done by lifting tokens off your own
+  // chain. That chain used to be inside the full mat; the mat is gone, so if
+  // this bar's chain is not wired the flow has no surface at all.
+  //
+  // Chain tokens are ALWAYS <button> and merely disabled when inert, so this
+  // counts enabled ones. An earlier version of this check counted every button
+  // in the dock and passed happily with the chain completely dead.
+  const live = render(
+    'MatDock, discarding',
+    React.createElement(M.MatDock, {
+      player: ME,
+      color: colorOf(ME.id),
+      party: 'lantern',
+      board: GAME.board,
+      isMyTurn: true,
+      score: 3,
+      discardSelection: {}, // ResourceChain fills in the zeroes itself
+      onDiscardToken: () => {},
+    })
+  )
+  const enabled = (html) => (html.match(/<button(?![^>]*disabled)/g) || []).length
+
+  ok(/shasn-chain/.test(live), 'the chain is in the bar')
+  ok(enabled(live) > 0, 'and its tokens can be clicked while discarding')
+
+  const idle = render(
+    'MatDock, not discarding',
+    React.createElement(M.MatDock, {
+      player: ME,
+      color: colorOf(ME.id),
+      party: 'lantern',
+      board: GAME.board,
+      isMyTurn: true,
+      score: 3,
+    })
+  )
+  ok(enabled(idle) === 0, 'and cannot be clicked when you are not over the cap')
 })
 
 check('every deck glyph draws', () => {
