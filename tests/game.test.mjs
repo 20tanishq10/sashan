@@ -583,6 +583,59 @@ check('a mid-game state round-trips and stays playable', () => {
   eq(back.log.length, game.log.length)
 })
 
+check('a game paused mid-round survives the database', () => {
+  // The two states added most recently — a card going round the table, and Jumla
+  // sitting in somebody's Ideology stack — are the ones most likely to be
+  // quietly dropped, because neither existed when the storage was designed. If
+  // either vanished on a reload the table would deadlock with no way back.
+  let { game, rng } = playOut(7, 3, 20)
+  if (game.phase === consts.GAME_PHASES.FINISHED) return // nothing to pause
+
+  game = {
+    ...game,
+    round: {
+      kind: 'cashOutVoter',
+      cardId: 'a_trip_to_goalpara',
+      cardName: 'A Trip To Goalpara',
+      queue: ['p2', 'p3'],
+      acted: [{ playerId: 'p1', action: 'act', note: 'cashed out' }],
+      options: { holdRefill: true },
+    },
+    players: game.players.map((p) =>
+      p.id === 'p2'
+        ? { ...p, ideologyCards: [...p.ideologyCards, { cardId: 'jumla', ideologue: 'supremo', jumla: true }] }
+        : p
+    ),
+  }
+
+  const stored = JSON.parse(JSON.stringify(P.mirrorColumns(game).board_state))
+  const back = P.hydrate({ board_state: stored })
+  ok(back, 'hydrated')
+
+  eq(back.round.queue, ['p2', 'p3'], 'the queue survived:')
+  eq(back.round.acted.length, 1, 'and who has already gone:')
+  eq(back.round.options.holdRefill, true, 'and the card options:')
+
+  const holder = back.players.find((p) => p.id === 'p2')
+  ok(holder.ideologyCards.some((e) => e.jumla), 'Jumla is still in the stack')
+
+  // The real test: it is not just present, it is still playable.
+  const r = G.actInRound(back, rng, { playerId: 'p2', action: 'pass' })
+  ok(!r.error, `the round can be continued after a reload; got: ${r.error}`)
+  eq(r.game.round.queue, ['p3'], 'and it advanced:')
+})
+
+check('the mirrored `round` column is the turn number, not the card round', () => {
+  // A genuine name collision: the database column `round` predates game.round
+  // and means something completely different. Worth pinning down, because a
+  // reader who conflates them will write a very confusing bug.
+  const { game } = newGame()
+  const paused = { ...game, round: { kind: 'gerrymander', queue: ['p1'], acted: [] } }
+  const cols = P.mirrorColumns(paused)
+  eq(cols.round, paused.turnNumber, 'the column is the turn number:')
+  ok(cols.board_state.round.kind, 'and the card round rides inside board_state')
+})
+
 check('mirrored columns track the engine state', () => {
   const { game } = newGame()
   const cols = P.mirrorColumns(game)
