@@ -33,11 +33,33 @@ const components = readdirSync('components').filter((f) => f.endsWith('.js'))
 // The entry lives in a temp dir, so every path in it has to be absolute.
 const abs = (p) => resolve(process.cwd(), p).replace(/\\/g, '/')
 
+// Next's own modules cannot be imported by bare Node, and marking them external
+// only moves the failure to import time. They are navigation, which this suite
+// does not test, so they are stubbed with the smallest thing that renders.
+writeFileSync(
+  join(dir, 'next-link.js'),
+  `import React from 'react'
+   export default function Link({ href, children, ...rest }) {
+     return React.createElement('a', { href, ...rest }, children)
+   }`
+)
+writeFileSync(
+  join(dir, 'next-router.js'),
+  `export function useRouter() { return { query: {}, push() {}, replace() {}, isReady: true } }
+   export default { useRouter }`
+)
+
 writeFileSync(
   join(dir, 'entry.js'),
   [
     ...components.map(
       (f) => `export { default as ${f.replace('.js', '')} } from '${abs('components/' + f)}'`
+    ),
+    // The room's regions. Kept in their own folder because they are layout,
+    // not game pieces.
+    ...['RoomHeader', 'RivalRail', 'BoardStage', 'MarketRail', 'MatDock', 'CommandBar',
+        'TurnDigest', 'ZoneCard'].map(
+      (n) => `export { default as ${n} } from '${abs('components/room/' + n + '.js')}'`
     ),
     `export * as G from '${abs('lib/shasn/game.js')}'`,
     `export * as I from '${abs('lib/shasn/ideology.js')}'`,
@@ -63,7 +85,11 @@ await esbuild.build({
   platform: 'node',
   jsx: 'automatic',
   loader: { '.js': 'jsx' },
-  external: ['react', 'react-dom', 'react/jsx-runtime', 'next/link', 'next/router'],
+  external: ['react', 'react-dom', 'react/jsx-runtime'],
+  alias: {
+    'next/link': join(dir, 'next-link.js'),
+    'next/router': join(dir, 'next-router.js'),
+  },
   absWorkingDir: process.cwd(),
   logLevel: 'error',
 })
@@ -134,6 +160,135 @@ function render(label, el) {
 }
 
 // ---------------------------------------------------------------------------
+
+check('every region of the room renders', () => {
+  // The room was one 1278-line page. These are the five regions it became, and
+  // a region that throws takes the whole table with it.
+  const seat = (id) => ({
+    ...GAME.players.find((p) => p.id === id),
+    conspiracyCardCount: 0,
+    conspiracyCards: [],
+  })
+
+  render(
+    'RoomHeader',
+    React.createElement(M.RoomHeader, {
+      code: 'TEST',
+      turnNumber: 4,
+      turnLabel: 'Your turn',
+      turnColor: '#6c3fb5',
+      phase: 'actions',
+    })
+  )
+
+  render(
+    'RivalRail',
+    React.createElement(M.RivalRail, {
+      players: GAME.players,
+      activeId: GAME.players[0].id,
+      myPlayerId: 'p1',
+      standings: STANDINGS,
+      colorOf,
+      partyOf: () => 'lantern',
+      board: GAME.board,
+      onFocus: () => {},
+    })
+  )
+
+  render(
+    'BoardStage',
+    React.createElement(M.BoardStage, {
+      board: GAME.board,
+      players: GAME.players,
+      colorOf,
+      partyOf: () => 'lantern',
+      myPlayerId: 'p1',
+      selectedAreas: [],
+      onZoneHover: () => {},
+      prompt: { text: 'Click 2 empty areas in one zone.', onCancel: () => {} },
+    })
+  )
+
+  render(
+    'MarketRail',
+    React.createElement(M.MarketRail, {
+      market: GAME.market,
+      pool: ME.pool,
+      onSelect: () => {},
+      conspiracyDeck: GAME.conspiracyDeck,
+      headlineDeck: GAME.headlineDeck,
+      log: GAME.log,
+    })
+  )
+
+  render(
+    'MatDock',
+    React.createElement(M.MatDock, {
+      player: ME,
+      color: colorOf(ME.id),
+      party: 'lantern',
+      board: GAME.board,
+      isMyTurn: true,
+      score: 3,
+    })
+  )
+})
+
+check('the header always says whose turn it is', () => {
+  // The turn used to be stated by a panel that has been removed, and by a banner
+  // that announces the handoff and then leaves. Neither is a permanent answer.
+  const html = render(
+    'RoomHeader mid-game',
+    React.createElement(M.RoomHeader, {
+      code: 'TEST',
+      turnNumber: 4,
+      turnLabel: 'Bo is playing',
+      turnColor: '#b3167a',
+      phase: 'actions',
+    })
+  )
+  ok(html.includes('Bo is playing'), 'the turn is stated')
+  ok(html.includes('actions'), 'and so is the phase')
+})
+
+check('a command that cannot be used explains itself', () => {
+  // "No rights — you need the most voters in a zone" used to be a permanent line
+  // of text. It is now the reason on a control, which is where it is needed and
+  // nowhere else.
+  const html = render(
+    'CommandBar',
+    React.createElement(M.CommandBar, {
+      actions: [
+        {
+          id: 'g',
+          label: 'Gerrymander',
+          available: false,
+          why: 'You need the most voters in a zone (p.15).',
+        },
+      ],
+      onEndTurn: () => {},
+    })
+  )
+  ok(html.includes('most voters in a zone'), 'the reason is on the control')
+  ok(html.includes('disabled'), 'and the control is unusable')
+})
+
+check('the zone card answers what the plaque cannot', () => {
+  const { ZONE_IDS } = M.Zones
+  const html = render(
+    'ZoneCard',
+    React.createElement(M.ZoneCard, {
+      zoneId: ZONE_IDS[0],
+      board: GAME.board,
+      players: GAME.players,
+      colorOf,
+      myPlayerId: 'p1',
+    })
+  )
+  ok(html.includes('to hold'), 'states the requirement')
+  ok(html.includes('empty'), 'counts what is left')
+  ok(/need|Yours|holds it|no longer|requirement/.test(html), 'and says what it means for you')
+})
 
 check('every deck glyph draws', () => {
   // Conspiracy was told apart by a red edge and Headline by an amber one — the

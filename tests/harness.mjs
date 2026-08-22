@@ -56,6 +56,7 @@ export const twoPlayer = await load('twoPlayer')
 export const zoneReqData = await load('data/zoneRequirements')
 export const boardGeometry = await load('boardGeometry')
 export const setup = await load('setup')
+export const digest = await load('digest')
 export const game = await load('game')
 
 // The UI vocabulary — pure objects and reducers, no JSX.

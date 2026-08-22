@@ -11,19 +11,20 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { getOrCreateSessionToken, getStoredPlayer, storePlayer } from '../../lib/session'
 import { getSupabase } from '../../lib/supabaseClient'
-import ShasnBoard, { colorForSeat } from '../../components/ShasnBoard'
+import { colorForSeat } from '../../components/ShasnBoard'
 import CardResolver from '../../components/CardResolver'
+import Scoreboard from '../../components/Scoreboard'
+import RoomHeader from '../../components/room/RoomHeader'
+import RivalRail from '../../components/room/RivalRail'
+import BoardStage from '../../components/room/BoardStage'
+import MarketRail from '../../components/room/MarketRail'
+import MatDock from '../../components/room/MatDock'
+import CommandBar from '../../components/room/CommandBar'
+import TurnDigest from '../../components/room/TurnDigest'
 import IdeologyPrompt from '../../components/IdeologyPrompt'
 import InterruptPrompt from '../../components/InterruptPrompt'
-import Scoreboard from '../../components/Scoreboard'
-import PlayerMat from '../../components/PlayerMat'
-import FloatingMat from '../../components/FloatingMat'
-import PowerPanel from '../../components/PowerPanel'
 import TradePanel from '../../components/TradePanel'
 import AuctionPanel from '../../components/AuctionPanel'
-import VoterCardRow from '../../components/VoterCardRow'
-import DeckStrip from '../../components/DeckStrip'
-import PartyEmblem from '../../components/PartyEmblem'
 import Card, { CardText } from '../../components/Card'
 import Announcer, { pushNotice, dropNotice } from '../../components/Announcer'
 import { partyForSeat } from '../../lib/shasn/parties'
@@ -63,6 +64,10 @@ export default function GameRoom() {
   const [note, setNote] = useState('')
   const [reveal, setReveal] = useState(null) // ideology card unmasked after answering
   const [justTucked, setJustTucked] = useState(null) // stack that just gained a card
+  const [focusedRival, setFocusedRival] = useState(null) // whose territory to light
+  const [hoveredZone, setHoveredZone] = useState(null)
+  // The turn number whose digest you have already read, so it appears once.
+  const [digestSeen, setDigestSeen] = useState(null)
 
   /**
    * Tell the player something, over the table, where they are looking.
@@ -270,6 +275,17 @@ export default function GameRoom() {
     (t) => t.status === 'pending' && t.targetId === myPlayerId
   ).length
 
+  // A rail box is worth its width when there is a live auction, a debt to
+  // repay, a trade on the table, or it is your turn and you could start one.
+  const showAuction = openAuctions > 0 || (me?.auctionDebt || 0) > 0
+  const showTrading =
+    incomingTrades > 0 ||
+    (game.pendingTrades || []).some((t) => t.status === 'pending') ||
+    isMyTurn
+
+  // Shown once when the turn returns to you, and gone the moment you act on it.
+  const showDigest = isMyTurn && !finished && digestSeen !== game.turnNumber
+
   // ── Board interaction ────────────────────────────────────────────────────
 
   function onAreaClick(zoneId, areaIndex) {
@@ -347,12 +363,161 @@ export default function GameRoom() {
     for (let i = 1; i < n; i++) out.push(game.players[(start + i) % n])
     return out
   })()
-  const half = Math.ceil(opponents.length / 2)
-  const leftOpponents = opponents.slice(0, half)
-  const rightOpponents = opponents.slice(half)
+  // ── What needs you, in priority order ───────────────────────────────────
+  //
+  // These used to be stacked above the board, which is how the board ended up
+  // below the fold. They are yours to deal with, so they sit at the top of your
+  // own rail rather than in front of the game.
+
+  const attention = []
+
+  if (isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me) {
+    const over = R.excessOverCap(me.pool, me.resourceCap)
+    attention.push(
+      <section key="cap" style={{ ...S.attn, borderColor: 'var(--amber-brd)' }}>
+        <h3 style={S.attnHead}>Over the cap</h3>
+        <p style={S.attnText}>
+          Hand back exactly <strong>{over}</strong> — click tokens on your chain to lift them
+          off (p.11). Marked {R.poolTotal(capDiscard)} of {over}.
+        </p>
+        <div style={S.attnRow}>
+          <button
+            className="btn btn--primary btn--sm"
+            disabled={busy || R.poolTotal(capDiscard) !== over}
+            onClick={async () => {
+              const r = await send('discard_to_cap', { discard: capDiscard })
+              if (r?.ok) setCapDiscard(R.emptyPool())
+            }}
+          >
+            Hand back {R.poolTotal(capDiscard)}
+          </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => setCapDiscard(R.autoDiscardToCap(me.pool, me.resourceCap))}
+          >
+            auto-pick
+          </button>
+          {R.poolTotal(capDiscard) > 0 && (
+            <button className="btn btn--ghost btn--sm" onClick={() => setCapDiscard(R.emptyPool())}>
+              clear
+            </button>
+          )}
+        </div>
+      </section>
+    )
+  }
+
+  if (isMyTurn && game.pendingHeadlines?.length > 0 && !game.awaitingResolution) {
+    attention.push(
+      <section key="headline" style={{ ...S.attn, borderColor: 'var(--danger-brd)' }}>
+        <h3 style={S.attnHead}>{game.pendingHeadlines.length} Headline pending</h3>
+        <p style={S.attnText}>A voter landed in a Volatile Area (p.17).</p>
+        <button
+          className="btn btn--primary btn--sm"
+          disabled={busy}
+          onClick={() => send('resolve_headline')}
+        >
+          Draw the next Headline
+        </button>
+      </section>
+    )
+  }
+
+  if (game.awaitingResolution) {
+    attention.push(
+      isMyTurn ? (
+        <CardResolver
+          key="resolve"
+          kind={game.awaitingResolution.kind}
+          card={
+            game.awaitingResolution.kind === 'headline'
+              ? Cards.getHeadlineCard(game.awaitingResolution.cardId)
+              : Cards.getConspiracyCard(game.awaitingResolution.cardId)
+          }
+          prompt={game.awaitingResolution.prompt}
+          busy={busy}
+          onResolve={(choice) => send('resolve_awaiting', { choice })}
+          onManual={(n) => send('resolve_awaiting', { note: n })}
+        />
+      ) : (
+        <section key="resolve" style={{ ...S.attn, borderColor: 'var(--amber-brd)' }}>
+          <ManualCard resolution={game.awaitingResolution} />
+          <p style={S.attnText}>Waiting for {active?.name} to resolve it.</p>
+        </section>
+      )
+    )
+  }
+
+  if (stalled) {
+    attention.push(
+      <section key="stall" style={{ ...S.attn, borderColor: 'var(--danger-brd)' }}>
+        <h3 style={S.attnHead}>The campaign has stalled</h3>
+        <p style={S.attnText}>
+          Everyone is at the cap and no open Voter Card can be paid for. Trading, or the
+          Capitalist&apos;s Prospecting, breaks it.
+        </p>
+      </section>
+    )
+  }
+
+  // ── The one-line instruction under the board ────────────────────────────
+
+  let prompt = null
+  if (isMyTurn && selection && selectedCard) {
+    prompt = {
+      text: `Click ${selectedCard.voters - selection.areas.length} empty area${
+        selectedCard.voters - selection.areas.length === 1 ? '' : 's'
+      }${selection.zoneId ? ` in ${ZONES[selection.zoneId].label}` : ' in a single zone'}.`,
+      onCancel: () => setSelection(null),
+    }
+  } else if (isMyTurn && gerry) {
+    prompt = {
+      text: gerry.from ? 'Click an empty destination.' : 'Click a voter to move.',
+      onCancel: () => setGerry(null),
+    }
+  } else if (isMyTurn && powerMode) {
+    prompt = { text: `${powerMode.name} — pick on the board.`, onCancel: () => setPowerMode(null) }
+  } else if (isMyTurn && (game.board.evicted[myPlayerId] || 0) > 0) {
+    prompt = {
+      text: `${game.board.evicted[myPlayerId]} evicted voter(s) — click an empty area to place one, or lose them at end of turn (p.23).`,
+    }
+  } else if (!isMyTurn && !isSpectator) {
+    prompt = { text: `Waiting for ${active?.name}…` }
+  }
+
+  // ── The command bar ─────────────────────────────────────────────────────
+
+  const canAct = isMyTurn && game.turnPhase === TURN_PHASES.ACTIONS
+  const commands = []
+
+  if (canAct) {
+    for (const z of myRightsZones) {
+      commands.push({
+        id: `gerry-${z}`,
+        label: 'Gerrymander',
+        detail: ZONES[z].label,
+        available: true,
+        active: gerry?.rightsZoneId === z,
+        hint: `Move a voter within or out of ${ZONES[z].label} (p.15)`,
+        onClick: () => {
+          setSelection(null)
+          setGerry(gerry?.rightsZoneId === z ? null : { rightsZoneId: z, from: null })
+        },
+      })
+    }
+    if (myRightsZones.length === 0) {
+      commands.push({
+        id: 'gerry-none',
+        label: 'Gerrymander',
+        available: false,
+        why: 'You need the most voters in a zone to hold Gerrymandering Rights (p.15).',
+      })
+    }
+  }
 
   return (
-    <Shell>
+    <div className="room">
+      {/* Overlays first: they sit above everything and own the screen while up. */}
       {game.interrupt && me && (
         <InterruptPrompt
           interrupt={game.interrupt}
@@ -372,8 +537,6 @@ export default function GameRoom() {
           spectatorName={isMyTurn ? null : active?.name}
           deadline={game.ideologyDeadline}
           onTimeout={() => {
-            // Any player may fire the clock, so a stalled tab cannot hold up the
-            // table. The server re-checks the deadline before acting.
             fetch('/api/game-action', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -406,331 +569,153 @@ export default function GameRoom() {
         />
       )}
 
-      <header style={S.topBar}>
-        <div style={S.brand}>
-          <h1 style={S.h1}>SHASN</h1>
-          <span style={S.roomLine}>
-            {code} · Turn {game.turnNumber}
-            {isSpectator && ' · spectating'}
-          </span>
-        </div>
-
-        {/* The seating. Whoever is up is the only one at full strength — the
-            turn passing should be impossible to miss. */}
-        <div style={S.seats}>
-          {game.players.map((p, i) => {
-            const isUp = i === game.activeSeat
-            const s = standings.find((x) => x.playerId === p.id)
-            return (
-              <div
-                key={p.id}
-                className={`shasn-seat ${isUp ? 'shasn-seat--active' : 'shasn-seat--idle'}`}
-                style={S.seat}
-                title={isUp ? 'Playing now' : ''}
-              >
-                <PartyEmblem
-                  party={partyForSeat(i).id}
-                  size={13}
-                  color={colorForSeat(i)}
-                  title={partyForSeat(i).label}
-                />
-                <strong style={S.seatName}>
-                  {p.name}
-                  {p.id === myPlayerId && <span style={S.you}>you</span>}
-                </strong>
-                <Ticker value={s?.score ?? 0} style={S.seatScore} />
-              </div>
-            )
-          })}
-        </div>
-
-        <Link href="/" className="btn btn--ghost btn--sm">Leave</Link>
-      </header>
-
-      {/* One line announcing the handoff, then it gets out of the way. */}
-      {!finished && <TurnBanner active={active} isMyTurn={isMyTurn} />}
+      <RoomHeader
+        code={code}
+        turnNumber={game.turnNumber}
+        isSpectator={isSpectator}
+        turnLabel={finished ? 'Election over' : isMyTurn ? 'Your turn' : `${active?.name} is playing`}
+        turnColor={finished ? 'var(--good)' : colorOf(active?.id)}
+        phase={finished ? null : game.turnPhase}
+      >
+        {!finished && <TurnBanner active={active} isMyTurn={isMyTurn} />}
+      </RoomHeader>
 
       <Announcer notices={notices} onDismiss={hush} />
 
       {finished ? (
-        <div style={{ ...S.panel, borderColor: 'var(--good)' }}>
-          <h2 style={S.h2}>Election over</h2>
-          <Scoreboard
-            standings={standings}
-            breakdown={breakdown}
-            colorOf={colorOf}
-            myPlayerId={myPlayerId}
-            finished
-          />
+        <div style={S.finished}>
+          <div style={S.panel}>
+            <h2 style={S.h2}>Election over</h2>
+            <Scoreboard
+              standings={standings}
+              breakdown={breakdown}
+              colorOf={colorOf}
+              myPlayerId={myPlayerId}
+              finished
+            />
+          </div>
         </div>
       ) : (
-        <div style={{ ...S.panel, borderColor: isMyTurn ? colorOf(myPlayerId) : 'var(--border)' }}>
-          <div style={S.rowBetween}>
-            <h2 style={S.h2}>
-              <span style={{ ...S.dot, background: colorOf(active?.id) }} />
-              {isMyTurn ? 'Your turn' : `${active?.name} is playing`}
-            </h2>
-            <span style={S.phaseTag}>{game.turnPhase}</span>
-          </div>
+        <div className="room-stage">
+          <RivalRail
+            players={game.players}
+            activeId={active?.id}
+            myPlayerId={myPlayerId}
+            standings={standings}
+            colorOf={colorOf}
+            partyOf={partyOf}
+            board={game.board}
+            focusedId={focusedRival}
+            onFocus={setFocusedRival}
+          >
+            {showDigest && (
+              <TurnDigest game={game} playerId={myPlayerId} onDismiss={() => setDigestSeen(game.turnNumber)} />
+            )}
 
-          {me && <ResourceRow pool={me.pool} cap={me.resourceCap} />}
+            {attention}
 
-          {!isMyTurn && !isSpectator && (
-            <>
-              <p style={S.hint}>Waiting for {active?.name}…</p>
-              {/* p.22 — a Conspiracy may be played right before an opponent
-                  answers their Ideology Card, so the hand stays live here. */}
-              {game.turnPhase === TURN_PHASES.IDEOLOGY && me?.conspiracyCards?.length > 0 && (
-                <div style={S.subPanel}>
-                  <p style={S.hint}>
-                    You may play a Conspiracy Card before {active?.name} answers (p.22).
-                  </p>
-                  {/* Naming the cards was not enough here: this is a snap
-                      decision on someone else's turn, and you cannot judge it
-                      without seeing what the card actually does. */}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                    {me.conspiracyCards
-                      .filter((cid) => Cards.getConspiracyCard(cid)?.mode !== 'interrupt')
-                      .map((cid, i) => {
-                        const c = Cards.getConspiracyCard(cid)
-                        return (
-                          <Card
-                            key={`${cid}${i}`}
-                            deck="conspiracy"
-                            compact
-                            width={168}
-                            title={c.name}
-                            footer={
-                              <button
-                                style={S.miniBtn}
-                                disabled={busy}
-                                onClick={() => send('play_conspiracy', { cardId: cid })}
-                              >
-                                Play now
-                              </button>
-                            }
-                          >
-                            <CardText>{c.text}</CardText>
-                          </Card>
-                        )
-                      })}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-
-          {isMyTurn && game.turnPhase === TURN_PHASES.RESOURCE_CAP && me && (
-            <div style={{ ...S.subPanel, borderColor: 'var(--amber)' }}>
-              <p style={S.prompt}>
-                Over the cap of {me.resourceCap}. Hand back exactly{' '}
-                <strong>{R.excessOverCap(me.pool, me.resourceCap)}</strong> — click tokens on your
-                chain to lift them off (p.11).
-              </p>
-              <p style={S.hint}>
-                Marked: {R.poolTotal(capDiscard)} of {R.excessOverCap(me.pool, me.resourceCap)}
-              </p>
-              <button
-                style={S.btn}
-                disabled={busy || R.poolTotal(capDiscard) !== R.excessOverCap(me.pool, me.resourceCap)}
-                onClick={async () => {
-                  const r = await send('discard_to_cap', { discard: capDiscard })
-                  if (r?.ok) setCapDiscard(R.emptyPool())
-                }}
-              >
-                Hand back {R.poolTotal(capDiscard)}
-              </button>
-              <button
-                style={{ ...S.btnGhost, marginLeft: 8 }}
-                onClick={() => setCapDiscard(R.autoDiscardToCap(me.pool, me.resourceCap))}
-              >
-                auto-pick
-              </button>
-              {R.poolTotal(capDiscard) > 0 && (
-                <button
-                  style={{ ...S.btnGhost, marginLeft: 8 }}
-                  onClick={() => setCapDiscard(R.emptyPool())}
-                >
-                  clear
-                </button>
-              )}
-            </div>
-          )}
-
-          {isMyTurn && game.turnPhase === TURN_PHASES.ACTIONS && (
-            <div style={S.subPanel}>
-              <p style={S.hint}>No action points — act as often as you can afford (p.22).</p>
-
-              {selection && (
-                <p style={S.callout}>
-                  Click {selectedCard.voters - selection.areas.length} empty area(s)
-                  {selection.zoneId ? ` in ${ZONES[selection.zoneId].label}` : ' in a single zone'}.{' '}
-                  <button style={S.link} onClick={() => setSelection(null)}>cancel</button>
-                </p>
-              )}
-
-              {(game.board.evicted[myPlayerId] || 0) > 0 && !selection && (
-                <p style={S.callout}>
-                  {game.board.evicted[myPlayerId]} evicted voter(s) — click an empty area to place
-                  one, or lose them at end of turn (p.23).
-                </p>
-              )}
-
-              <h4 style={S.h4}>Gerrymandering</h4>
-              {myRightsZones.length === 0 ? (
-                <p style={S.hint}>No rights — you need the most voters in a zone (p.15).</p>
-              ) : (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {myRightsZones.map((z) => (
-                    <button
-                      key={z}
-                      style={{ ...S.btnGhost, borderColor: gerry?.rightsZoneId === z ? 'var(--ink)' : 'var(--border)' }}
-                      onClick={() => {
-                        setSelection(null)
-                        setGerry(gerry?.rightsZoneId === z ? null : { rightsZoneId: z, from: null })
-                      }}
-                    >
-                      via {ZONES[z].label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {gerry && (
-                <p style={S.callout}>
-                  {gerry.from ? 'Click an empty destination.' : 'Click a voter to move.'}{' '}
-                  <button style={S.link} onClick={() => setGerry(null)}>cancel</button>
-                </p>
-              )}
-
-              <h4 style={S.h4}>Conspiracy Cards in hand</h4>
-              {me.conspiracyCards.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                  {me.conspiracyCards.map((cid, i) => {
-                    const c = Cards.getConspiracyCard(cid)
-                    return (
-                      <Card
-                        key={`${cid}${i}`}
-                        deck="conspiracy"
-                        compact
-                        width={168}
-                        title={c.name}
-                        footer={
-                          <button
-                            style={S.miniBtn}
-                            disabled={busy}
-                            onClick={() => send('play_conspiracy', { cardId: cid })}
-                          >
-                            Play
-                          </button>
-                        }
-                      >
-                        <CardText>{c.text}</CardText>
-                      </Card>
+            {me?.conspiracyCards?.length > 0 && (
+              <section style={S.attn}>
+                <h3 style={S.attnHead}>Your hand</h3>
+                <div style={S.hand}>
+                  {me.conspiracyCards
+                    .filter(
+                      (cid) =>
+                        canAct ||
+                        (game.turnPhase === TURN_PHASES.IDEOLOGY &&
+                          !isMyTurn &&
+                          Cards.getConspiracyCard(cid)?.mode !== 'interrupt')
                     )
-                  })}
+                    .map((cid, i) => {
+                      const c = Cards.getConspiracyCard(cid)
+                      return (
+                        <Card
+                          key={`${cid}${i}`}
+                          deck="conspiracy"
+                          compact
+                          title={c.name}
+                          footer={
+                            <button
+                              style={S.miniBtn}
+                              disabled={busy}
+                              onClick={() => send('play_conspiracy', { cardId: cid })}
+                            >
+                              {isMyTurn ? 'Play' : 'Play now'}
+                            </button>
+                          }
+                        >
+                          <CardText>{c.text}</CardText>
+                        </Card>
+                      )
+                    })}
                 </div>
-              )}
+              </section>
+            )}
 
+            {me && showAuction && (
+              <section style={{ ...S.railBox, borderColor: openAuctions > 0 ? 'var(--amber)' : undefined }}>
+                <h3 style={S.railHead}>
+                  Auction
+                  {openAuctions > 0 && <span style={S.railBadge}>{openAuctions} live</span>}
+                  {(me.auctionDebt || 0) > 0 && (
+                    <span style={{ ...S.railBadge, background: 'var(--danger)' }}>
+                      owe {me.auctionDebt}
+                    </span>
+                  )}
+                </h3>
+                <AuctionPanel
+                  game={game}
+                  me={me}
+                  busy={busy}
+                  onBid={(p) => send('bid', p)}
+                  onClose={(p) => send('close_auction', p)}
+                  onRepay={(p) => send('repay_debt', p)}
+                />
+              </section>
+            )}
 
-              <div style={{ marginTop: 16 }}>
-                <button style={S.btn} disabled={busy} onClick={() => send('end_turn')}>
-                  End turn
-                </button>
-              </div>
-            </div>
-          )}
+            {me && showTrading && (
+              <section style={{ ...S.railBox, borderColor: incomingTrades > 0 ? 'var(--danger)' : undefined }}>
+                <h3 style={S.railHead}>
+                  Trading
+                  {incomingTrades > 0 && <span style={S.railBadge}>{incomingTrades} for you</span>}
+                </h3>
+                <TradePanel
+                  game={game}
+                  me={me}
+                  isMyTurn={isMyTurn}
+                  busy={busy}
+                  onPropose={(payload) => send('propose_trade', payload)}
+                  onRespond={(payload) => send('respond_trade', payload)}
+                />
+              </section>
+            )}
+          </RivalRail>
 
-          {isMyTurn && game.pendingHeadlines?.length > 0 && !game.awaitingResolution && (
-            <div style={{ ...S.subPanel, borderColor: 'var(--danger)' }}>
-              <p style={S.prompt}>
-                <strong>{game.pendingHeadlines.length} Headline(s) pending.</strong> A voter landed
-                in a Volatile Area (p.17).
-              </p>
-              <button style={S.btn} disabled={busy} onClick={() => send('resolve_headline')}>
-                Draw the next Headline
-              </button>
-            </div>
-          )}
+          <BoardStage
+            board={game.board}
+            players={game.players}
+            colorOf={colorOf}
+            partyOf={partyOf}
+            myPlayerId={myPlayerId}
+            legalZones={selection?.zoneId ? new Set([selection.zoneId]) : null}
+            selectedAreas={
+              selection
+                ? selection.areas.map((a) => ({ zoneId: selection.zoneId, areaIndex: a }))
+                : gerry?.from
+                ? [gerry.from]
+                : powerMode?.picked || []
+            }
+            onAreaClick={isMyTurn && !finished ? onAreaClick : null}
+            focusPlayerId={focusedRival}
+            hoveredZone={hoveredZone}
+            onZoneHover={setHoveredZone}
+            prompt={prompt}
+            focusedName={game.players.find((p) => p.id === focusedRival)?.name || null}
+            onReleaseFocus={() => setFocusedRival(null)}
+          />
 
-          {game.awaitingResolution && (
-            isMyTurn ? (
-              <CardResolver
-                kind={game.awaitingResolution.kind}
-                card={
-                  game.awaitingResolution.kind === 'headline'
-                    ? Cards.getHeadlineCard(game.awaitingResolution.cardId)
-                    : Cards.getConspiracyCard(game.awaitingResolution.cardId)
-                }
-                prompt={game.awaitingResolution.prompt}
-                busy={busy}
-                onResolve={(choice) => send('resolve_awaiting', { choice })}
-                onManual={(n) => send('resolve_awaiting', { note: n })}
-              />
-            ) : (
-              <div style={{ ...S.subPanel, borderColor: 'var(--amber)' }}>
-                <ManualCard resolution={game.awaitingResolution} />
-                <p style={S.hint}>Waiting for {active?.name} to resolve it.</p>
-              </div>
-            )
-          )}
-
-          {stalled && (
-            <p style={S.stall}>
-              The campaign has stalled — everyone is at the resource cap and no open Voter Card can
-              be paid for. Trading or the Capitalist&apos;s Prospecting power breaks this.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div style={S.withRail} className="shasn-with-rail">
-        {/* ── Left rail: negotiation, away from the board ───────────────── */}
-        {me && !finished && (
-          <aside style={S.rail} className="shasn-rail">
-            <section style={{ ...S.railBox, borderColor: openAuctions > 0 ? 'var(--amber)' : 'var(--border)' }}>
-              <h3 style={S.railHead}>
-                Auction
-                {openAuctions > 0 && <span style={S.railBadge}>{openAuctions} live</span>}
-                {(me.auctionDebt || 0) > 0 && (
-                  <span style={{ ...S.railBadge, background: 'var(--danger)' }}>
-                    owe {me.auctionDebt}
-                  </span>
-                )}
-              </h3>
-              <AuctionPanel
-                game={game}
-                me={me}
-                busy={busy}
-                onBid={(p) => send('bid', p)}
-                onClose={(p) => send('close_auction', p)}
-                onRepay={(p) => send('repay_debt', p)}
-              />
-            </section>
-
-            <section style={{ ...S.railBox, borderColor: incomingTrades > 0 ? 'var(--danger)' : 'var(--border)' }}>
-              <h3 style={S.railHead}>
-                Trading
-                {incomingTrades > 0 && (
-                  <span style={S.railBadge}>{incomingTrades} for you</span>
-                )}
-              </h3>
-              <TradePanel
-                game={game}
-                me={me}
-                isMyTurn={isMyTurn}
-                busy={busy}
-                onPropose={(payload) => send('propose_trade', payload)}
-                onRespond={(payload) => send('respond_trade', payload)}
-              />
-            </section>
-          </aside>
-        )}
-
-      {/* ── The table: voter cards on top, board centre, mats around it ── */}
-      <div style={S.table}>
-        <div style={S.voterStrip}>
-          <VoterCardRow
+          <MarketRail
             market={game.market}
             pool={me?.pool}
             onSelect={(i) => {
@@ -739,132 +724,71 @@ export default function GameRoom() {
               setSelection({ openIndex: i, zoneId: null, areas: [] })
             }}
             selectedIndex={selection?.openIndex ?? null}
-            disabled={!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS}
-          />
-        </div>
-
-        <div style={S.tableRow} className="shasn-table-row">
-          <div style={S.sideMats} className="shasn-side-mats">
-            {leftOpponents.map((p) => (
-              <PlayerMat
-                key={p.id}
-                player={p}
-                color={colorOf(p.id)}
-                party={partyOf(p.id)}
-                board={game.board}
-                isActive={p.id === active?.id}
-                score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
-                variant="compact"
-              />
-            ))}
-          </div>
-
-          <div style={S.boardCell}>
-            <ShasnBoard
-              board={game.board}
-              players={game.players}
-              colorOf={colorOf}
-              partyOf={partyOf}
-              partyOf={partyOf}
-              legalZones={selection?.zoneId ? new Set([selection.zoneId]) : null}
-              selectedAreas={
-                selection
-                  ? selection.areas.map((a) => ({ zoneId: selection.zoneId, areaIndex: a }))
-                  : gerry?.from
-                  ? [gerry.from]
-                  : (powerMode?.picked || [])
-              }
-              onAreaClick={isMyTurn && !finished ? onAreaClick : null}
-            />
-          </div>
-
-          <div style={S.sideMats} className="shasn-side-mats">
-            {rightOpponents.map((p) => (
-              <PlayerMat
-                key={p.id}
-                player={p}
-                color={colorOf(p.id)}
-                party={partyOf(p.id)}
-                board={game.board}
-                isActive={p.id === active?.id}
-                score={standings.find((s) => s.playerId === p.id)?.score ?? 0}
-                variant="compact"
-              />
-            ))}
-          </div>
-        </div>
-
-        <div style={S.deckStrip}>
-          <DeckStrip
+            disabled={!canAct}
             conspiracyDeck={game.conspiracyDeck}
             headlineDeck={game.headlineDeck}
             pendingHeadlines={game.pendingHeadlines?.length || 0}
-            canBuy={isMyTurn && game.turnPhase === TURN_PHASES.ACTIONS && !busy}
+            canBuy={canAct && !busy}
             surcharge={me?.conspiracySurcharge || 0}
             hand={me?.conspiracyCards?.length || 0}
             onBuyConspiracy={() => send('buy_conspiracy')}
+            log={game.log}
           />
         </div>
-      </div>
-      </div>
-
-      {me && (
-        <FloatingMat
-          storageKey={`shasn-mat-${code}`}
-          player={me}
-          color={colorOf(me.id)}
-          isMyTurn={isMyTurn}
-          score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
-        >
-          <PlayerMat
-            player={me}
-            color={colorOf(me.id)}
-            party={partyOf(me.id)}
-            board={game.board}
-            isActive={isMyTurn}
-            isYou
-            score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
-            variant="full"
-            justTucked={justTucked}
-            discardSelection={
-              game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
-            }
-            onDiscardToken={
-              game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn
-                ? (resourceId) => {
-                    const need = R.excessOverCap(me.pool, me.resourceCap)
-                    const held = me.pool[resourceId] || 0
-                    const marked = capDiscard[resourceId] || 0
-                    if (marked >= held || R.poolTotal(capDiscard) >= need) {
-                      if (marked > 0) setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
-                      return
-                    }
-                    setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
-                  }
-                : null
-            }
-            powerActionFor={(ideo, lvl) =>
-              ({
-                capitalist3: 'prospect',
-                capitalist5: 'breaking_ground',
-                supremo3: 'donations',
-                supremo5: 'payback',
-                idealist5: 'tough_love',
-              }[`${ideo}${lvl}`])
-            }
-            onUsePower={(ideo, lvl, action, def) => {
-              if (!isMyTurn || game.turnPhase !== TURN_PHASES.ACTIONS) {
-                return say('error', 'You can only use powers during your actions.')
-              }
-              setSelection(null)
-              setGerry(null)
-              setPowerMode({ action, name: def.name, picked: [] })
-            }}
-          />
-        </FloatingMat>
       )}
 
-    </Shell>
+      {me && !finished && (
+        <MatDock
+          player={me}
+          color={colorOf(me.id)}
+          party={partyOf(me.id)}
+          board={game.board}
+          isMyTurn={isMyTurn}
+          score={standings.find((s) => s.playerId === me.id)?.score ?? 0}
+          justTucked={justTucked}
+          discardSelection={
+            game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn ? capDiscard : null
+          }
+          onDiscardToken={
+            game.turnPhase === TURN_PHASES.RESOURCE_CAP && isMyTurn
+              ? (resourceId) => {
+                  const need = R.excessOverCap(me.pool, me.resourceCap)
+                  const held = me.pool[resourceId] || 0
+                  const marked = capDiscard[resourceId] || 0
+                  if (marked >= held || R.poolTotal(capDiscard) >= need) {
+                    if (marked > 0) setCapDiscard({ ...capDiscard, [resourceId]: marked - 1 })
+                    return
+                  }
+                  setCapDiscard({ ...capDiscard, [resourceId]: marked + 1 })
+                }
+              : null
+          }
+          powerActionFor={(ideo, lvl) =>
+            ({
+              capitalist3: 'prospect',
+              capitalist5: 'breaking_ground',
+              supremo3: 'donations',
+              supremo5: 'payback',
+              idealist5: 'tough_love',
+            })[`${ideo}${lvl}`]
+          }
+          onUsePower={(ideo, lvl, action, def) => {
+            if (!canAct) return say('error', 'You can only use powers during your actions.')
+            setSelection(null)
+            setGerry(null)
+            setPowerMode({ action, name: def.name, picked: [] })
+          }}
+          commandBar={
+            <CommandBar
+              actions={commands}
+              busy={busy}
+              canEndTurn={canAct}
+              onEndTurn={() => send('end_turn')}
+            />
+          }
+        />
+      )}
+    </div>
   )
 }
 
@@ -983,65 +907,98 @@ function Shell({ children }) {
 }
 
 const S = {
-  // ── Shell ──────────────────────────────────────────────────────────────
-  page: {
-    // The table. The lacquer and jali come from body in globals.css; this just
-    // keeps the room from painting over them.
-    minHeight: '100vh',
-    padding: '18px 20px 44px',
-    fontFamily: 'var(--sans)',
-    color: 'var(--ink-on-dark)',
+  // ── The loading / error shell ──────────────────────────────────────────
+  // Only used before the room exists; the room itself is a full-viewport grid.
+  page: { minHeight: '100vh', padding: '40px 20px', fontFamily: 'var(--sans)' },
+  container: { width: '100%', maxWidth: 560, margin: '0 auto' },
+  btn: {
+    padding: '9px 18px',
+    background: 'linear-gradient(180deg, var(--saffron), var(--saffron-deep))',
+    color: '#fff6e4',
+    border: '1px solid var(--brass-dark)',
+    borderRadius: 'var(--r-md)',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block',
+    boxShadow: 'var(--sh-brass)',
   },
-  // Wide. The board is the centrepiece and was being squeezed to about 480px
-  // between the rail and the two mat columns; it now gets roughly double that.
-  container: { width: '100%', maxWidth: 1640, margin: '0 auto', paddingBottom: 130 },
-
-  // ── Header ─────────────────────────────────────────────────────────────
-  topBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 14,
-    flexWrap: 'wrap',
-  },
-  brand: { display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 },
-  h1: {
-    fontFamily: 'var(--display)',
-    fontSize: 26,
-    margin: 0,
-    letterSpacing: '0.18em',
-    background: 'linear-gradient(180deg, var(--brass-light), var(--brass) 55%, var(--saffron-deep))',
-    WebkitBackgroundClip: 'text',
-    backgroundClip: 'text',
-    color: 'transparent',
-  },
-  roomLine: { fontSize: 12.5, color: 'var(--brass)', fontVariantNumeric: 'tabular-nums' },
-
-  seats: { display: 'flex', gap: 7, flexWrap: 'wrap', flex: 1, justifyContent: 'center' },
-  seat: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 7,
-    padding: '5px 12px',
+  btnGhost: {
+    padding: '8px 15px',
     background: 'linear-gradient(180deg, var(--lacquer-3), var(--lacquer-2))',
     border: '1px solid rgba(217,173,62,.4)',
-    borderRadius: 999,
+    borderRadius: 'var(--r-md)',
     fontSize: 13,
+    cursor: 'pointer',
+    textDecoration: 'none',
     color: 'var(--ivory)',
-    whiteSpace: 'nowrap',
-    boxShadow: 'var(--sh-brass), var(--sh-1)',
+    boxShadow: 'var(--sh-brass)',
+    display: 'inline-block',
   },
-  seatName: { fontWeight: 550, display: 'flex', alignItems: 'baseline', gap: 5 },
-  you: {
+  error: { color: 'var(--danger)', fontSize: 13.5, marginBottom: 12 },
+
+  // ── A card being resolved at the table ─────────────────────────────────
+  prompt: { fontSize: 15, margin: '0 0 10px', lineHeight: 1.5, color: 'var(--ivory)' },
+  cardBody: {
+    fontSize: 12.5,
+    lineHeight: 1.6,
+    whiteSpace: 'pre-wrap',
+    fontFamily: 'inherit',
+    background: 'rgba(0,0,0,.28)',
+    border: '1px solid rgba(217,173,62,.22)',
+    padding: 11,
+    borderRadius: 'var(--r-md)',
+    margin: '0 0 8px',
+    color: 'var(--ink-on-dark-2)',
+  },
+  hint: { color: 'var(--ink-on-dark-3)', fontSize: 12.5, margin: '4px 0', lineHeight: 1.55 },
+  chip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '2px 9px',
+    borderRadius: 999,
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: 'var(--on-dark)',
+    whiteSpace: 'nowrap',
+    fontVariantNumeric: 'tabular-nums',
+  },
+
+  // ── The rail's own furniture ───────────────────────────────────────────
+  // Things demanding your attention: over the cap, a headline to draw, a card
+  // to resolve, a stalled campaign. They sit at the top of your own rail rather
+  // than stacked above the board, which is how the board ended up below the fold.
+  attn: {
+    backgroundColor: 'var(--lacquer-2)',
+    backgroundImage: 'linear-gradient(180deg, rgba(255,220,150,.07), transparent 42%)',
+    border: '1px solid rgba(217,173,62,.32)',
+    borderRadius: 'var(--r-lg)',
+    padding: 12,
+    boxShadow: 'var(--sh-2)',
+    flexShrink: 0,
+  },
+  attnHead: {
     fontFamily: 'var(--head)',
-    fontSize: 9.5,
+    fontSize: 11.5,
     letterSpacing: '0.14em',
     textTransform: 'uppercase',
     color: 'var(--brass)',
+    margin: '0 0 7px',
   },
-  seatScore: { fontFamily: 'var(--display)', fontSize: 15, color: 'var(--brass-light)' },
+  attnText: { fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink-on-dark-2)', margin: '0 0 9px' },
+  attnRow: { display: 'flex', gap: 7, flexWrap: 'wrap' },
+  hand: { display: 'flex', flexDirection: 'column', gap: 8 },
+
+  finished: { overflowY: 'auto', padding: '16px 20px 24px' },
+
+  // ── Shell ──────────────────────────────────────────────────────────────
+  // Wide. The board is the centrepiece and was being squeezed to about 480px
+  // between the rail and the two mat columns; it now gets roughly double that.
+
+  // ── Header ─────────────────────────────────────────────────────────────
+
 
   bannerWrap: {
     position: 'sticky',
@@ -1067,13 +1024,6 @@ const S = {
   // ── The table ──────────────────────────────────────────────────────────
   // Voter cards on top, board centre, opponents down each side, your own mat
   // floating along the bottom — the seating of a physical game.
-  withRail: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(240px, 300px) minmax(0, 1fr)',
-    gap: 16,
-    alignItems: 'start',
-  },
-  rail: { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 14 },
   railBox: {
     backgroundColor: 'var(--lacquer-2)',
     backgroundImage: 'linear-gradient(180deg, rgba(255,220,150,.06), transparent 40%)',
@@ -1106,25 +1056,8 @@ const S = {
     fontWeight: 600,
   },
 
-  table: { margin: '0 0 18px' },
-  voterStrip: { display: 'flex', justifyContent: 'center' },
-  tableRow: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(160px, 215px) minmax(0, 1fr) minmax(160px, 215px)',
-    gap: 14,
-    alignItems: 'start',
-    background: 'linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15))',
-    border: '1px solid rgba(217,173,62,.22)',
-    borderTop: 'none',
-    borderBottom: 'none',
-    padding: 16,
-  },
-  sideMats: { display: 'flex', flexDirection: 'column', gap: 10 },
-  boardCell: { minWidth: 0 },
-  deckStrip: { display: 'flex', justifyContent: 'center' },
 
   // ── Type ───────────────────────────────────────────────────────────────
-  rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   h2: {
     fontFamily: 'var(--head)',
     fontSize: 19,
@@ -1133,16 +1066,7 @@ const S = {
     alignItems: 'center',
     color: 'var(--ivory)',
   },
-  h4: {
-    fontFamily: 'var(--head)',
-    fontSize: 11,
-    margin: '18px 0 8px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.16em',
-    color: 'var(--brass)',
-  },
   muted: { color: 'var(--ink-on-dark-3)', fontSize: 14 },
-  hint: { color: 'var(--ink-3)', fontSize: 12, margin: '4px 0', lineHeight: 1.5 },
 
   // ── Surfaces ───────────────────────────────────────────────────────────
   panel: {
@@ -1156,57 +1080,8 @@ const S = {
     boxShadow: 'var(--sh-2)',
     transition: 'border-color 260ms var(--ease)',
   },
-  subPanel: {
-    border: '1px solid rgba(217,173,62,.22)',
-    background: 'rgba(0,0,0,.28)',
-    borderRadius: 'var(--r-md)',
-    boxShadow: 'inset 0 2px 6px rgba(0,0,0,.4)',
-    padding: 13,
-    marginTop: 10,
-  },
-  callout: {
-    background: 'var(--amber-bg)',
-    border: '1px solid var(--amber-brd)',
-    borderRadius: 'var(--r-md)',
-    padding: '9px 12px',
-    fontSize: 13,
-    margin: '10px 0',
-  },
-  stall: {
-    background: 'var(--danger-bg)',
-    border: '1px solid var(--danger-brd)',
-    borderRadius: 'var(--r-md)',
-    padding: '10px 12px',
-    fontSize: 13,
-    marginTop: 10,
-  },
-  error: { color: 'var(--danger)', fontSize: 13, marginTop: 10 },
 
   // ── Controls ───────────────────────────────────────────────────────────
-  btn: {
-    padding: '8px 16px',
-    background: 'var(--accent)',
-    color: 'var(--on-dark)',
-    border: 'none',
-    borderRadius: 'var(--r-md)',
-    fontSize: 14,
-    fontWeight: 550,
-    cursor: 'pointer',
-    textDecoration: 'none',
-    display: 'inline-block',
-  },
-  btnGhost: {
-    padding: '7px 14px',
-    background: 'linear-gradient(180deg, var(--lacquer-3), var(--lacquer-2))',
-    border: '1px solid rgba(217,173,62,.4)',
-    borderRadius: 'var(--r-md)',
-    fontSize: 13,
-    cursor: 'pointer',
-    textDecoration: 'none',
-    color: 'var(--ivory)',
-    boxShadow: 'var(--sh-brass)',
-    display: 'inline-block',
-  },
   miniBtn: {
     fontFamily: 'var(--head)',
     fontSize: 11,
@@ -1220,59 +1095,7 @@ const S = {
     cursor: 'pointer',
     boxShadow: 'inset 0 1px 0 rgba(255,245,215,.7), 0 1px 2px rgba(0,0,0,.35)',
   },
-  link: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--accent)',
-    textDecoration: 'underline',
-    cursor: 'pointer',
-    fontSize: 12,
-    padding: 0,
-  },
 
   // ── Bits ───────────────────────────────────────────────────────────────
-  prompt: { fontSize: 15, margin: '0 0 12px', lineHeight: 1.5 },
-  phaseTag: {
-    fontFamily: 'var(--head)',
-    fontSize: 10.5,
-    textTransform: 'uppercase',
-    letterSpacing: '0.14em',
-    background: 'rgba(0,0,0,.35)',
-    border: '1px solid rgba(217,173,62,.3)',
-    padding: '3px 10px',
-    borderRadius: 999,
-    color: 'var(--brass)',
-  },
-  dot: {
-    display: 'inline-block',
-    width: 9,
-    height: 9,
-    borderRadius: '50%',
-    marginRight: 8,
-    flexShrink: 0,
-  },
-  chip: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '2px 9px',
-    borderRadius: 999,
-    fontSize: 11.5,
-    fontWeight: 550,
-    color: 'var(--on-dark)',
-    whiteSpace: 'nowrap',
-    fontVariantNumeric: 'tabular-nums',
-  },
   // A Conspiracy card sitting in your hand, off-turn
-  cardBody: {
-    fontSize: 12.5,
-    lineHeight: 1.55,
-    whiteSpace: 'pre-wrap',
-    fontFamily: 'inherit',
-    background: 'var(--surface-2)',
-    border: '1px solid var(--border)',
-    padding: 11,
-    borderRadius: 'var(--r-md)',
-    margin: '0 0 8px',
-  },
 }

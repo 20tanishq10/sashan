@@ -27,6 +27,10 @@ export default function VoterCardRow({
   onSelect,
   selectedIndex = null,
   disabled = false,
+  // Stacked rather than in a row. The board is portrait, so a horizontal market
+  // strip costs it the one dimension it cannot spare; in a side gutter, stacked,
+  // it costs nothing.
+  column = false,
 }) {
   // Buying a card empties its slot and the deck immediately flips a replacement
   // (p.9), which used to happen between two frames with nothing to see. The
@@ -40,15 +44,19 @@ export default function VoterCardRow({
   const discardSize = market.discard?.length ?? 0
 
   return (
-    <div style={S.row}>
-      <CardStack
-        label="Voter Cards"
-        caption="Draw pile"
-        count={drawSize}
-        vertical={false}
-        width={74}
-        height={96}
-      />
+    <div style={column ? S.column : S.row}>
+      {/* In a column the piles sit together at the bottom, out of the way of the
+          three cards you are actually choosing between. */}
+      {!column && (
+        <CardStack
+          label="Voter Cards"
+          caption="Draw pile"
+          count={drawSize}
+          vertical={false}
+          width={74}
+          height={96}
+        />
+      )}
 
       {market.open.map((cardId, i) => {
         const card = Voter.getVoterCard(cardId)
@@ -124,15 +132,35 @@ export default function VoterCardRow({
         )
       })}
 
-      <CardStack
-        label="Discard"
-        caption="Discard voters"
-        count={discardSize}
-        empty={discardSize === 0}
-        vertical={false}
-        width={74}
-        height={96}
-      />
+      {column ? (
+        <div style={S.piles}>
+          <CardStack
+            label="Draw"
+            count={drawSize}
+            vertical={false}
+            width={62}
+            height={80}
+          />
+          <CardStack
+            label="Discard"
+            count={discardSize}
+            empty={discardSize === 0}
+            vertical={false}
+            width={62}
+            height={80}
+          />
+        </div>
+      ) : (
+        <CardStack
+          label="Discard"
+          caption="Discard voters"
+          count={discardSize}
+          empty={discardSize === 0}
+          vertical={false}
+          width={74}
+          height={96}
+        />
+      )}
     </div>
   )
 }
@@ -164,6 +192,20 @@ function Slot({ label, sub, children }) {
 }
 
 const S = {
+  column: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 10,
+  },
+  piles: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'center',
+    paddingTop: 4,
+    borderTop: '1px solid rgba(217,173,62,.22)',
+    width: '100%',
+  },
   row: {
     display: 'flex',
     gap: 10,

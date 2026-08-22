@@ -711,6 +711,107 @@ a:hover { text-decoration: underline; }
 .rulebook-modal-header h2 { font-size: 1rem; }
 
 /* ============================================================
+   THE ROOM
+
+   The map is 872x1218 — portrait. So the board only gets bigger
+   by getting taller, which makes HEIGHT the scarce dimension and
+   width nearly free: even at full height on a 1080p screen the
+   board is 640px wide, leaving over a thousand pixels either
+   side. The old layout stacked panels above the board and pushed
+   it below the fold, spending the scarce dimension and leaving
+   the abundant one empty.
+
+   So: the room fills the viewport and does not scroll. The board
+   takes every pixel of height left over, and everything else
+   lives in the side gutters, which cost it nothing.
+   ============================================================ */
+
+.room {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.room-stage {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 244px;
+  gap: 14px;
+  min-height: 0;   /* without this a grid child refuses to shrink */
+  padding: 0 16px 10px;
+}
+
+/* The rails scroll on their own rather than growing the page. */
+.room-rail {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-dark) transparent;
+}
+.room-rail::-webkit-scrollbar { width: 7px; }
+.room-rail::-webkit-scrollbar-thumb {
+  background: var(--brass-dark);
+  border-radius: 999px;
+}
+.room-rail::-webkit-scrollbar-track { background: transparent; }
+
+/* The board column. The board sizes itself to the height available and the
+   column centres it, which is why the gutters end up wide on a big screen —
+   a portrait map cannot use that width. */
+.room-board {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Folding ────────────────────────────────────────────────
+   Two independent thresholds. Short screens give the mat back to
+   the board; narrow screens stop trying to hold three columns. */
+
+/* A 13" laptop with browser chrome has about 700px. The mat collapses to a
+   summary bar and the board keeps the difference. */
+@media (max-height: 820px) {
+  .room-dock--full { display: none; }
+  .room-dock--summary { display: flex; }
+}
+@media (min-height: 821px) {
+  .room-dock--summary { display: none; }
+}
+
+@media (max-width: 1180px) {
+  .room-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  /* Rivals and market become one horizontal strip above the board. */
+  .room-rail {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-height: 156px;
+  }
+  .room-rail > * { flex: 0 0 auto; }
+}
+
+/* Below this the room stops fighting for a single screen and scrolls, because
+   a phone cannot show a portrait board and anything else at once. */
+@media (max-width: 720px) {
+  .room { height: auto; overflow: visible; }
+  .room-stage { grid-template-rows: auto auto auto; }
+  .room-rail { max-height: none; }
+}
+
+/* ============================================================
    THE TABLE
    ============================================================ */
 

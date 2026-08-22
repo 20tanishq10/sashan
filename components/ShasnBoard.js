@@ -63,7 +63,14 @@ export default function ShasnBoard({
   onAreaClick,
   selectedAreas = [],
   legalZones = null, // Set of zone ids currently targetable, or null for all
+  // 'width' fills the container's width and lets the height follow — what a
+  // document does. 'height' fills the container's HEIGHT and lets the width
+  // follow, which is what a portrait map in a landscape viewport needs: the
+  // board can only get bigger by getting taller.
+  fit = 'width',
   maxWidth = 980,
+  focusPlayerId = null, // lift one player's territory, drop everything else
+  onZoneHover = null,   // (zoneId | null) => void
 }) {
   const rights = Board.gerrymanderingRights(board)
   const interactive = Boolean(onAreaClick)
@@ -76,13 +83,23 @@ export default function ShasnBoard({
   const emblemFor = (playerId) =>
     partyOf?.(playerId) || partyForSeat(players.findIndex((p) => p.id === playerId)).id
 
+  const byHeight = fit === 'height'
+
   return (
-    <div style={{ width: '100%', maxWidth, margin: '0 auto' }}>
+    <div
+      style={
+        byHeight
+          ? { height: '100%', display: 'flex', justifyContent: 'center', minHeight: 0 }
+          : { width: '100%', maxWidth, margin: '0 auto' }
+      }
+      onMouseLeave={onZoneHover ? () => onZoneHover(null) : undefined}
+    >
       <svg
         viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.w} ${VIEW_BOX.h}`}
         style={{
-          width: '100%',
-          height: 'auto',
+          ...(byHeight
+            ? { height: '100%', width: 'auto', maxWidth: '100%' }
+            : { width: '100%', height: 'auto' }),
           display: 'block',
           borderRadius: 14,
           background: RAW.boardBg,
@@ -191,7 +208,11 @@ export default function ShasnBoard({
         {ZONE_IDS.map((zoneId) => {
           const g = ZONE_GEOMETRY[zoneId]
           const holder = Board.majorityHolder(board, zoneId)
-          const dim = legalZones && !legalZones.has(zoneId)
+          // Two independent reasons to recede: not part of the current action,
+          // or not the player whose territory is being inspected.
+          const dim =
+            (legalZones && !legalZones.has(zoneId)) ||
+            (focusPlayerId && holder !== focusPlayerId)
           const inner = zoneId === 'central'
           const band = zoneId === 'north' || zoneId === 'south'
           const change = changes.zones[zoneId]
@@ -226,7 +247,11 @@ export default function ShasnBoard({
           const dim = legalZones && !legalZones.has(zoneId)
 
           return (
-            <g key={`${zoneId}-pips`} opacity={dim ? OUT_OF_SCOPE : 1}>
+            <g
+              key={`${zoneId}-pips`}
+              opacity={dim ? OUT_OF_SCOPE : 1}
+              onMouseEnter={onZoneHover ? () => onZoneHover(zoneId) : undefined}
+            >
               {g.pips.map(([cx, cy], i) => {
                 const owner = owners[i]
                 const volatile = ZONES[zoneId].volatile.includes(i)
@@ -277,7 +302,11 @@ export default function ShasnBoard({
                       }
                       strokeWidth={sel ? 6 : majorityVoter ? 6 : 1.5}
                       filter={owner ? 'url(#pipShadow)' : undefined}
-                      style={{ transition: 'fill 260ms var(--ease), stroke 260ms var(--ease)' }}
+                      opacity={focusPlayerId && owner !== focusPlayerId ? OUT_OF_SCOPE : 1}
+                      style={{
+                        transition:
+                          'fill 260ms var(--ease), stroke 260ms var(--ease), opacity 260ms var(--ease)',
+                      }}
                     />
 
                     {/* The light on the stone. Drawn over every voter, empty or

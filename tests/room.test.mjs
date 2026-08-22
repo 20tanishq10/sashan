@@ -283,6 +283,38 @@ check('the room is still standing after the card files away', () => {
   ok(text().includes('SHASN'), 'the room is still rendered')
 })
 
+// ── Nothing empty takes up room ────────────────────────────────────────────
+// Roughly 450px of the scarce vertical dimension was being spent announcing
+// that there was no auction, no gerrymandering right and no conspiracy card in
+// hand. Two of those headings rendered whether or not they had anything under
+// them. The board is portrait, so that height came straight out of the game.
+
+check('an absent thing gets no heading and no box', () => {
+  const t = text()
+
+  // A fresh game: nobody holds a majority, so nobody has gerrymandering rights,
+  // and nobody has bought a conspiracy yet.
+  ok(!t.includes('No rights'), 'no "you have no rights" line')
+  ok(
+    !t.includes('Conspiracy Cards in hand'),
+    'no conspiracy heading over an empty hand'
+  )
+  ok(!t.includes('No auction running'), 'no box explaining that nothing is happening')
+  ok(
+    !t.includes('No action points'),
+    'the standing rule about action points belongs in the rulebook, not the turn'
+  )
+  drain('checking for empty furniture')
+})
+
+check('the things that ARE true still show', () => {
+  // The guard against over-correcting: hiding empty states must not hide real
+  // ones. Whatever phase we are in, the room still says whose turn it is.
+  const t = text()
+  ok(/Your turn|is playing/.test(t), `the turn is stated; saw: ${t.slice(0, 120)}`)
+  ok(t.includes('SHASN'), 'and the room is still rendered')
+})
+
 // ── Feedback ───────────────────────────────────────────────────────────────
 // A rejected action used to report into a panel near the bottom of the page,
 // and a client-side complaint was only cleared by making a server call.
@@ -308,6 +340,81 @@ await settle(80)
 check('clicking the board never throws, legal or not', () => {
   drain('clicking the board')
   ok(!text().includes('boundary'), 'the error boundary did not trip')
+})
+
+// ── The new room ───────────────────────────────────────────────────────────
+// The page was one column of stacked panels on a board that is portrait, so
+// height was the scarce dimension and it was being spent on furniture. These
+// check the three regions it became, and the three things they made possible.
+
+check('the room is three columns with the mat docked', () => {
+  ok(container.querySelector('.room'), 'the shell is there')
+  ok(container.querySelector('.room-stage'), 'and the stage inside it')
+  ok(container.querySelector('.room-rail'), 'the rivals have their own column')
+  ok(container.querySelector('.room-board'), 'the board has the middle')
+  drain('laying out the room')
+})
+
+check('every rival is in the rail, and I am not', () => {
+  const rail = container.querySelector('.room-rail')
+  const t = rail.textContent
+  ok(t.includes('Bo') && t.includes('Cy'), 'the rivals are in the rail')
+  ok(!t.includes('Ada'), 'and I am in the dock, not among them')
+})
+
+// Clicking a rival should light their territory and drop everything else. The
+// point is to answer "where is Bo actually strong" by looking rather than
+// counting.
+const rivalSeat = [...container.querySelectorAll('[role="button"][aria-pressed]')][0]
+
+await act(async () => {
+  rivalSeat?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+})
+await settle(80)
+
+check('clicking a rival lights their territory', () => {
+  ok(rivalSeat, 'there was a rival to click')
+  drain('focusing a rival')
+  eq(rivalSeat.getAttribute('aria-pressed'), 'true', 'the seat is held down:')
+  ok(/Showing|territory/i.test(text()), 'and the room says whose territory is showing')
+})
+
+await act(async () => {
+  rivalSeat?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+})
+await settle(80)
+
+check('clicking the same rival again releases the board', () => {
+  eq(rivalSeat.getAttribute('aria-pressed'), 'false', 'the seat came back up:')
+  drain('releasing the focus')
+})
+
+// Hovering a zone should answer what the plaque cannot: how many to hold it,
+// how many are left, and what that means for me.
+const zoneGroup = container.querySelector('svg g[opacity]')
+
+await act(async () => {
+  const ev = new dom.window.MouseEvent('mouseover', { bubbles: true })
+  Object.defineProperty(ev, 'type', { value: 'mouseenter' })
+  zoneGroup?.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true }))
+})
+await settle(60)
+
+check('hovering the board never throws', () => {
+  // React attaches mouseenter through its own synthetic system, which jsdom
+  // does not always deliver from a raw event. What this can prove is that the
+  // hover path is wired and harmless; the zone card content itself is checked
+  // directly in tests/render.test.mjs.
+  drain('hovering a zone')
+  ok(!text().includes('boundary'), 'the error boundary did not trip')
+})
+
+check('the mat is docked at the bottom, with the commands on it', () => {
+  const dock = container.querySelector('.room-dock, .room-dock--full, .room-dock--summary')
+  ok(dock, 'the dock is there')
+  ok(text().includes('Ada'), 'my mat is in it')
+  ok(/End turn/i.test(text()), 'and so is the way to finish')
+  drain('checking the dock')
 })
 
 // ── The endgame ────────────────────────────────────────────────────────────
